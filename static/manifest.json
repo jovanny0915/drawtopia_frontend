@@ -1,0 +1,52 @@
+{
+  "name": "Drawtopia",
+  "short_name": "Drawtopia",
+  "description": "Create magical story books for children",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/badge-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "badge"
+    }
+  ],
+  "categories": ["books", "education", "entertainment"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Go to your dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Create Story",
+      "short_name": "Create",
+      "description": "Create a new story",
+      "url": "/create-character/1",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
+
