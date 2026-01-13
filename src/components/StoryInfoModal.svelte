@@ -33,7 +33,7 @@
       console.log(`[StoryInfoModal] Fetching PDF URL for story ID: ${storyId}`);
       
       // Call backend API to get or generate PDF URL
-      const apiUrl = `https://drawtopia-backend.vercel.app/api/books/${storyId}/generate-pdf`;
+      const apiUrl = `https://image-edit-five.vercel.app/api/books/${storyId}/generate-pdf`;
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -122,7 +122,7 @@
         console.log(`[StoryInfoModal] Requesting PDF generation for story ID: ${storyId}`);
         
         // Call backend API to generate PDF
-        const apiUrl = `https://drawtopia-backend.vercel.app/api/books/${storyId}/generate-pdf`;
+        const apiUrl = `https://image-edit-five.vercel.app/api/books/${storyId}/generate-pdf`;
         
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -248,7 +248,7 @@
       console.log(`[StoryInfoModal] Requesting deletion for story ID: ${storyId}`);
       
       // Call backend API to delete story
-      const apiUrl = `https://drawtopia-backend.vercel.app/api/books/${storyId}`;
+      const apiUrl = `https://image-edit-five.vercel.app/api/books/${storyId}`;
       
       const response = await fetch(apiUrl, {
         method: 'DELETE',

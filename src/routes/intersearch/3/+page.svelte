@@ -44,7 +44,7 @@
   let downloadError = "";
 
   // API Base URL
-  const API_BASE_URL = "https://drawtopia-backend.vercel.app";
+  const API_BASE_URL = "https://image-edit-five.vercel.app";
 
   $: if (browser) {
     storyId = $page.url.searchParams.get('storyId');

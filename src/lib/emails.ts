@@ -4,7 +4,7 @@
  * Note: Emails are now sent immediately (no queue system)
  */
 
-const BACKEND_URL = 'https://drawtopia-backend.vercel.app'; // http://localhost:8000
+const BACKEND_URL = 'https://image-edit-five.vercel.app'; // http://localhost:8000
 
 export interface EmailResult {
   success: boolean;

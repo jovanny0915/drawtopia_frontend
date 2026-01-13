@@ -274,7 +274,7 @@ export async function deleteChildProfile(profileId: number, parentId: string): P
 export async function getChildrenForParent(parentId: string): Promise<DatabaseResult> {
   try {
     // Determine backend URL
-    let backendUrl = 'https://drawtopia-backend.vercel.app'; // http://localhost:8000
+    let backendUrl = 'https://image-edit-five.vercel.app'; // http://localhost:8000
     
     // Call Python backend API
     const endpoint = `${backendUrl}/api/users/children?parent_id=${encodeURIComponent(parentId)}`;

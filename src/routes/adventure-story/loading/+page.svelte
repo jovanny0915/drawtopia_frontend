@@ -401,7 +401,7 @@
             }
             
             // Generate scene images using edit-image endpoint (scenes 1-4 only)
-            const imageGenerationEndpoint = 'https://drawtopia-backend.vercel.app/edit-image';
+            const imageGenerationEndpoint = 'https://image-edit-five.vercel.app/edit-image';
             
             for (let index = 0; index < scenePrompts.length; index++) {
                 if (isCancelled) return;
@@ -878,7 +878,7 @@
 
             
             // Send request to generate-story endpoint
-            const storyGenerationEndpoint = 'https://drawtopia-backend.vercel.app';
+            const storyGenerationEndpoint = 'https://image-edit-five.vercel.app';
             const response = await fetch(`${storyGenerationEndpoint}/generate-story/`, {
                 method: 'POST',
                 headers: {

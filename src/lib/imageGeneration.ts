@@ -303,7 +303,7 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
       prompt = `Enhance this character image with a ${style} style at ${quality} quality level. Keep the character's original features and personality intact while applying the requested style.`;
     }
 
-    const response = await fetch('https://drawtopia-backend.vercel.app/edit-image', {
+    const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -558,7 +558,7 @@ export async function generateCharacterWithSpecialAbility(
       combinedPrompt = negativePrompts.join(' ');
     }
 
-    const response = await fetch('https://drawtopia-backend.vercel.app/edit-image', {
+    const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -697,7 +697,7 @@ export async function generateIntersearchCover(): Promise<ImageGenerationResult>
     });
 
     // Call the /edit-image/ endpoint
-    const response = await fetch('https://drawtopia-backend.vercel.app/edit-image/', {
+    const response = await fetch('https://image-edit-five.vercel.app/edit-image/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

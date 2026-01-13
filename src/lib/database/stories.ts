@@ -280,7 +280,7 @@ export async function getAllStoriesForParent(parentId: string): Promise<Database
     }
     
     // Determine backend URL
-    let backendUrl = 'https://drawtopia-backend.vercel.app'; // http://localhost:8000
+    let backendUrl = 'https://image-edit-five.vercel.app'; // http://localhost:8000
     
     // Call Python backend API
     const endpoint = `${backendUrl}/api/books/?parent_id=${encodeURIComponent(parentId)}`;
@@ -323,7 +323,7 @@ export async function getAllStoriesForParent(parentId: string): Promise<Database
 export async function getAllCharacters(parentId: string): Promise<DatabaseResult> {
   try {
     // Determine backend URL
-    let backendUrl = 'https://drawtopia-backend.vercel.app'; // http://localhost:8000
+    let backendUrl = 'https://image-edit-five.vercel.app'; // http://localhost:8000
     
     // Call Python backend API
     const endpoint = `${backendUrl}/api/characters/?parent_id=${encodeURIComponent(parentId)}`;
@@ -375,7 +375,7 @@ export async function getAllCharacters(parentId: string): Promise<DatabaseResult
 export async function deleteCharacter(characterId: string, userId: string): Promise<DatabaseResult> {
   try {
     // Determine backend URL
-    let backendUrl = 'https://drawtopia-backend.vercel.app'; // http://localhost:8000
+    let backendUrl = 'https://image-edit-five.vercel.app'; // http://localhost:8000
     
     // Call Python backend API
     const endpoint = `${backendUrl}/api/characters/${encodeURIComponent(characterId)}?user_id=${encodeURIComponent(userId)}`;

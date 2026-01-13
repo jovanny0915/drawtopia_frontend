@@ -170,7 +170,7 @@
     
     try {
       // Determine backend URL
-      let backendUrl = 'https://drawtopia-backend.vercel.app';
+      let backendUrl = 'https://image-edit-five.vercel.app';
       
       // Check if VITE_API_BASE_URL is set
       if (import.meta.env.VITE_API_BASE_URL) {
