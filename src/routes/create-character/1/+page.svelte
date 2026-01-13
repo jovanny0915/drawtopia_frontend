@@ -332,6 +332,8 @@
       selectedChildProfileName = selectedChild.label;
       if (browser) {
         storyCreation.setSelectedChild(target.value, selectedChild.label);
+        // Store child name to session storage
+        sessionStorage.setItem('selectedChildName', selectedChild.label);
       }
     }
   };
