@@ -1,5 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from "svelte";
+  import { goto } from "$app/navigation";
+  import { browser } from "$app/environment";
   import PersonSimple from "../assets/PersonSimple.svg";
   import animal from "../assets/animal.svg";
   import monster from "../assets/monster.svg";
@@ -119,7 +121,40 @@
 
   // Handle use in new book
   function handleUseInNewBook() {
-    dispatch("useInNewBook", character);
+    if (browser) {
+      // Get the character image URL (handle both array and string formats)
+      let imageUrl = '';
+      if (Array.isArray(character.enhanced_images) && character.enhanced_images.length > 0) {
+        imageUrl = character.enhanced_images[0];
+      } else if (typeof character.enhanced_images === 'string' && character.enhanced_images) {
+        imageUrl = character.enhanced_images;
+      } else if (character.original_image_url) {
+        imageUrl = character.original_image_url;
+      }
+      
+      // Store character ID in sessionStorage (important for update operation)
+      if (character.id) {
+        sessionStorage.setItem('characterId', character.id.toString());
+      }
+      
+      // Store character data in sessionStorage for pre-filling the form
+      sessionStorage.setItem('prefill_character_image', imageUrl);
+      sessionStorage.setItem('prefill_character_name', character.character_name || '');
+      sessionStorage.setItem('prefill_character_type', character.character_type || 'person');
+      sessionStorage.setItem('prefill_special_ability', character.special_ability || '');
+      sessionStorage.setItem('prefill_character_style', character.character_style || '3d');
+      
+      // Store child profile ID if available
+      if (character.child_profile_id) {
+        sessionStorage.setItem('prefill_child_profile_id', character.child_profile_id.toString());
+      }
+      
+      // Set a flag to indicate we're pre-filling the form
+      sessionStorage.setItem('prefill_character_mode', 'true');
+    }
+    
+    // Navigate to create character page
+    goto('/create-character/1');
   }
 
   // Handle edit character
@@ -218,7 +253,7 @@
       <div><span class="booksfeaturingluna_span">Books featuring {getCharacterName()}</span></div>
     </div>
     <div class="card_01">
-      {#each books as book (book.id)}
+      {#each books as book, i (book.story_title + '_' + i)}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="frame-2147227596" on:click={() => handleBookClick(book)} role="button" tabindex="0">
           <div class="frame-2147227584_01">

@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import drawtopiaLogo from "../../../../assets/logo.png"
     import ShieldStar from "../../../../assets/ShieldStar.svg"
     import ArrowLeft from "../../../../assets/ArrowLeft.svg"
@@ -11,6 +11,14 @@
     let customDedicationText = "Dear Emma, Adventure awaits for the bravest of hearts — just like yours.       — From Papa";
     const maxCharacters = 200;
     let selectedPresetIndex = 0;
+    let childName: string = "";
+    
+    $: if (browser) {
+        // Load child name from sessionStorage
+        if (!childName) {
+            childName = sessionStorage.getItem("selectedChildName") || "";
+        }
+    }
     
     $: characterCount = customDedicationText.length;
     
@@ -117,7 +125,15 @@
                 <div class="frame-1410104034">
                     <div class="dedication-pages-preview"><span class="dedicationpagespreview_span">Dedication Pages Preview</span></div>
                 </div>
-                <img class="book" src={std_book_image} />
+                <div
+                  class="dedication-wrapper"
+                  style="background-image: url({std_book_image}); background-position: center; background-repeat: no-repeat; background-size: cover;"
+                >
+                  <div class="dedication-text1">Dedication</div>
+                  <div class="dedication-text2">For</div>
+                  <div class="dedication-text3">{childName || "Add name here"}</div>
+                  <div class="dedication-text3">{selectedDedicationText || "Add message here"}</div>
+                </div>
             </div>
             <div class="frame-9">
                 <div><span class="informationdedicationpages_span">Information Dedication Pages</span></div>
@@ -663,6 +679,44 @@
     position: relative;
     box-shadow: 2px -12px 4px 1px white inset;
     border-radius: 24px;
+}
+
+.dedication-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    background: url({std_book_image}) no-repeat center center;
+    height: 100%;
+    border-radius: 9px;
+    height: 700px;
+    box-shadow: 2px -12px 4px 1px white inset;
+    border-radius: 24px;
+}
+
+.dedication-text1 {
+    color: #ffffff;
+    font-size: 42px;
+    font-family: DM Sans;
+    font-weight: 600;
+    text-align: center;
+    margin-top: 100px;
+    z-index: 1;
+}
+
+.dedication-text2 {
+    color: #ffffff;
+    font-size: 24px;
+    font-family: sans-serif;
+    text-align: center;
+    z-index: 1;
+}
+
+.dedication-text3 {
+    color: #ffffff;
+    font-size: 32px;
+    font-family: DM Sans;
+    text-align: center;
+    z-index: 1;
 }
 
 .informationdedicationpages_span {
