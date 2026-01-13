@@ -11,7 +11,6 @@
 
   // Define public routes that don't require authentication
   const publicRoutes = [
-    '/',
     '/login',
     '/signup',
     '/otp-email',
@@ -50,6 +49,11 @@
   // Reactive statement to check authentication status
   $: if (browser && !$authLoading) {
     const currentPath = $page.url.pathname;
+    
+    // Redirect "/" to "/dashboard"
+    if (currentPath === '/') {
+      goto('/dashboard');
+    }
     
     // If user is not authenticated and trying to access a protected route
     if (!$isAuthenticated && !isPublicRoute(currentPath)) {

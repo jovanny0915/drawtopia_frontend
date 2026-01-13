@@ -233,11 +233,16 @@
       goto("/create-character/3");
     }
   };
+
+
+  function goToDashboard() {
+    goto('/dashboard');
+  }
 </script>
 
 <div class="character-creation-default">
   <div class="navbar">
-    <div class="logo-text-full">
+    <div class="logo-text-full" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()}>
       <div class="logo-img"></div>
     </div>
   </div>
@@ -776,6 +781,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
   }
   .logo-img {
     background-image: url("../../../assets/logo.png");

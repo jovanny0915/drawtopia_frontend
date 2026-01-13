@@ -1,13 +1,18 @@
 <script>
+  import { goto } from "$app/navigation";
   import caretdown from "../assets/CaretDown.svg";
   
   export let userName = "Alex Smith";
   export let userPlan = "Premium Plan";
   export let avatarUrl = "https://placehold.co/40x40";
+  
+  const goToDashboard = () => {
+    goto('/dashboard');
+  };
 </script>
 
 <div class="navbar">
-  <div class="logo-text-full">
+  <div class="logo-text-full" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()}>
     <div class="logo-img"></div>
   </div>
 
@@ -89,6 +94,7 @@
     width: 203.32px;
     height: 38px;
     position: relative;
+    cursor: pointer;
   }
 
   .frame-1410103913 {

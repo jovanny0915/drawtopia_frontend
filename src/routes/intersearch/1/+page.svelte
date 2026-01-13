@@ -978,6 +978,10 @@
     return filled + empty;
   }
 
+  function goToDashboard() {
+    goto('/dashboard');
+  }
+
   function handleBack() {
     goto("/intersearch");
   }
@@ -985,7 +989,7 @@
 
 <div class="preview-outer">
   <div class="preview-logo-container">
-    <img class="preview-logo" src={logo} alt="Drawtopia Logo" />
+    <img class="preview-logo" src={logo} alt="Drawtopia Logo" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} />
   </div>
   <div class="arrow">
     <div class="button" on:click={handleBack} role="button" tabindex="0" on:keydown={(e) => (e.key === "Enter" || e.key === " ") && handleBack()}>
@@ -1423,6 +1427,7 @@
 
   .preview-logo {
     height: 43px;
+    cursor: pointer;
   }
 
   .back_span {

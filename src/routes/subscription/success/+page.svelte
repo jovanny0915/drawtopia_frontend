@@ -4,6 +4,10 @@
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
     import drawtopia from "../../../assets/logo.png";
+    
+    const goToDashboard = () => {
+        goto('/dashboard');
+    };
 
     let sessionId: string | null = null;
     let isVerifying = true;
@@ -38,7 +42,7 @@
 
 <div class="success-container">
     <div class="logo-container">
-        <img src={drawtopia} alt="Drawtopia" class="logo" />
+        <img src={drawtopia} alt="Drawtopia" class="logo" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} />
     </div>
 
     {#if isVerifying}
@@ -133,6 +137,7 @@
 
     .logo {
         height: 48px;
+        cursor: pointer;
     }
 
     .loading-state {

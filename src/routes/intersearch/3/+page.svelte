@@ -373,11 +373,15 @@
       isDownloading = false;
     }
   }
+
+  function goToDashboard() {
+    goto('/dashboard');
+  }
 </script>
 
 <div class="complete-outer">
   <div class="brand-container">
-    <img class="brand" src={logo} alt="Drawtopia" />
+    <img class="brand" src={logo} alt="Drawtopia" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} />
   </div>
 
   {#if isLoading}
@@ -568,6 +572,7 @@
   }
   .brand {
     height: 38px;
+    cursor: pointer;
   }
   .card {
     display: flex;

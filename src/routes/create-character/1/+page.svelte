@@ -19,6 +19,10 @@
   import { goto } from "$app/navigation";
   import { browser } from "$app/environment";
   import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";
+  
+  const goToDashboard = () => {
+    goto('/dashboard');
+  };
   import MobileBackBtn from "../../../components/MobileBackBtn.svelte";
   import { uploadCharacterImage } from "../../../lib/storage";
   import { user } from "../../../lib/stores/auth";
@@ -474,7 +478,7 @@
 
 <div class="character-creation-default">
   <div class="navbar">
-    <div class="logo-text-full">
+    <div class="logo-text-full" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()}>
       <div class="logo-img"></div>
     </div>
   </div>
@@ -1625,6 +1629,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
   }
   .logo-img {
     background-image: url("../../../assets/logo.png");

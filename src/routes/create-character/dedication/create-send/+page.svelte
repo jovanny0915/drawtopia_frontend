@@ -5,6 +5,10 @@
     import ArrowLeft from "../../../../assets/ArrowLeft.svg"
     import std_book_cover from "../../../../assets/std_book_cover.png"
     import { goto } from "$app/navigation";
+    
+    const goToDashboard = () => {
+        goto('/dashboard');
+    };
     import { browser } from "$app/environment";
     import MobileStepProgressBar from "../../../../components/MobileStepProgressBar.svelte";
     import ProgressBar from "../../../../components/ProgressBar.svelte";
@@ -45,7 +49,7 @@
 
 <div class="dedication-pages-when-selected-create-send">
     <div class="navbar">
-        <img src={drawtopiaLogo} alt="Drawtopia Logo" class="img-logo" />
+        <img src={drawtopiaLogo} alt="Drawtopia Logo" class="img-logo" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} />
     </div>
     <div class="frame-1410103818">
         <div class="heading">
@@ -175,7 +179,10 @@
                         >
                     </div>
                 </div>
-                <img class="book" src={std_book_cover} alt="Book cover" />
+                <div class="dedication-wrapper">
+                    <div class="dedication-text1">safasdfasdfqwer</div>
+                    <img class="book" src={std_book_cover} alt="Book cover" />
+                </div>
             </div>
             <div class="frame-9">
                 <div>
@@ -243,6 +250,7 @@
         width: 203.32px;
         height: 38px;
         margin: auto;
+        cursor: pointer;
     }
 
     .hereyourmagicalstory_span {
@@ -271,15 +279,6 @@
     .your-character-is-now-part-of-their-very-own-adventure {
         width: 1040px;
         text-align: center;
-    }
-
-    .vector {
-        width: 15px;
-        height: 15.63px;
-        left: 2.5px;
-        top: 3.12px;
-        position: absolute;
-        background: #438bff;
     }
 
     .ffreepagepreview_span {
@@ -460,97 +459,6 @@
         align-self: stretch;
     }
 
-    .star-5 {
-        width: 88px;
-        height: 88px;
-        left: 0px;
-        top: 0px;
-        position: absolute;
-        background: #0f0072;
-        border: 0.88px #0f0072 solid;
-    }
-
-    .star-4 {
-        width: 81.48px;
-        height: 81.48px;
-        left: 6.52px;
-        top: 0px;
-        position: absolute;
-        background: white;
-        border: 0.81px #0f0072 solid;
-    }
-
-    .star-6 {
-        width: 65.19px;
-        height: 65.19px;
-        left: 14.66px;
-        top: 8.15px;
-        position: absolute;
-        background: #438bff;
-    }
-
-    .eyebrow {
-        width: 12.22px;
-        height: 4.07px;
-        left: 33px;
-        top: 22.82px;
-        position: absolute;
-        border-radius: 3.37px;
-        outline: 1.63px white solid;
-        outline-offset: -0.81px;
-    }
-
-    .eyebrow_01 {
-        width: 12.22px;
-        height: 4.07px;
-        left: 49.3px;
-        top: 22.82px;
-        position: absolute;
-        border-radius: 3.37px;
-        outline: 1.63px white solid;
-        outline-offset: -0.81px;
-    }
-
-    .rectangle-10 {
-        width: 16.3px;
-        height: 16.3px;
-        left: 0px;
-        top: 0px;
-        position: absolute;
-        background: white;
-        border-radius: 81.48px;
-    }
-
-    .rectangle-11 {
-        width: 16.3px;
-        height: 16.3px;
-        left: 16.3px;
-        top: 0px;
-        position: absolute;
-        background: white;
-        border-radius: 81.48px;
-    }
-
-    .rectangle-12 {
-        width: 9.78px;
-        height: 9.78px;
-        left: 16.3px;
-        top: 3.26px;
-        position: absolute;
-        background: #111111;
-        border-radius: 81.48px;
-    }
-
-    .rectangle-13 {
-        width: 9.78px;
-        height: 9.78px;
-        left: 6.52px;
-        top: 3.26px;
-        position: absolute;
-        background: #111111;
-        border-radius: 81.48px;
-    }
-
     .polygon-1 {
         width: 18.56px;
         height: 36.5px;
@@ -580,6 +488,23 @@
         word-wrap: break-word;
     }
 
+    .dedication-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+
+    .dedication-text1 {
+        color: #ffffff;
+        font-size: 42px;
+        font-family: DM Sans;
+        line-height: 22.4px;
+        text-align: center;
+        margin-bottom: 16px;
+        position: absolute;
+        z-index: 1;
+    }
+
     .dedication-pages-preview {
         text-align: center;
     }
@@ -590,6 +515,7 @@
         position: relative;
         box-shadow: 2px -12px 4px 1px white inset;
         border-radius: 24px;
+        width: 100%;
     }
 
     .informationdedicationpages_span {
@@ -610,19 +536,6 @@
         word-wrap: break-word;
     }
 
-    .dearemmaadventureawaitsforthebravestofheartsjustlikeyoursfrompapa_span {
-        color: #141414;
-        font-size: 16px;
-        font-family: DM Sans;
-        font-weight: 400;
-        line-height: 22.4px;
-        word-wrap: break-word;
-    }
-
-    .dear-emma-adventure-awaits-for-the-bravest-of-hearts-just-like-yours-from-papa {
-        flex: 1 1 0;
-    }
-
     .f2200characters_span {
         color: #727272;
         font-size: 16px;
@@ -634,15 +547,6 @@
 
     .text-42200-characters {
         align-self: stretch;
-    }
-
-    .vector_01 {
-        width: 18px;
-        height: 15px;
-        left: 3px;
-        top: 4.5px;
-        position: absolute;
-        background: black;
     }
 
     .backtostep_span {
@@ -684,69 +588,7 @@
         );
         border-radius: 9999px;
     }
-
-    .dot {
-        width: 8px;
-        height: 8px;
-        background: #131314;
-        border-radius: 9999px;
-    }
-
-    .line {
-        width: 106px;
-        height: 2px;
-        background: #131314;
-    }
-
-    .title_span {
-        color: white;
-        font-size: 14px;
-        font-family: Quicksand;
-        font-weight: 600;
-        line-height: 20px;
-        word-wrap: break-word;
-    }
-
-    .content_01_span {
-        color: white;
-        font-size: 14px;
-        font-family: Quicksand;
-        font-weight: 700;
-        line-height: 20px;
-        word-wrap: break-word;
-    }
-
-    .dot_01 {
-        width: 8px;
-        height: 8px;
-        background: #131314;
-        border-radius: 9999px;
-    }
-
-    .line_01 {
-        width: 106px;
-        height: 2px;
-        background: #131314;
-    }
-
-    .title_01_span {
-        color: white;
-        font-size: 14px;
-        font-family: Quicksand;
-        font-weight: 600;
-        line-height: 20px;
-        word-wrap: break-word;
-    }
-
-    .content_03_span {
-        color: white;
-        font-size: 14px;
-        font-family: Quicksand;
-        font-weight: 700;
-        line-height: 20px;
-        word-wrap: break-word;
-    }
-
+    
     .frame-1410103862 {
         flex-direction: column;
         justify-content: flex-start;
@@ -853,56 +695,12 @@
         line-height: 22.4px;
     }
 
-    .content {
-        padding: 16px;
-        background: #131314;
-        box-shadow: 0px 3px 8px rgba(19, 19, 20, 0.12);
-        overflow: hidden;
-        border-radius: 8px;
-        outline: 1px #44474a solid;
-        outline-offset: -1px;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: flex-start;
-        gap: 4px;
-        display: inline-flex;
-    }
-
-    .content_02 {
-        padding: 16px;
-        background: #131314;
-        box-shadow: 0px 3px 8px rgba(19, 19, 20, 0.12);
-        overflow: hidden;
-        border-radius: 8px;
-        outline: 1px #44474a solid;
-        outline-offset: -1px;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: flex-start;
-        gap: 4px;
-        display: inline-flex;
-    }
-
-    .logo-text-full {
-        width: 203.32px;
-        height: 38px;
-        position: relative;
-    }
-
     .shieldstar {
         width: 20px;
         height: 20px;
         position: relative;
         overflow: hidden;
         margin: auto;
-    }
-
-    .eye {
-        width: 32.59px;
-        height: 16.3px;
-        left: 30.96px;
-        top: 30.76px;
-        position: absolute;
     }
 
     .arrowleft {
@@ -1032,18 +830,6 @@
         display: flex;
     }
 
-    .annotation {
-        justify-content: center;
-        align-items: center;
-        display: inline-flex;
-    }
-
-    .annotation_01 {
-        justify-content: center;
-        align-items: center;
-        display: inline-flex;
-    }
-
     .navbar {
         align-self: stretch;
         height: 79px;
@@ -1070,12 +856,6 @@
         align-items: flex-end;
         gap: 4px;
         display: inline-flex;
-    }
-
-    .loopa {
-        width: 88px;
-        height: 88px;
-        position: relative;
     }
 
     .button {

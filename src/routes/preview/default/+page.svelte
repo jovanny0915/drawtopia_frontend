@@ -24,6 +24,10 @@
   import { getUserProfile } from "../../../lib/auth";
   import { getStoryById, updateReadingState } from "../../../lib/database/stories";
 
+  const goToDashboard = () => {
+    goto('/dashboard');
+  };
+
   let showStoryInfoModal = false;
   let showShareStoryModal = false;
   let showStoryPreviewEndModal = false;
@@ -747,7 +751,7 @@
 
 <div class="preview-story-cover">
   <div class="navbar">
-    <div class="logo-text-full">
+    <div class="logo-text-full" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()}>
       <div class="logo-img"></div>
     </div>
   </div>
@@ -1322,6 +1326,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
   }
   .logo-img {
     background-image: url("../../../assets/logo.png");

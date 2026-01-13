@@ -15,6 +15,10 @@
     // API base URL for the backend
     const API_BASE_URL = "https://image-edit-five.vercel.app";
 
+    const goToDashboard = () => {
+        goto('/dashboard');
+    };
+
     let isLoadingSubscription = false;
     let isLoadingSingleStory = false;
     let isLoadingStoryBundle = false;
@@ -172,7 +176,7 @@
     <div class="frame-1410103845">
         <div class="frame-1410103839">
             <div class="logo-text-full">
-                <img src={drawtopia} alt="drawtopia" class="drawtopia-logo" />
+                <img src={drawtopia} alt="drawtopia" class="drawtopia-logo" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} />
             </div>
             <div class="x">
                 <img src={xicon} alt="" />
@@ -1729,6 +1733,7 @@
 
     .drawtopia-logo {
         width: 100%;
+        cursor: pointer;
     }
 
     .x {
