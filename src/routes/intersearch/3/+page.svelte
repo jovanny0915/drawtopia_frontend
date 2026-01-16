@@ -77,39 +77,147 @@
       id: 1,
       title: "Scene 1",
       subtitle: "The Magical Forest",
-      time: "10:13",
+      time: "0:00",
       hints: 0,
-      stars: 3,
+      stars: 0,
       image: magicalforest
     },
     {
       id: 2,
       title: "Scene 2",
       subtitle: "The Enchanted Castle",
-      time: "10:13",
+      time: "0:00",
       hints: 0,
-      stars: 2,
+      stars: 0,
       image: enchantedcastle
     },
     {
       id: 3,
       title: "Scene 3",
       subtitle: "The Crystal Cave",
-      time: "10:13",
+      time: "0:00",
       hints: 0,
-      stars: 2,
+      stars: 0,
       image: crystalcave
     },
     {
       id: 4,
       title: "Scene 4",
       subtitle: "The Rainbow Meadow",
-      time: "10:13",
+      time: "0:00",
       hints: 0,
-      stars: 3,
+      stars: 0,
       image: rainbowmeadow
     },
   ];
+
+  // Load scene results from sessionStorage
+  function loadSceneResults(storyId: string | null): Map<number, any> {
+    const resultsMap = new Map();
+    try {
+      const resultsKey = `intersearch_results_${storyId || 'temp'}`;
+      const storedResults = sessionStorage.getItem(resultsKey);
+      
+      if (storedResults) {
+        const resultsData = JSON.parse(storedResults);
+        console.log('[intersearch/3] Loaded scene results:', resultsData);
+        
+        // Map results by sceneIndex for easy lookup
+        if (resultsData.results && Array.isArray(resultsData.results)) {
+          resultsData.results.forEach((result: any) => {
+            resultsMap.set(result.sceneIndex, result);
+          });
+        }
+        
+        // Load totals from sessionStorage (these are the authoritative values)
+        if (resultsData.totalTime !== undefined && resultsData.totalTime !== null) {
+          // totalTime is stored in seconds, convert to "M:SS" format
+          const totalSeconds = typeof resultsData.totalTime === 'number' 
+            ? resultsData.totalTime 
+            : parseInt(resultsData.totalTime);
+          const totalMinutes = Math.floor(totalSeconds / 60);
+          const totalSecs = totalSeconds % 60;
+          totalTime = `${totalMinutes}:${totalSecs.toString().padStart(2, '0')}`;
+          console.log(`[intersearch/3] Loaded totalTime from sessionStorage: ${totalSeconds}s = ${totalTime}`);
+        }
+        
+        if (resultsData.totalHints !== undefined && resultsData.totalHints !== null) {
+          hintsUsedTotal = typeof resultsData.totalHints === 'number' 
+            ? resultsData.totalHints 
+            : parseInt(resultsData.totalHints);
+          console.log(`[intersearch/3] Loaded totalHints from sessionStorage: ${hintsUsedTotal}`);
+        }
+        
+        if (resultsData.avgStars !== undefined && resultsData.avgStars !== null) {
+          avgStars = typeof resultsData.avgStars === 'string' 
+            ? parseFloat(resultsData.avgStars) 
+            : typeof resultsData.avgStars === 'number' 
+              ? resultsData.avgStars 
+              : 0;
+          console.log(`[intersearch/3] Loaded avgStars from sessionStorage: ${avgStars}`);
+        }
+        
+        // If totals are missing or zero, try to calculate from individual scene results
+        if ((!resultsData.totalTime && resultsMap.size > 0) || 
+            (resultsData.totalHints === undefined && resultsMap.size > 0) ||
+            (resultsData.avgStars === undefined && resultsMap.size > 0)) {
+          
+          console.log('[intersearch/3] Calculating totals from individual scene results...');
+          
+          // Calculate total time from scene results if not provided
+          if (!resultsData.totalTime || resultsData.totalTime === 0) {
+            let calculatedTotalSeconds = 0;
+            resultsMap.forEach((result: any) => {
+              if (result.timeSeconds) {
+                calculatedTotalSeconds += result.timeSeconds;
+              } else if (result.time) {
+                // Parse time string "M:SS" to seconds
+                const [minutes, seconds] = result.time.split(':').map(Number);
+                calculatedTotalSeconds += (minutes * 60 + seconds);
+              }
+            });
+            if (calculatedTotalSeconds > 0) {
+              const totalMinutes = Math.floor(calculatedTotalSeconds / 60);
+              const totalSecs = calculatedTotalSeconds % 60;
+              totalTime = `${totalMinutes}:${totalSecs.toString().padStart(2, '0')}`;
+              console.log(`[intersearch/3] Calculated totalTime from scenes: ${calculatedTotalSeconds}s = ${totalTime}`);
+            }
+          }
+          
+          // Calculate total hints from scene results if not provided
+          if (resultsData.totalHints === undefined) {
+            let calculatedTotalHints = 0;
+            resultsMap.forEach((result: any) => {
+              calculatedTotalHints += (result.hints || 0);
+            });
+            if (calculatedTotalHints > 0) {
+              hintsUsedTotal = calculatedTotalHints;
+              console.log(`[intersearch/3] Calculated totalHints from scenes: ${hintsUsedTotal}`);
+            }
+          }
+          
+          // Calculate average stars from scene results if not provided
+          if (resultsData.avgStars === undefined) {
+            let totalStars = 0;
+            let sceneCount = 0;
+            resultsMap.forEach((result: any) => {
+              if (result.stars !== undefined) {
+                totalStars += (result.stars || 0);
+                sceneCount++;
+              }
+            });
+            if (sceneCount > 0) {
+              avgStars = parseFloat((totalStars / sceneCount).toFixed(2));
+              console.log(`[intersearch/3] Calculated avgStars from scenes: ${avgStars} (${totalStars} stars / ${sceneCount} scenes)`);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[intersearch/3] Error loading scene results:', error);
+    }
+    return resultsMap;
+  }
 
   // Load scenes from sessionStorage as fallback
   function loadScenesFromSessionStorage(): boolean {
@@ -131,6 +239,9 @@
       const world = scenesData.world || 'enchanted-forest';
       const titles = sceneTitles[world] || sceneTitles["enchanted-forest"];
       
+      // Load scene results
+      const sceneResults = loadSceneResults(storyId);
+      
       // Build scenes array from sessionStorage data
       const loadedScenes: Scene[] = [];
       
@@ -139,20 +250,38 @@
           const sceneImage = scene.sceneImage ? scene.sceneImage.split('?')[0] : null;
           const sceneTitle = scene.sceneTitle || titles[index] || `Scene ${index + 1}`;
           
+          // Get results for this scene if available
+          const result = sceneResults.get(index);
+          
           loadedScenes.push({
             id: index + 1,
             title: `Scene ${index + 1}`,
             subtitle: sceneTitle,
-            time: "10:13", // Default time - could be enhanced later
-            hints: 0, // Default hints - could be enhanced later
-            stars: 3, // Default stars - could be enhanced later
+            time: result?.time || "0:00",
+            hints: result?.hints ?? 0,
+            stars: result?.stars ?? 0,
             image: sceneImage || scenes[index]?.image || magicalforest
           });
         });
         
         if (loadedScenes.length > 0) {
           scenes = loadedScenes;
-          console.log('[intersearch/3] Loaded scenes from sessionStorage:', scenes);
+          console.log('[intersearch/3] Loaded scenes from sessionStorage with results:', scenes);
+          
+          // Calculate best scene (only if there are scenes with stars > 0)
+          const scenesWithStars = scenes.filter(s => (s.stars ?? 0) > 0);
+          if (scenesWithStars.length > 0) {
+            const bestSceneIndex = scenes.reduce((bestIdx, scene, idx) => 
+              (scene.stars ?? 0) > (scenes[bestIdx].stars ?? 0) ? idx : bestIdx, 0
+            );
+            bestScene = scenes[bestSceneIndex]?.title || "Scene 1";
+          } else {
+            bestScene = "None";
+          }
+          
+          // Note: totalTime, hintsUsedTotal, and avgStars are already loaded from sessionStorage
+          // by loadSceneResults() above (line 243). Don't recalculate as sessionStorage values are authoritative.
+          
           return true;
         }
       }
@@ -219,6 +348,9 @@
             
             console.log('[intersearch/3] Parsed story content:', content);
             
+            // Load scene results from sessionStorage (this also loads totals)
+            const sceneResults = loadSceneResults(storyId);
+            
             // Build scenes array from content
             const loadedScenes: Scene[] = [];
             
@@ -227,13 +359,16 @@
                 const sceneImage = scene.sceneImage ? scene.sceneImage.split('?')[0] : null;
                 const sceneTitle = scene.sceneTitle || titles[index] || `Scene ${index + 1}`;
                 
+                // Get results for this scene if available
+                const result = sceneResults.get(index);
+                
                 loadedScenes.push({
                   id: index + 1,
                   title: `Scene ${index + 1}`,
                   subtitle: sceneTitle,
-                  time: "10:13", // Default time - could be enhanced later
-                  hints: 0, // Default hints - could be enhanced later
-                  stars: 3, // Default stars - could be enhanced later
+                  time: result?.time || "0:00",
+                  hints: result?.hints ?? 0,
+                  stars: result?.stars ?? 0,
                   image: sceneImage || scenes[index]?.image || magicalforest
                 });
               });
@@ -241,7 +376,22 @@
               if (loadedScenes.length > 0) {
                 scenes = loadedScenes;
                 scenesLoaded = true;
-                console.log('[intersearch/3] Loaded scenes from database:', scenes);
+                console.log('[intersearch/3] Loaded scenes from database with results:', scenes);
+                
+                // Calculate best scene (only if there are scenes with stars > 0)
+                const scenesWithStars = scenes.filter(s => (s.stars ?? 0) > 0);
+                if (scenesWithStars.length > 0) {
+                  const bestSceneIndex = scenes.reduce((bestIdx, scene, idx) => 
+                    (scene.stars ?? 0) > (scenes[bestIdx].stars ?? 0) ? idx : bestIdx, 0
+                  );
+                  bestScene = scenes[bestSceneIndex]?.title || "Scene 1";
+                } else {
+                  bestScene = "None";
+                }
+                
+                // Note: totalTime, hintsUsedTotal, and avgStars are already loaded from sessionStorage
+                // by loadSceneResults() above. Only recalculate if they weren't loaded.
+                // Don't override values from sessionStorage as they are the authoritative source.
               }
             }
           } catch (error) {

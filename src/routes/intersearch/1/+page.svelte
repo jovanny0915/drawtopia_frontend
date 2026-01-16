@@ -42,6 +42,9 @@
   let isLoading = true;
   let loadError = "";
   let storyId: string | null = null;
+  let characterId: number | null = null;
+  let userId: string | null = null;
+  let childProfileId: number | null = null;
   
   let showStoryInfoModal = false;
   let showShareStoryModal = false;
@@ -72,12 +75,16 @@
   let croppedImageUrl: string | null = null;
   let cropError: string | null = null;
   let calculatingSimilarity = false;
+  let calculationAbortController: AbortController | null = null; // For cancelling fetch requests
   
   // Stats for modal
   let sceneTime = "10:13";
   let hintsUsed = 0;
   let hintsLeft = 3;
   let stars = 0;
+  let similarityScore = 0; // Store similarity score for current scene
+  let hintText: string | null = null; // Store hint text
+  let isLoadingHint = false; // Track hint loading state
 
   // Reading time tracking
   let readingStartTime: number = 0; // Timestamp when reading started
@@ -86,6 +93,19 @@
   let totalHintsUsed: number = 0; // Track total hints used across all scenes
   let totalStarsEarned: number = 0; // Track total stars earned
   let scenesCompleted: number = 0; // Track number of scenes completed
+  
+  // Per-scene tracking
+  let sceneStartTimes: Map<number, number> = new Map(); // Track start time for each scene
+  let sceneHintsUsed: Map<number, number> = new Map(); // Track hints used per scene (even if not completed)
+  let sceneResults: Map<number, {
+    storyId: string | null;
+    sceneIndex: number;
+    similarity: number;
+    stars: number;
+    hints: number;
+    time: string;
+    timeSeconds: number;
+  }> = new Map(); // Store results for each scene
 
   // Scene titles based on world
   const sceneTitles: { [key: string]: string[] } = {
@@ -283,20 +303,171 @@
   }
 
   function nextScene() {
+    // Stop any ongoing calculation when moving to next scene
+    if (calculatingSimilarity && calculationAbortController) {
+      calculationAbortController.abort();
+      calculatingSimilarity = false;
+      calculationAbortController = null;
+      console.log('[next-scene] Calculation cancelled');
+    }
+    
     if (currentSceneIndex < generatedImages.length - 1) {
       currentSceneIndex++;
     }
   }
 
   function previousScene() {
+    // Stop any ongoing calculation when navigating to previous scene
+    if (calculatingSimilarity && calculationAbortController) {
+      calculationAbortController.abort();
+      calculatingSimilarity = false;
+      calculationAbortController = null;
+      console.log('[previousScene] Calculation cancelled');
+    }
+    
     if (currentSceneIndex > 0) {
       currentSceneIndex--;
     }
   }
 
   function goToScene(index: number) {
+    // Stop any ongoing calculation when navigating to another scene
+    if (calculatingSimilarity && calculationAbortController) {
+      calculationAbortController.abort();
+      calculatingSimilarity = false;
+      calculationAbortController = null;
+      console.log('[goToScene] Calculation cancelled');
+    }
+    
     if (index >= 0 && index < generatedImages.length) {
       currentSceneIndex = index;
+      // Start timer if it's a searchable scene (not cover or dedication)
+      const isSearchableScene = index > 0 && !(hasDedication && index === 1);
+      if (isSearchableScene) {
+        startSceneTimer(index);
+      }
+    }
+  }
+
+  // Store scene result to sessionStorage and in-memory map
+  function storeSceneResult(similarity: number, starsEarned: number) {
+    if (!browser) return;
+    
+    // Calculate scene index (adjusting for cover and dedication if present)
+    // Scene 0 is cover, scene 1 might be dedication, scenes 2+ are searchable
+    // SearchableSceneIndex should match the index in scenes array (generatedImages.slice(1))
+    let searchableSceneIndex: number;
+    if (hasDedication) {
+      // Skip cover (0) and dedication (1), so scene 2 -> index 0, scene 3 -> index 1, etc.
+      searchableSceneIndex = currentSceneIndex - 2;
+    } else {
+      // Skip cover (0) only, so scene 1 -> index 0, scene 2 -> index 1, etc.
+      searchableSceneIndex = currentSceneIndex - 1;
+    }
+    
+    // Only store if it's a valid searchable scene
+    if (searchableSceneIndex < 0) {
+      console.warn(`[scene-results] Invalid scene index: currentSceneIndex=${currentSceneIndex}, searchableSceneIndex=${searchableSceneIndex}`);
+      return;
+    }
+    
+    // Calculate time spent on this scene
+    const sceneStartTime = sceneStartTimes.get(currentSceneIndex) || readingStartTime;
+    const sceneTimeSeconds = Math.floor((Date.now() - sceneStartTime) / 1000);
+    const minutes = Math.floor(sceneTimeSeconds / 60);
+    const seconds = sceneTimeSeconds % 60;
+    const timeFormatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    const sceneResult = {
+      storyId: storyId,
+      sceneIndex: searchableSceneIndex, // 0-based index for searchable scenes
+      similarity: similarity,
+      stars: starsEarned,
+      hints: hintsUsed,
+      time: timeFormatted,
+      timeSeconds: sceneTimeSeconds
+    };
+    
+    // Store in memory map
+    sceneResults.set(currentSceneIndex, sceneResult);
+    
+    // Also update hints used map for this scene (in case it wasn't set before)
+    sceneHintsUsed.set(currentSceneIndex, hintsUsed);
+    
+    // Store to sessionStorage with a key per scene
+    const sessionKey = `intersearch_scene_${storyId || 'temp'}_${currentSceneIndex}`;
+    try {
+      sessionStorage.setItem(sessionKey, JSON.stringify(sceneResult));
+      console.log(`[scene-results] Stored result for scene ${currentSceneIndex}:`, sceneResult);
+    } catch (error) {
+      console.error('[scene-results] Error storing scene result to sessionStorage:', error);
+    }
+  }
+  
+  // Track when a new scene is started
+  function startSceneTimer(sceneIndex: number) {
+    if (!browser) return;
+    sceneStartTimes.set(sceneIndex, Date.now());
+    // Reset hints used for this scene (will be tracked per scene)
+    // Note: hintsLeft is per story, not per scene - it persists across scenes
+    hintsUsed = 0;
+    hintText = null; // Clear hint text when starting new scene
+    // Initialize hints used for this scene (may have been set from previous visit)
+    if (!sceneHintsUsed.has(sceneIndex)) {
+      sceneHintsUsed.set(sceneIndex, 0);
+    }
+    // Don't reset hintsLeft - it's tracked at the story level
+  }
+
+  // Get hint from backend
+  async function getHint() {
+    if (hintsLeft <= 0 || isLoadingHint) return;
+    if (!characterImageUrl || !generatedImages[currentSceneIndex]) return;
+    
+    // Skip if it's cover or dedication page
+    if (currentSceneIndex === 0 || (hasDedication && currentSceneIndex === 1)) return;
+    
+    isLoadingHint = true;
+    
+    try {
+      const API_BASE_URL = env.API_BASE_URL || 'https://image-edit-five.vercel.app';
+      const envImgUrl = generatedImages[currentSceneIndex];
+      
+      // Remove query parameters from URLs if present
+      const cleanEnvImgUrl = envImgUrl.split('?')[0];
+      const cleanCharacterImgUrl = characterImageUrl.split('?')[0];
+      
+      const response = await fetch(`${API_BASE_URL}/search-game-hint/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          env_img: cleanEnvImgUrl,
+          character_img: cleanCharacterImgUrl
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to get hint' }));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      hintText = data.hint_text || data.hint || null;
+      
+      // Decrement hints left and increment hints used
+      if (hintsLeft > 0) {
+        hintsLeft--;
+        hintsUsed++;
+        // Track hints used for current scene (even if not completed)
+        sceneHintsUsed.set(currentSceneIndex, hintsUsed);
+      }
+    } catch (error) {
+      console.error('Error getting hint:', error);
+      hintText = "Unable to generate hint. Please try again.";
+    } finally {
+      isLoadingHint = false;
     }
   }
 
@@ -341,10 +512,17 @@
         storyTitle = story[0].story_title || story[0].character_name || "Search Adventure";
         characterName = story[0].character_name;
         characterImageUrl = story[0].original_image_url || null;
+        characterId = story[0].character_id || null;
+        userId = story[0].user_id || null;
+        childProfileId = story[0].child_profile_id || null;
         selectedWorld = story[0].story_world === 'forest' ? 'enchanted-forest' : 
                         story[0].story_world === 'space' ? 'outer-space' : 
                         story[0].story_world === 'underwater' ? 'underwater-kingdom' : 
                         'enchanted-forest';
+        
+        // Load hints from story (default to 3 if not set)
+        hintsLeft = story[0].hints !== null && story[0].hints !== undefined ? story[0].hints : 3;
+        console.log(`[intersearch/1] Loaded hints from story: ${hintsLeft} remaining`);
         
         // Load story content to get scenes
         if (story[0].story_content) {
@@ -439,9 +617,198 @@
     stopReadingTimerAndSave();
   });
 
-  function handleStartScene1() {
+  async function saveSearchGameResults() {
+    if (!characterId) {
+      console.warn('[save-results] No character_id available, skipping database save');
+      return;
+    }
+
+    try {
+      // Collect all scene results - include ALL searchable scenes, even if no result exists
+      const allSceneResults: any[] = [];
+      const searchableScenesStart = hasDedication ? 2 : 1; // Skip cover (0) and dedication (1 if present)
+      const sceneTitleList = sceneTitles[selectedWorld || "enchanted-forest"] || [];
+      
+      // Calculate total number of searchable scenes
+      const totalSearchableScenes = generatedImages.length - searchableScenesStart;
+      
+      // Loop through all searchable scenes (0-based index for searchable scenes)
+      for (let searchableSceneIndex = 0; searchableSceneIndex < totalSearchableScenes; searchableSceneIndex++) {
+        // Map searchableSceneIndex back to actual generatedImages index
+        const actualSceneIndex = searchableScenesStart + searchableSceneIndex;
+        const result = sceneResults.get(actualSceneIndex);
+        
+        // Get scene title from the scene index
+        const sceneTitle = sceneTitleList[searchableSceneIndex] || `Scene ${searchableSceneIndex + 1}`;
+        
+        if (result) {
+          // Use actual result data
+          allSceneResults.push({
+            scene_index: searchableSceneIndex,
+            scene_title: sceneTitle,
+            time: result.time,
+            hint_used: result.hints,
+            star_rate: result.stars
+          });
+        } else {
+          // No result exists - use default/initial values
+          allSceneResults.push({
+            scene_index: searchableSceneIndex,
+            scene_title: sceneTitle,
+            time: "0:00",
+            hint_used: 0,
+            star_rate: 0
+          });
+        }
+      }
+
+      // Always save results, even if all are zero
+      if (allSceneResults.length === 0) {
+        console.warn('[save-results] No scenes found to save');
+        return;
+      }
+
+      // Calculate best scene (scene with highest stars, only if > 0)
+      const scenesWithStars = allSceneResults.filter(s => s.star_rate > 0);
+      let bestScene = "None";
+      if (scenesWithStars.length > 0) {
+        const bestSceneResult = allSceneResults.reduce((best, current) => 
+          current.star_rate > (best?.star_rate || 0) ? current : best, 
+          allSceneResults[0]
+        );
+        bestScene = bestSceneResult?.scene_title || "None";
+      }
+
+      // Calculate average stars (including zeros)
+      const avgStars = allSceneResults.length > 0 
+        ? parseFloat((allSceneResults.reduce((sum, s) => sum + (s.star_rate || 0), 0) / allSceneResults.length).toFixed(2))
+        : 0;
+
+      // Get story ID as integer if available
+      const storyIdInt = storyId ? parseInt(storyId) : null;
+
+      // Prepare request body
+      const requestBody = {
+        character_id: characterId,
+        story_id: storyIdInt,
+        result: allSceneResults,
+        total_time: totalReadingTime,
+        avg_stars: avgStars,
+        hints_used: totalHintsUsed,
+        best_scene: bestScene,
+        user_id: userId,
+        child_profile_id: childProfileId
+      };
+
+      console.log('[save-results] Saving search game results to database:', requestBody);
+
+      // Call API to save results
+      const API_BASE_URL = env.API_BASE_URL || 'https://image-edit-five.vercel.app';
+      const response = await fetch(`${API_BASE_URL}/api/search-game-results`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to save results' }));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('[save-results] Successfully saved search game results:', result);
+    } catch (error) {
+      console.error('[save-results] Error saving search game results to database:', error);
+      // Don't block navigation if save fails
+    }
+  }
+
+  async function handleStartScene1() {
     // If on the last scene, navigate to results page
     if (currentSceneIndex === generatedImages.length - 1) {
+      // Save all scene results to sessionStorage before navigating
+      if (browser) {
+        // Collect all scene results - include ALL searchable scenes, even if skipped
+        const allSceneResults: any[] = [];
+        const searchableScenesStart = hasDedication ? 2 : 1; // Skip cover (0) and dedication (1 if present)
+        const sceneTitleList = sceneTitles[selectedWorld || "enchanted-forest"] || [];
+        const totalSearchableScenes = generatedImages.length - searchableScenesStart;
+        
+        // Loop through all searchable scenes (0-based index for searchable scenes)
+        for (let searchableSceneIndex = 0; searchableSceneIndex < totalSearchableScenes; searchableSceneIndex++) {
+          // Map searchableSceneIndex back to actual generatedImages index
+          const actualSceneIndex = searchableScenesStart + searchableSceneIndex;
+          const result = sceneResults.get(actualSceneIndex);
+          
+          // Get scene title from the scene index
+          const sceneTitle = sceneTitleList[searchableSceneIndex] || `Scene ${searchableSceneIndex + 1}`;
+          
+          if (result) {
+            // Use actual result data
+            allSceneResults.push({
+              sceneIndex: searchableSceneIndex, // 0-based index for searchable scenes
+              storyId: storyId,
+              similarity: result.similarity || 0,
+              stars: result.stars || 0,
+              hints: result.hints || 0,
+              time: result.time || "0:00",
+              timeSeconds: result.timeSeconds || 0
+            });
+          } else {
+            // Scene was skipped or not completed - calculate time spent and create default entry
+            const sceneStartTime = sceneStartTimes.get(actualSceneIndex);
+            let sceneTimeSeconds = 0;
+            let timeFormatted = "0:00";
+            
+            // If scene was visited (timer started), calculate time spent
+            if (sceneStartTime) {
+              sceneTimeSeconds = Math.floor((Date.now() - sceneStartTime) / 1000);
+              const minutes = Math.floor(sceneTimeSeconds / 60);
+              const seconds = sceneTimeSeconds % 60;
+              timeFormatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Create default result for skipped scene
+            // Get hints used for this scene (even if scene wasn't completed)
+            const hintsForScene = sceneHintsUsed.get(actualSceneIndex) || 0;
+            
+            allSceneResults.push({
+              sceneIndex: searchableSceneIndex, // 0-based index for searchable scenes
+              storyId: storyId,
+              similarity: 0,
+              stars: 0,
+              hints: hintsForScene, // Include hints used even if scene was skipped
+              time: timeFormatted,
+              timeSeconds: sceneTimeSeconds
+            });
+          }
+        }
+        
+        // Store all results with storyId as key
+        const resultsKey = `intersearch_results_${storyId || 'temp'}`;
+        try {
+          sessionStorage.setItem(resultsKey, JSON.stringify({
+            storyId: storyId,
+            results: allSceneResults,
+            totalScenes: allSceneResults.length,
+            totalTime: totalReadingTime,
+            totalHints: totalHintsUsed,
+            totalStars: totalStarsEarned,
+            avgStars: allSceneResults.length > 0 
+              ? (totalStarsEarned / allSceneResults.length).toFixed(2) 
+              : '0'
+          }));
+          console.log('[scene-results] Saved all scene results (including skipped):', allSceneResults);
+        } catch (error) {
+          console.error('[scene-results] Error saving all results:', error);
+        }
+      }
+      
+      // Save to database
+      await saveSearchGameResults();
+      
       // Store the generated scenes in sessionStorage for /intersearch/3
       if (browser && generatedImages.length > 0) {
         // Build scenes data to pass to results page
@@ -468,7 +835,9 @@
       }
     } else if (currentSceneIndex < generatedImages.length - 1) {
       // Show the next scene on the current page
+      // Start timer for the new scene
       currentSceneIndex++;
+      startSceneTimer(currentSceneIndex);
     }
   }
 
@@ -778,15 +1147,29 @@
     }
   }
 
-  async function calculateSimilarity(characterImageUrl: string, croppedImageUrl: string): Promise<number> {
+  async function calculateSimilarity(characterImageUrl: string, croppedImageUrl: string, signal?: AbortSignal): Promise<number> {
     if (!characterImageUrl || !croppedImageUrl) return 0;
     
     try {
+      // Check if already cancelled
+      if (signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation cancelled before starting');
+        return 0;
+      }
+      
       // Resize both images to the same standard size (512x512) before comparison
       const standardSize = 512;
       
       const resizedCharacterUrl = await resizeImageFromUrl(characterImageUrl, standardSize);
       const resizedCroppedUrl = await resizeImageFromUrl(croppedImageUrl, standardSize);
+      
+      // Check if cancelled during resize
+      if (signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation cancelled during resize');
+        if (resizedCharacterUrl) URL.revokeObjectURL(resizedCharacterUrl);
+        if (resizedCroppedUrl) URL.revokeObjectURL(resizedCroppedUrl);
+        return 0;
+      }
       
       if (!resizedCharacterUrl || !resizedCroppedUrl) {
         console.error('Failed to resize images for comparison');
@@ -799,8 +1182,14 @@
           body: JSON.stringify({
             image1_url: characterImageUrl,
             image2_url: croppedImageUrl
-          })
+          }),
+          signal: signal
         });
+
+        if (signal?.aborted) {
+          console.log('[calculateSimilarity] Calculation cancelled during fallback fetch');
+          return 0;
+        }
 
         if (!response.ok) {
           throw new Error(`Failed to calculate similarity: ${response.status}`);
@@ -811,8 +1200,16 @@
       }
       
       // Upload both resized images to Supabase for comparison
-      const charResponse = await fetch(resizedCharacterUrl);
-      const croppedResponse = await fetch(resizedCroppedUrl);
+      const charResponse = await fetch(resizedCharacterUrl, { signal: signal });
+      const croppedResponse = await fetch(resizedCroppedUrl, { signal: signal });
+      
+      // Check if cancelled
+      if (signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation cancelled during image fetch');
+        URL.revokeObjectURL(resizedCharacterUrl);
+        URL.revokeObjectURL(resizedCroppedUrl);
+        return 0;
+      }
       
       if (!charResponse.ok || !croppedResponse.ok) {
         throw new Error('Failed to fetch resized images');
@@ -820,6 +1217,14 @@
       
       const charBlob = await charResponse.blob();
       const croppedBlob = await croppedResponse.blob();
+      
+      // Check if cancelled during blob conversion
+      if (signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation cancelled during blob conversion');
+        URL.revokeObjectURL(resizedCharacterUrl);
+        URL.revokeObjectURL(resizedCroppedUrl);
+        return 0;
+      }
       
       // Upload character image
       const timestamp = Date.now();
@@ -832,6 +1237,14 @@
           cacheControl: '3600',
           upsert: false
         });
+
+      // Check if cancelled during upload
+      if (signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation cancelled during character upload');
+        URL.revokeObjectURL(resizedCharacterUrl);
+        URL.revokeObjectURL(resizedCroppedUrl);
+        return 0;
+      }
 
       if (charError) {
         console.error('Error uploading resized character image:', charError);
@@ -851,6 +1264,14 @@
           cacheControl: '3600',
           upsert: false
         });
+
+      // Check if cancelled during upload
+      if (signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation cancelled during cropped upload');
+        URL.revokeObjectURL(resizedCharacterUrl);
+        URL.revokeObjectURL(resizedCroppedUrl);
+        return 0;
+      }
 
       // Clean up blob URLs
       URL.revokeObjectURL(resizedCharacterUrl);
@@ -872,6 +1293,12 @@
 
       console.log('Comparing resized images:', charUrlData.publicUrl, croppedUrlData.publicUrl);
       
+      // Final check before API call
+      if (signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation cancelled before API call');
+        return 0;
+      }
+      
       const response = await fetch('https://image-edit-five.vercel.app/compare-similarity', {
         method: 'POST',
         headers: {
@@ -880,8 +1307,14 @@
         body: JSON.stringify({
           image1_url: charUrlData.publicUrl,
           image2_url: croppedUrlData.publicUrl
-        })
+        }),
+        signal: signal
       });
+
+      if (signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation cancelled during API call');
+        return 0;
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to calculate similarity: ${response.status}`);
@@ -890,18 +1323,25 @@
       const data = await response.json();
       // Try multiple possible response field names
       return data.similarity || data.score || data.similarity_score || data.result?.similarity || 0;
-    } catch (error) {
+    } catch (error: any) {
+      // Check if error is due to abortion
+      if (error?.name === 'AbortError' || signal?.aborted) {
+        console.log('[calculateSimilarity] Calculation was cancelled');
+        return 0;
+      }
       console.error('Error calculating similarity:', error);
       return 0;
     }
   }
 
   function calculateStars(similarity: number): number {
-    if (similarity >= 0.75) {
+    // Similarity score is on a 0-10 scale from backend
+    // Score ranges: 0~4 (1 star), 4~6.5 (2 stars), 6.5~10 (3 stars)
+    if (similarity >= 6.5) {
       return 3;
-    } else if (similarity >= 0.65 && similarity < 0.75) {
+    } else if (similarity >= 4 && similarity < 6.5) {
       return 2;
-    } else if (similarity >= 0.5 && similarity < 0.65) {
+    } else if (similarity >= 0 && similarity < 4) {
       return 1;
     } else {
       return 0;
@@ -919,24 +1359,63 @@
     
     if (width > 20 && height > 20) {
       cropError = null;
+      
+      // Create abort controller for this calculation
+      calculationAbortController = new AbortController();
+      const signal = calculationAbortController.signal;
+      
       calculatingSimilarity = true;
       // Crop the image
       const croppedBlobUrl = await cropImage();
+      
+      // Check if cancelled during crop
+      if (signal.aborted) {
+        calculatingSimilarity = false;
+        calculationAbortController = null;
+        return;
+      }
+      
       if (croppedBlobUrl && characterImageUrl) {
         // Store cropped image in Supabase first
         const croppedSupabaseUrl = await uploadCroppedImageToSupabase(croppedBlobUrl);
+        
+        // Check if cancelled during upload
+        if (signal.aborted) {
+          calculatingSimilarity = false;
+          calculationAbortController = null;
+          if (croppedBlobUrl) URL.revokeObjectURL(croppedBlobUrl);
+          return;
+        }
         
         if (croppedSupabaseUrl) {
           // Use the blob URL for display (local)
           croppedImageUrl = croppedBlobUrl;
           
-          // Calculate similarity using Supabase URLs
+          // Calculate similarity using Supabase URLs with abort signal
           try {
-            const similarity = await calculateSimilarity(characterImageUrl, croppedSupabaseUrl);
+            const similarity = await calculateSimilarity(characterImageUrl, croppedSupabaseUrl, signal);
+            
+            // Check if cancelled after calculation completes
+            if (signal.aborted) {
+              calculatingSimilarity = false;
+              calculationAbortController = null;
+              return;
+            }
+            
+            similarityScore = similarity;
             stars = calculateStars(similarity);
-          } catch (error) {
-            console.error('Error calculating similarity:', error);
-            stars = 0;
+            
+            // Store result to sessionStorage immediately
+            storeSceneResult(similarity, stars);
+          } catch (error: any) {
+            // Don't show error if it was just a cancellation
+            if (error?.name !== 'AbortError' && !signal.aborted) {
+              console.error('Error calculating similarity:', error);
+              similarityScore = 0;
+              stars = 0;
+              // Store result even if similarity calculation failed
+              storeSceneResult(0, 0);
+            }
           }
         } else {
           console.warn("Failed to upload cropped image to Supabase");
@@ -945,8 +1424,15 @@
           stars = 0;
         }
         
-        calculatingSimilarity = false;
-        showFoundModal = true;
+        // Only show modal and reset state if not cancelled
+        if (!signal.aborted) {
+          calculatingSimilarity = false;
+          calculationAbortController = null;
+          showFoundModal = true;
+        } else {
+          calculatingSimilarity = false;
+          calculationAbortController = null;
+        }
         
         // Track stats for reading state
         scenesCompleted++;
@@ -955,6 +1441,7 @@
         console.log(`[intersearch-timer] Scene completed. Stars: ${stars}, Hints: ${hintsUsed}, Total scenes: ${scenesCompleted}`);
       } else {
         calculatingSimilarity = false;
+        calculationAbortController = null;
         if (!croppedBlobUrl) {
           cropError = "Unable to crop image. This may be due to CORS restrictions.";
         }
@@ -995,6 +1482,8 @@
     closeFoundModal();
     if (currentSceneIndex < generatedImages.length - 1) {
       currentSceneIndex++;
+      // Start timer for the new scene
+      startSceneTimer(currentSceneIndex);
     }
   }
 
@@ -1270,7 +1759,12 @@
                 <div><span class="fullscreenpreview_span">{isFullscreen ? 'Exit Full Screen' : 'Full Screen Preview'}</span></div>
               </button>
               {#if currentSceneIndex !== 0 && !(hasDedication && currentSceneIndex === 1)}
-                <button class="notification_01" aria-label="Hint">
+                <button 
+                  class="notification_01" 
+                  aria-label="Hint"
+                  on:click={getHint}
+                  disabled={hintsLeft <= 0 || isLoadingHint}
+                >
                   <img src={hintIcon} alt="Hint" class="btn-icon-hint" />
                   <div><span class="hint3left_span">Hint ({hintsLeft} Left)</span></div>
                 </button>
@@ -1288,6 +1782,35 @@
                        width: {Math.abs(selectionEnd.x - selectionStart.x)}px; 
                        height: {Math.abs(selectionEnd.y - selectionStart.y)}px;"
               ></div>
+            {/if}
+            {#if calculatingSimilarity}
+              <div class="calculation-loading-overlay">
+                <div class="calculation-loading-content">
+                  <div class="calculation-spinner"></div>
+                  <p class="calculation-loading-text">Calculating similarity...</p>
+                </div>
+              </div>
+            {/if}
+            {#if hintText}
+              <div class="hint-overlay">
+                <div class="hint-content">
+                  <div class="hint-icon-container">
+                    <img src={hintIcon} alt="Hint" class="hint-icon" />
+                  </div>
+                  <p class="hint-text">{hintText}</p>
+                  <button class="hint-close-btn" on:click={() => hintText = null} aria-label="Close hint">
+                    ×
+                  </button>
+                </div>
+              </div>
+            {/if}
+            {#if isLoadingHint}
+              <div class="hint-loading-overlay">
+                <div class="hint-loading-content">
+                  <div class="calculation-spinner"></div>
+                  <p class="calculation-loading-text">Generating hint...</p>
+                </div>
+              </div>
             {/if}
             {#if isFullscreen}
               <div class="fullscreen-navigation">
@@ -1340,7 +1863,12 @@
               <div><span class="fullscreenpreview_span">{isFullscreen ? 'Exit Full Screen' : 'Full Screen Preview'}</span></div>
             </button>
             {#if currentSceneIndex !== 0}
-              <button class="notification_01" aria-label="Hint">
+              <button 
+                class="notification_01" 
+                aria-label="Hint"
+                on:click={getHint}
+                disabled={hintsLeft <= 0 || isLoadingHint}
+              >
                 <img src={hintIcon} alt="Hint" class="btn-icon-hint" />
                 <div><span class="hint3left_span">Hint ({hintsLeft} Left)</span></div>
               </button>
@@ -2272,6 +2800,155 @@
     border: 2px dashed #438bff;
     pointer-events: none;
     z-index: 5;
+  }
+
+  .calculation-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 12px;
+    backdrop-filter: blur(4px);
+  }
+
+  .calculation-loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 40px;
+  }
+
+  .calculation-loading-text {
+    font-family: Quicksand, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #23243c;
+    margin: 0;
+  }
+
+  .calculation-spinner {
+    width: 56px;
+    height: 56px;
+    border: 5px solid #e6ebf3;
+    border-top-color: #438bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  /* Hint Overlay */
+  .hint-overlay {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    max-width: 90%;
+    width: auto;
+    pointer-events: auto;
+  }
+
+  .hint-content {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid #438bff;
+    border-radius: 16px;
+    padding: 16px 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    backdrop-filter: blur(10px);
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .hint-icon-container {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #438bff;
+    border-radius: 50%;
+    padding: 6px;
+  }
+
+  .hint-icon {
+    width: 20px;
+    height: 20px;
+    filter: brightness(0) invert(1);
+  }
+
+  .hint-text {
+    font-family: Quicksand, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #23243c;
+    margin: 0;
+    flex: 1;
+    line-height: 1.4;
+  }
+
+  .hint-close-btn {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #23243c;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s ease;
+    padding: 0;
+  }
+
+  .hint-close-btn:hover {
+    background: rgba(67, 139, 255, 0.1);
+  }
+
+  .hint-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 12px;
+    backdrop-filter: blur(4px);
+    background: rgba(255, 255, 255, 0.8);
+  }
+
+  .hint-loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 40px;
   }
 
   /* Fullscreen Navigation */

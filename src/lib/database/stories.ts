@@ -30,6 +30,7 @@ export interface Story {
   status?: 'generating' | 'completed' | 'failed';
   story_type?: string; // Type of story: adventure story book or search adventure
   reading_state?: ReadingState; // Reading statistics
+  hints?: number | null; // Number of hints remaining (for search type stories, default is 3)
 }
 
 // Reading state interfaces
@@ -95,7 +96,8 @@ export async function createStory(story: Story): Promise<DatabaseResult> {
         dedication_text: story.dedication_text || null,
         dedication_image: story.dedication_image || null,
         status: story.status || 'generating',
-        story_type: story.story_type || 'story'
+        story_type: story.story_type || 'story',
+        hints: story.story_type === 'search' ? (story.hints !== undefined ? story.hints : 3) : null
       }])
       .select('*')
       .single();
