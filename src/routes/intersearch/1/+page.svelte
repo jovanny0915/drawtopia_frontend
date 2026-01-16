@@ -46,6 +46,16 @@
   let showStoryInfoModal = false;
   let showShareStoryModal = false;
 
+  // Fullscreen and zoom state
+  let isFullscreen = false;
+  let showZoomModal = false;
+  let zoomImageRef: HTMLImageElement | null = null;
+  let zoomContainerRef: HTMLDivElement | null = null;
+  let zoomScale = 1;
+  let zoomPosition = { x: 0, y: 0 };
+  let isZoomDragging = false;
+  let zoomDragStart = { x: 0, y: 0 };
+
   // Dedication data
   let dedicationText = '';
   let dedicationImage = '';
@@ -292,6 +302,15 @@
 
   onMount(async () => {
     if (browser) {
+      // Listen for fullscreen changes
+      const handleFullscreenChange = () => {
+        isFullscreen = !!document.fullscreenElement;
+      };
+      
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      
+      // Cleanup will be handled in onDestroy
+      
       // Get story ID from URL query params
       storyId = $page.url.searchParams.get('storyId');
       
@@ -399,10 +418,17 @@
     if (browser) {
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('fullscreenchange', () => {
+        isFullscreen = !!document.fullscreenElement;
+      });
     }
     // Clean up cropped image URL
     if (croppedImageUrl) {
       URL.revokeObjectURL(croppedImageUrl);
+    }
+    // Exit fullscreen if active
+    if (isFullscreen && document.fullscreenElement) {
+      document.exitFullscreen();
     }
     // Stop timer and save reading state
     stopReadingTimerAndSave();
@@ -985,11 +1011,100 @@
   function handleBack() {
     goto("/intersearch");
   }
+
+  // Fullscreen functionality
+  function toggleFullscreen() {
+    if (!browser) return;
+    
+    const elem = imageWrapperRef || document.documentElement;
+    
+    if (!document.fullscreenElement) {
+      // Enter fullscreen
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().then(() => {
+          isFullscreen = true;
+          console.log('[fullscreen] Entered fullscreen mode');
+        }).catch(err => {
+          console.error('[fullscreen] Error entering fullscreen:', err);
+        });
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => {
+          isFullscreen = false;
+          console.log('[fullscreen] Exited fullscreen mode');
+        }).catch(err => {
+          console.error('[fullscreen] Error exiting fullscreen:', err);
+        });
+      }
+    }
+  }
+
+  // Zoom functionality
+  function openZoomModal() {
+    if (currentSceneIndex === 0 || (hasDedication && currentSceneIndex === 1)) return;
+    if (!generatedImages[currentSceneIndex] || generatedImages[currentSceneIndex] === 'DEDICATION_PAGE') return;
+    
+    showZoomModal = true;
+    zoomScale = 1;
+    zoomPosition = { x: 0, y: 0 };
+  }
+
+  function closeZoomModal() {
+    showZoomModal = false;
+    zoomScale = 1;
+    zoomPosition = { x: 0, y: 0 };
+    isZoomDragging = false;
+  }
+
+  function handleZoomWheel(event: WheelEvent) {
+    if (!showZoomModal || !zoomImageRef || !zoomContainerRef) return;
+    
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? -0.1 : 0.1;
+    const newScale = Math.max(1, Math.min(5, zoomScale + delta));
+    
+    // Zoom towards mouse position
+    const rect = zoomContainerRef.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    const scaleChange = newScale / zoomScale;
+    zoomPosition.x = mouseX - (mouseX - zoomPosition.x) * scaleChange;
+    zoomPosition.y = mouseY - (mouseY - zoomPosition.y) * scaleChange;
+    
+    zoomScale = newScale;
+  }
+
+  function handleZoomMouseDown(event: MouseEvent) {
+    if (!showZoomModal) return;
+    isZoomDragging = true;
+    zoomDragStart = { x: event.clientX - zoomPosition.x, y: event.clientY - zoomPosition.y };
+    event.preventDefault();
+  }
+
+  function handleZoomMouseMove(event: MouseEvent) {
+    if (!isZoomDragging || !showZoomModal) return;
+    zoomPosition.x = event.clientX - zoomDragStart.x;
+    zoomPosition.y = event.clientY - zoomDragStart.y;
+  }
+
+  function handleZoomMouseUp() {
+    isZoomDragging = false;
+  }
+
+  function resetZoom() {
+    zoomScale = 1;
+    zoomPosition = { x: 0, y: 0 };
+  }
 </script>
 
 <div class="preview-outer">
   <div class="preview-logo-container">
-    <img class="preview-logo" src={logo} alt="Drawtopia Logo" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} />
+    <button class="preview-logo-button" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} aria-label="Go to dashboard">
+      <img class="preview-logo" src={logo} alt="Drawtopia Logo" />
+    </button>
   </div>
   <div class="arrow">
     <div class="button" on:click={handleBack} role="button" tabindex="0" on:keydown={(e) => (e.key === "Enter" || e.key === " ") && handleBack()}>
@@ -1065,6 +1180,7 @@
     {:else if generatedImages.length > 0}
       <div class="scene-view-container">
         <div class="scene-image-container">
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
           <div 
             class="book-container"
             class:cover-mode={currentSceneIndex === 0}
@@ -1074,7 +1190,7 @@
             on:mouseup={handleMouseUp}
             on:mouseleave={handleMouseUp}
             role={currentSceneIndex === 0 || (hasDedication && currentSceneIndex === 1) ? "img" : "application"}
-            tabindex={currentSceneIndex === 0 || (hasDedication && currentSceneIndex === 1) ? -1 : 0}
+            tabindex={currentSceneIndex === 0 || (hasDedication && currentSceneIndex === 1) ? undefined : -1}
             aria-label={currentSceneIndex === 0 ? "Cover image" : (hasDedication && currentSceneIndex === 1) ? "Dedication page" : "Image selection area"}
           >
             {#if currentSceneIndex === 0}
@@ -1085,6 +1201,7 @@
                   src={generatedImages[currentSceneIndex]}
                   alt="Cover"
                   class="cover-main-image"
+                  style={`max-width: 100%; max-height: ${isFullscreen ? '90vh' : '750px'}; object-fit: contain;`}
                   draggable="false"
                 />
               </div>
@@ -1122,8 +1239,8 @@
               </div>
             {:else if generatedImages[currentSceneIndex] && generatedImages[currentSceneIndex] !== 'DEDICATION_PAGE'}
               <!-- Scenes 1-4: Split into left and right halves -->
-              <div class="mobile-image-split">
-                <div class="mobile-image-half mobile-image-left">
+              <div class="mobile-image-split" style={`${isFullscreen ? 'height: 90dvh;' : ''}`}>
+                <div class="mobile-image-half mobile-image-left" style={`${isFullscreen ? 'height: 100%;' : ''}`}>
                   <img
                     bind:this={imageRef}
                     src={generatedImages[currentSceneIndex]}
@@ -1131,10 +1248,11 @@
                       hasDedication ? currentSceneIndex - 2 : currentSceneIndex - 1
                     ] || `Scene ${currentSceneIndex} - Left`}
                     class="scene-main-image"
+                    style={`${isFullscreen ? 'height: 100%;' : ''}`}
                     draggable="false"
                   />
                 </div>
-                <div class="mobile-image-half mobile-image-right">
+                <div class="mobile-image-half mobile-image-right" style={`${isFullscreen ? 'height: 100%;' : ''}`}>
                   <img
                     src={generatedImages[currentSceneIndex]}
                     alt={sceneTitles[selectedWorld || "enchanted-forest"]?.[
@@ -1147,16 +1265,16 @@
               </div>
             {/if}
             <div class="scene-control-buttons">
-              <button class="notification" aria-label="Full Screen Preview">
+              <button class="notification" aria-label="Full Screen Preview" on:click={toggleFullscreen}>
                 <img src={fullscreen} alt="fullscreen" class="btn-icon-fullscreen" />
-                <div><span class="fullscreenpreview_span">Full Screen Preview</span></div>
+                <div><span class="fullscreenpreview_span">{isFullscreen ? 'Exit Full Screen' : 'Full Screen Preview'}</span></div>
               </button>
               {#if currentSceneIndex !== 0 && !(hasDedication && currentSceneIndex === 1)}
                 <button class="notification_01" aria-label="Hint">
                   <img src={hintIcon} alt="Hint" class="btn-icon-hint" />
                   <div><span class="hint3left_span">Hint ({hintsLeft} Left)</span></div>
                 </button>
-                <button class="notification_02" aria-label="Zoom">
+                <button class="notification_02" aria-label="Zoom" on:click={openZoomModal}>
                   <img src={zoomIcon} alt="Zoom" class="btn-icon-zoom" />
                   <div><span class="zoom_span">Zoom</span></div>
                 </button>
@@ -1170,6 +1288,26 @@
                        width: {Math.abs(selectionEnd.x - selectionStart.x)}px; 
                        height: {Math.abs(selectionEnd.y - selectionStart.y)}px;"
               ></div>
+            {/if}
+            {#if isFullscreen}
+              <div class="fullscreen-navigation">
+                <button 
+                  class="fullscreen-nav-btn fullscreen-nav-btn-left"
+                  on:click={previousScene}
+                  disabled={currentSceneIndex === 0}
+                  aria-label="Previous scene"
+                >
+                  <img src={arrowleft} alt="Previous" />
+                </button>
+                <button 
+                  class="fullscreen-nav-btn fullscreen-nav-btn-right"
+                  on:click={nextScene}
+                  disabled={currentSceneIndex === generatedImages.length - 1}
+                  aria-label="Next scene"
+                >
+                  <img src={arrowleft} alt="Next" class="arrow-right" />
+                </button>
+              </div>
             {/if}
           </div>
         </div>
@@ -1197,16 +1335,16 @@
             </div>
           </div>
           <div class="scene-control-buttons">
-            <button class="notification" aria-label="Full Screen Preview">
+            <button class="notification" aria-label="Full Screen Preview" on:click={toggleFullscreen}>
               <img src={fullscreen} alt="fullscreen" class="btn-icon-fullscreen" />
-              <div><span class="fullscreenpreview_span">Full Screen Preview</span></div>
+              <div><span class="fullscreenpreview_span">{isFullscreen ? 'Exit Full Screen' : 'Full Screen Preview'}</span></div>
             </button>
             {#if currentSceneIndex !== 0}
               <button class="notification_01" aria-label="Hint">
                 <img src={hintIcon} alt="Hint" class="btn-icon-hint" />
                 <div><span class="hint3left_span">Hint ({hintsLeft} Left)</span></div>
               </button>
-              <button class="notification_02" aria-label="Zoom">
+              <button class="notification_02" aria-label="Zoom" on:click={openZoomModal}>
                 <img src={zoomIcon} alt="Zoom" class="btn-icon-zoom" />
                 <div><span class="zoom_span">Zoom</span></div>
               </button>
@@ -1324,11 +1462,13 @@
     aria-modal="true"
     tabindex="-1"
   >
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div 
       class="found-modal-container" 
       on:click|stopPropagation
       on:keydown={(e) => e.key === 'Escape' && closeFoundModal()}
-      tabindex="0"
+      role="document"
+      tabindex="-1"
     >
       <button class="found-modal-close" on:click={closeFoundModal} aria-label="Close">
         ×
@@ -1399,12 +1539,86 @@
   />
 {/if}
 
-<svelte:window on:keydown={(e) => {
-  if (e.key === 'Escape') {
-    showStoryInfoModal = false;
-    showShareStoryModal = false;
-  }
-}} />
+<!-- Zoom Modal -->
+{#if showZoomModal}
+  <div 
+    class="zoom-modal-overlay"
+    on:click={closeZoomModal}
+    on:keydown={(e) => e.key === 'Escape' && closeZoomModal()}
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div 
+      class="zoom-modal-container" 
+      on:click|stopPropagation
+      on:keydown={(e) => e.key === 'Escape' && closeZoomModal()}
+      role="document"
+      tabindex="-1"
+      bind:this={zoomContainerRef}
+      on:wheel={handleZoomWheel}
+      on:mousedown={handleZoomMouseDown}
+    >
+      <div class="zoom-modal-header">
+        <h2 class="zoom-modal-title">Zoom View</h2>
+        <div class="zoom-modal-controls">
+          <button class="zoom-control-btn" on:click={resetZoom} aria-label="Reset Zoom">
+            Reset
+          </button>
+          <button class="zoom-modal-close" on:click={closeZoomModal} aria-label="Close">
+            ×
+          </button>
+        </div>
+      </div>
+      <div class="zoom-modal-content">
+        {#if generatedImages[currentSceneIndex] && generatedImages[currentSceneIndex] !== 'DEDICATION_PAGE'}
+          <img
+            bind:this={zoomImageRef}
+            src={generatedImages[currentSceneIndex]}
+            alt="Zoomed scene"
+            class="zoom-modal-image"
+            style="transform: translate({zoomPosition.x}px, {zoomPosition.y}px) scale({zoomScale});"
+            draggable="false"
+          />
+        {/if}
+      </div>
+      <div class="zoom-modal-footer">
+        <div class="zoom-info">
+          <span>Zoom: {Math.round(zoomScale * 100)}%</span>
+          <span>•</span>
+          <span>Scroll to zoom • Drag to pan</span>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<svelte:window 
+  on:keydown={(e) => {
+    if (e.key === 'Escape') {
+      if (showZoomModal) {
+        closeZoomModal();
+      } else if (isFullscreen) {
+        toggleFullscreen();
+      } else {
+        showStoryInfoModal = false;
+        showShareStoryModal = false;
+      }
+    } else if (isFullscreen && !showZoomModal) {
+      // Arrow key navigation in fullscreen
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        previousScene();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        nextScene();
+      }
+    }
+  }}
+  on:mousemove={handleZoomMouseMove}
+  on:mouseup={handleZoomMouseUp}
+/>
 
 <style>
   .preview-outer {
@@ -1425,9 +1639,17 @@
     padding: 12px 12px 12px 24px;
   }
 
+  .preview-logo-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-block;
+  }
+
   .preview-logo {
     height: 43px;
-    cursor: pointer;
+    display: block;
   }
 
   .back_span {
@@ -1954,7 +2176,6 @@
   .scene-main-image {
     display: block;
     max-width: 100%;
-    max-height: 750px;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -1976,7 +2197,6 @@
   .cover-main-image {
     display: block;
     max-width: 100%;
-    max-height: 750px;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -1994,14 +2214,15 @@
     flex-direction: row;
     gap: 2px;
     width: 100%;
+    justify-content: center;
+    align-items: center;
   }
 
   .mobile-image-half {
     position: relative;
-    width: 100%;
+    /* width: 100%; */
     overflow: hidden;
     border-radius: 8px;
-    height: 100%;
     position: relative;
     background: white;
     box-shadow: -2px 10px 0px black;
@@ -2011,7 +2232,9 @@
   .mobile-image-half .scene-main-image {
     width: 200%;
     max-width: 200%;
-    height: auto;
+    /* height: auto; */
+    height: 90dvh;
+
     object-fit: cover;
   }
 
@@ -2049,6 +2272,60 @@
     border: 2px dashed #438bff;
     pointer-events: none;
     z-index: 5;
+  }
+
+  /* Fullscreen Navigation */
+  .fullscreen-navigation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 2000;
+    padding: 0 40px;
+  }
+
+  .fullscreen-nav-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(67, 139, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+  }
+
+  .fullscreen-nav-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 1);
+    border-color: #438bff;
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .fullscreen-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .fullscreen-nav-btn img {
+    width: 32px;
+    height: 32px;
+    display: block;
+  }
+
+  .fullscreen-nav-btn .arrow-right {
+    transform: rotate(180deg);
   }
 
   .scene-control-buttons {
@@ -2628,7 +2905,8 @@
   .dedication-image {
     max-width: 100%;
     width: auto;
-    height: auto;
+    /* height: auto; */
+    height: 90dvh;
     object-fit: contain;
     border-radius: 12px;
     flex-shrink: 0;
@@ -2654,5 +2932,182 @@
     text-align: center;
     max-width: 100%;
     word-wrap: break-word;
+  }
+
+  /* Zoom Modal Styles */
+  .zoom-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 4000;
+    padding: 20px;
+  }
+
+  .zoom-modal-container {
+    background: #1a1a1a;
+    border-radius: 12px;
+    width: 100%;
+    height: 100%;
+    max-width: 95vw;
+    max-height: 95vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  }
+
+  .zoom-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #3a3a3a;
+    flex-shrink: 0;
+  }
+
+  .zoom-modal-title {
+    font-family: Quicksand, sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+  }
+
+  .zoom-modal-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .zoom-control-btn {
+    padding: 8px 16px;
+    background: #438bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-family: Nunito, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .zoom-control-btn:hover {
+    background: #2566c9;
+  }
+
+  .zoom-modal-close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #3a3a3a;
+    border-radius: 50%;
+    font-size: 24px;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+
+  .zoom-modal-close:hover {
+    background: #4a4a4a;
+    transform: scale(1.1);
+  }
+
+  .zoom-modal-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: grab;
+  }
+
+  .zoom-modal-content:active {
+    cursor: grabbing;
+  }
+
+  .zoom-modal-image {
+    max-width: none;
+    max-height: none;
+    width: auto;
+    height: auto;
+    transition: transform 0.1s ease-out;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .zoom-modal-footer {
+    padding: 12px 24px;
+    background: #2a2a2a;
+    border-top: 1px solid #3a3a3a;
+    flex-shrink: 0;
+  }
+
+  .zoom-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: Nunito, sans-serif;
+    font-size: 14px;
+    color: #aaa;
+  }
+
+  .zoom-info span {
+    font-weight: 500;
+  }
+
+  @media (max-width: 768px) {
+    .zoom-modal-container {
+      max-width: 100vw;
+      max-height: 100vh;
+      border-radius: 0;
+    }
+
+    .zoom-modal-header {
+      padding: 12px 16px;
+    }
+
+    .zoom-modal-title {
+      font-size: 18px;
+    }
+
+    .zoom-control-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .zoom-modal-close {
+      width: 32px;
+      height: 32px;
+      font-size: 20px;
+    }
+
+    .zoom-modal-footer {
+      padding: 10px 16px;
+    }
+
+    .zoom-info {
+      font-size: 12px;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .zoom-info span:nth-child(2) {
+      display: none;
+    }
   }
 </style>

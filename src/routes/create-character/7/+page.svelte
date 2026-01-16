@@ -23,6 +23,7 @@
   let selectedFormat = "";
   let enhancedCharacterImage = "";
   let isGeneratingImage = false;
+  let selectedCharacterEnhancedImage = "";
   let intersearchWorld = "";
   let intersearchDifficulty = "";
   // Selection state variables - these will be updated with the character name
@@ -72,13 +73,7 @@
       selectedWorld = sessionStorage.getItem('selectedWorld') || "";
       selectedAdventure = sessionStorage.getItem('selectedAdventure') || "";
       selectedFormat = sessionStorage.getItem('selectedFormat') || "";
-      
-      // Get the enhanced character image from step 4
-      const enhancementKey = `enhancementImage_${selectedStyle}_${selectedEnhancement}`;
-      const storedEnhancedImage = sessionStorage.getItem(enhancementKey);
-      if (storedEnhancedImage) {
-        enhancedCharacterImage = storedEnhancedImage.split('?')[0];
-      }
+      enhancedCharacterImage = sessionStorage.getItem('selectedCharacterEnhancedImage') || "";
       
       // Generate images: first environment, then adventure
       if (enhancedCharacterImage && selectedWorld && selectedAdventure) {

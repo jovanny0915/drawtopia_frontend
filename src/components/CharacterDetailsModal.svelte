@@ -122,39 +122,67 @@
   // Handle use in new book
   function handleUseInNewBook() {
     if (browser) {
-      // Get the character image URL (handle both array and string formats)
-      let imageUrl = '';
-      if (Array.isArray(character.enhanced_images) && character.enhanced_images.length > 0) {
-        imageUrl = character.enhanced_images[0];
-      } else if (typeof character.enhanced_images === 'string' && character.enhanced_images) {
-        imageUrl = character.enhanced_images;
-      } else if (character.original_image_url) {
-        imageUrl = character.original_image_url;
+      // Get the character image URLs (handle both array and string formats)
+      let characterImageUrl = '';
+      let enhancedImageUrl = '';
+      
+      // Get original image URL
+      if (character.original_image_url) {
+        characterImageUrl = character.original_image_url;
       }
       
-      // Store character ID in sessionStorage (important for update operation)
+      // Get enhanced image URL (prefer enhanced over original)
+      if (Array.isArray(character.enhanced_images) && character.enhanced_images.length > 0) {
+        enhancedImageUrl = character.enhanced_images[0];
+      } else if (typeof character.enhanced_images === 'string' && character.enhanced_images) {
+        enhancedImageUrl = character.enhanced_images;
+      }
+      
+      // Use enhanced image if available, otherwise use original
+      const selectedImageUrl = enhancedImageUrl || characterImageUrl;
+      
+      // Map character_type: "magical_creature" -> "magical"
+      let characterType = character.character_type || 'person';
+      if (characterType === 'magical_creature') {
+        characterType = 'magical';
+      }
+      
+      // Store all character information to sessionStorage
+      // Child profile information
+      if (character.child_profile_id) {
+        sessionStorage.setItem('selectedChildProfileId', character.child_profile_id.toString());
+      }
+      
+      // Use character name as child profile name if not available elsewhere
+      // This matches the pattern seen in the example where both are the same
+      const childProfileName = character.character_name || '';
+      sessionStorage.setItem('selectedChildProfileName', childProfileName);
+      sessionStorage.setItem('selectedChildName', childProfileName);
+      
+      // Character image information
+      sessionStorage.setItem('characterImageUrl', characterImageUrl);
+      
+      // Character basic information
+      sessionStorage.setItem('characterName', character.character_name || '');
+      sessionStorage.setItem('selectedCharacterType', characterType);
+      sessionStorage.setItem('specialAbility', character.special_ability || '');
+      sessionStorage.setItem('selectedStyle', character.character_style || '3d');
+      
+      // Character ID
       if (character.id) {
         sessionStorage.setItem('characterId', character.id.toString());
       }
       
-      // Store character data in sessionStorage for pre-filling the form
-      sessionStorage.setItem('prefill_character_image', imageUrl);
-      sessionStorage.setItem('prefill_character_name', character.character_name || '');
-      sessionStorage.setItem('prefill_character_type', character.character_type || 'person');
-      sessionStorage.setItem('prefill_special_ability', character.special_ability || '');
-      sessionStorage.setItem('prefill_character_style', character.character_style || '3d');
+      // Enhancement information (default to "normal" as seen in the example)
+      sessionStorage.setItem('selectedEnhancement', 'normal');
       
-      // Store child profile ID if available
-      if (character.child_profile_id) {
-        sessionStorage.setItem('prefill_child_profile_id', character.child_profile_id.toString());
-      }
-      
-      // Set a flag to indicate we're pre-filling the form
-      sessionStorage.setItem('prefill_character_mode', 'true');
+      // Enhanced image (use enhanced if available, otherwise use original)
+      sessionStorage.setItem('selectedCharacterEnhancedImage', selectedImageUrl);
+      sessionStorage.setItem('selectedImage_step4', selectedImageUrl);
     }
     
-    // Navigate to create character page
-    goto('/create-character/1');
+    // Navigate to create character step 3 (book adventure style selection)
+    goto('/create-character/3');
   }
 
   // Handle edit character
