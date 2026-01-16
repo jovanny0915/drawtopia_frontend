@@ -159,7 +159,13 @@
 
   // Handle edit character
   function handleEditCharacter() {
-    dispatch("editCharacter", character);
+    if (character?.id) {
+      // Navigate to edit page with character ID as query parameter
+      goto(`/create-character/edit?characterId=${character.id}`);
+    } else {
+      // Fallback: dispatch event if no ID available
+      dispatch("editCharacter", character);
+    }
   }
 
   // Handle delete character

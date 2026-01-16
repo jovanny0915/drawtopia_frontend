@@ -415,17 +415,6 @@
     height: 20px;
 }
 
-.editprofilepicture_span {
-    color: #727272;
-    font-size: 18px;
-    font-family: Quicksand;
-    font-weight: 400;
-    line-height: 25.20px;
-    word-wrap: break-word;
-    text-decoration: underline;
-    cursor: pointer;
-}
-
 .action-icon {
     width: 20px;
     height: 20px;

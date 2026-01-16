@@ -37,6 +37,11 @@
 
   onMount(() => {
     if (browser) {
+      let selectedStyle = sessionStorage.getItem("selectedStyle");
+      // Clear enhancement images from sessionStorage
+      sessionStorage.removeItem(`enhancementImage_${selectedStyle}_high`);
+      sessionStorage.removeItem(`enhancementImage_${selectedStyle}_minimal`);
+      sessionStorage.removeItem(`enhancementImage_${selectedStyle}_normal`);
       // Get character name from sessionStorage
       characterName = sessionStorage.getItem('characterName') || "";
       // No format selected by default - user must choose

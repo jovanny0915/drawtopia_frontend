@@ -74,39 +74,67 @@
   // Handle "Use in New Book" button click
   function handleUseInNewBook() {
     if (browser) {
-      // Get the character image URL (handle both array and string formats)
-      let imageUrl = '';
-      if (Array.isArray(item.enhanced_images) && item.enhanced_images.length > 0) {
-        imageUrl = item.enhanced_images[0];
-      } else if (typeof item.enhanced_images === 'string' && item.enhanced_images) {
-        imageUrl = item.enhanced_images;
-      } else if (item.original_image_url) {
-        imageUrl = item.original_image_url;
+      // Get the character image URLs (handle both array and string formats)
+      let characterImageUrl = '';
+      let enhancedImageUrl = '';
+      
+      // Get original image URL
+      if (item.original_image_url) {
+        characterImageUrl = item.original_image_url;
       }
       
-      // Store character ID in sessionStorage (important for update operation)
+      // Get enhanced image URL (prefer enhanced over original)
+      if (Array.isArray(item.enhanced_images) && item.enhanced_images.length > 0) {
+        enhancedImageUrl = item.enhanced_images[0];
+      } else if (typeof item.enhanced_images === 'string' && item.enhanced_images) {
+        enhancedImageUrl = item.enhanced_images;
+      }
+      
+      // Use enhanced image if available, otherwise use original
+      const selectedImageUrl = enhancedImageUrl || characterImageUrl;
+      
+      // Map character_type: "magical_creature" -> "magical"
+      let characterType = item.character_type || 'person';
+      if (characterType === 'magical_creature') {
+        characterType = 'magical';
+      }
+      
+      // Store all character information to sessionStorage
+      // Child profile information
+      if (item.child_profile_id) {
+        sessionStorage.setItem('selectedChildProfileId', item.child_profile_id.toString());
+      }
+      
+      // Use character name as child profile name if not available elsewhere
+      // This matches the pattern seen in the example where both are the same
+      const childProfileName = item.character_name || '';
+      sessionStorage.setItem('selectedChildProfileName', childProfileName);
+      sessionStorage.setItem('selectedChildName', childProfileName);
+      
+      // Character image information
+      sessionStorage.setItem('characterImageUrl', characterImageUrl);
+      
+      // Character basic information
+      sessionStorage.setItem('characterName', item.character_name || '');
+      sessionStorage.setItem('selectedCharacterType', characterType);
+      sessionStorage.setItem('specialAbility', item.special_ability || '');
+      sessionStorage.setItem('selectedStyle', item.character_style || '3d');
+      
+      // Character ID
       if (item.id) {
         sessionStorage.setItem('characterId', item.id.toString());
       }
       
-      // Store character data in sessionStorage for pre-filling the form
-      sessionStorage.setItem('prefill_character_image', imageUrl);
-      sessionStorage.setItem('prefill_character_name', item.character_name || '');
-      sessionStorage.setItem('prefill_character_type', item.character_type || 'person');
-      sessionStorage.setItem('prefill_special_ability', item.special_ability || '');
-      sessionStorage.setItem('prefill_character_style', item.character_style || '3d');
+      // Enhancement information (default to "normal" as seen in the example)
+      sessionStorage.setItem('selectedEnhancement', 'normal');
       
-      // Store child profile ID if available
-      if (item.child_profile_id) {
-        sessionStorage.setItem('prefill_child_profile_id', item.child_profile_id.toString());
-      }
-      
-      // Set a flag to indicate we're pre-filling the form
-      sessionStorage.setItem('prefill_character_mode', 'true');
+      // Enhanced image (use enhanced if available, otherwise use original)
+      sessionStorage.setItem('selectedCharacterEnhancedImage', selectedImageUrl);
+      sessionStorage.setItem('selectedImage_step4', selectedImageUrl);
     }
     
-    // Navigate to create character page
-    goto('/create-character/1');
+    // Navigate to create character step 3 (book adventure style selection)
+    goto('/create-character/3');
   }
 
   // Handle "View Books" button click
