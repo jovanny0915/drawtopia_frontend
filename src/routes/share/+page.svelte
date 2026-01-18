@@ -534,11 +534,11 @@
       </div>
 
       <!-- Story Text (if available and not cover or dedication) -->
-      {#if currentSceneIndex > 0 && !(hasDedication && currentSceneIndex === 1) && storyPages[currentSceneIndex - (hasDedication ? 2 : 1)]}
+      <!-- {#if currentSceneIndex > 0 && !(hasDedication && currentSceneIndex === 1) && storyPages[currentSceneIndex - (hasDedication ? 2 : 1)]}
         <div class="story-text-container">
           <p class="story-text">{storyPages[currentSceneIndex - (hasDedication ? 2 : 1)].text}</p>
         </div>
-      {/if}
+      {/if} -->
 
       <!-- Audio Controls (only show if not cover page, not dedication, and audio exists) -->
       {#if currentSceneIndex > 0 && !(hasDedication && currentSceneIndex === 1) && audioUrls[currentSceneIndex - (hasDedication ? 2 : 1)]}

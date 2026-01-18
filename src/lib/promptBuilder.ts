@@ -136,8 +136,6 @@ export function buildEnhancementPrompt(options: PromptBuilderOptions): string {
   
   // Combine all parts
   const finalPrompt = promptParts.join('');
-
-  console.log("+++++++++++++++++++++++++++\n", finalPrompt)
   
   return finalPrompt;
 }
@@ -167,21 +165,7 @@ function getWorldDisplayName(world: string): string {
   return worldMapping[world.toLowerCase()] || world;
 }
 
-/**
- * Maps adventure type values to display names
- */
-function getAdventureTypeDisplayName(adventureType: string): string {
-  const adventureMapping: { [key: string]: string } = {
-    "treasure": "Treasure Hunt",
-    "treasure-hunt": "Treasure Hunt",
-    "treasure_hunt": "Treasure Hunt",
-    "helping": "Helping a Friend",
-    "helping-a-friend": "Helping a Friend",
-    "helping_a_friend": "Helping a Friend",
-    "helpfriend": "Helping a Friend"
-  };
-  return adventureMapping[adventureType.toLowerCase()] || adventureType;
-}
+
 
 /**
  * Maps world values to prompt1.json keys for story text
@@ -752,6 +736,154 @@ function getDedicationWorldKey(storyWorld: string): string {
     return 'underwater';
   }
   return 'forest'; // default
+}
+
+/**
+ * Interface for story adventure cover prompt options
+ */
+export interface StoryAdventureCoverPromptOptions {
+  characterName: string
+  characterType: string
+  characterStyle: '3d' | 'cartoon' | 'anime'
+  storyWorld: string
+  adventureType: string
+  ageGroup: string
+  storyTitle: string
+  characterImageUrl?: string
+}
+
+/**
+ * Maps story world to cover environment key in prompt1.json
+ */
+function getStoryWorldKeyForCover(storyWorld: string): string {
+  const worldLower = storyWorld.toLowerCase();
+  if (worldLower.includes('outer') || worldLower.includes('space')) {
+    return 'outerSpace';
+  }
+  if (worldLower.includes('forest') || worldLower.includes('enchanted')) {
+    return 'enchantedForest';
+  }
+  if (worldLower.includes('underwater') || worldLower.includes('ocean') || worldLower.includes('sea')) {
+    return 'underwaterKingdom';
+  }
+  return 'enchantedForest'; // default
+}
+
+/**
+ * Gets display name for story world
+ */
+function getStoryWorldDisplayName(storyWorld: string): string {
+  const worldKey = getStoryWorldKeyForCover(storyWorld);
+  const displayMapping: { [key: string]: string } = {
+    'enchantedForest': 'Enchanted Forest',
+    'outerSpace': 'Outer Space',
+    'underwaterKingdom': 'Underwater Kingdom'
+  };
+  return displayMapping[worldKey] || 'Enchanted Forest';
+}
+
+/**
+ * Gets display name for adventure type
+ */
+function getAdventureTypeDisplayName(adventureType: string): string {
+  const adventureLower = adventureType.toLowerCase();
+  if (adventureLower.includes('treasure')) {
+    return 'Treasure Hunt';
+  }
+  if (adventureLower.includes('help') || adventureLower.includes('friend')) {
+    return 'Helping a Friend';
+  }
+  return 'Adventure';
+}
+
+/**
+ * Replaces placeholders in story adventure cover prompts
+ */
+function replaceStoryCoverPlaceholders(
+  template: string,
+  options: StoryAdventureCoverPromptOptions
+): string {
+  let result = template;
+  
+  result = result.replace(/\{character_name\}/g, options.characterName);
+  result = result.replace(/\{character_style\}/g, options.characterStyle);
+  result = result.replace(/\{story_world\}/g, options.storyWorld);
+  
+  return result;
+}
+
+/**
+ * Builds a story adventure cover prompt from prompt1.json
+ * 
+ * Combines:
+ * 1. basePrompt from generateStoryScene.cover
+ * 2. coverEnvironment based on world
+ * 3. characterStyleSpecifications based on character style
+ */
+export function buildStoryAdventureCoverPrompt(
+  options: StoryAdventureCoverPromptOptions
+): string {
+  const storyScene = (prompt1Data as any).generateStoryScene;
+  if (!storyScene) {
+    throw new Error('generateStoryScene not found in prompt1.json');
+  }
+
+  const cover = storyScene.cover;
+  if (!cover) {
+    throw new Error('cover not found in generateStoryScene');
+  }
+
+  const promptParts: string[] = [];
+
+  // 0. BOOK INFORMATION (at the head)
+  const worldDisplay = getStoryWorldDisplayName(options.storyWorld);
+  const adventureDisplay = getAdventureTypeDisplayName(options.adventureType);
+  const bookInfo = `BOOK INFORMATION:
+- Book Title: "${options.storyTitle || 'Adventure Story'}"
+- Format: Story Adventure Book (5-page narrative)
+- Character: ${options.characterName}, a ${options.characterType}
+- World: ${worldDisplay} (Enchanted Forest / Outer Space / Underwater Kingdom)
+- Adventure: ${adventureDisplay} (Treasure Hunt / Helping a Friend)
+- Art Style: ${options.characterStyle}
+- Target Age Group: ${options.ageGroup}`;
+  promptParts.push(bookInfo);
+
+  // 1. Base prompt
+  const basePrompt = cover.basePrompt || '';
+  if (basePrompt && basePrompt.trim().length > 0) {
+    let processedPrompt = replaceStoryCoverPlaceholders(basePrompt, options);
+    promptParts.push(`\n\n${processedPrompt}`);
+  }
+
+  // 2. Cover environment based on world
+  const worldKey = getStoryWorldKeyForCover(options.storyWorld);
+  const coverEnvironment = cover.coverEnvironment?.[worldKey];
+  if (coverEnvironment && coverEnvironment.trim().length > 0) {
+    promptParts.push(`\n\n${replaceStoryCoverPlaceholders(coverEnvironment, options)}`);
+  }
+
+  // 3. Character style specifications
+  const styleKey = options.characterStyle === '3d' ? '3d' : 
+                   options.characterStyle === 'cartoon' ? 'cartoon' : 
+                   options.characterStyle === 'anime' ? 'anime' : 'cartoon';
+  const styleSpecs = cover.characterStyleSpecifications?.[styleKey];
+  if (styleSpecs && styleSpecs.trim().length > 0) {
+    promptParts.push(`\n\n${styleSpecs}`);
+  }
+
+  // 4. Character reference image instructions
+  if (options.characterImageUrl) {
+    promptParts.push(`\n\nCHARACTER REFERENCE IMAGE:
+- A reference image of ${options.characterName} is provided
+- Use this reference image to maintain consistent character appearance
+- The character in the cover must match the appearance, style, and features shown in the reference image
+- Keep the character's visual identity consistent with the reference image`);
+  }
+
+  // Combine all parts
+  const finalPrompt = promptParts.join('');
+
+  return finalPrompt;
 }
 
 /**

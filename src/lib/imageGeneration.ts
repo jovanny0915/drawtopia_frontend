@@ -1,6 +1,6 @@
 import { browser } from "$app/environment";
 import prompt1Data from "./prompt1.json";
-import { buildEnhancementPrompt, buildIntersearchCoverPrompt } from "./promptBuilder";
+import { buildEnhancementPrompt, buildIntersearchCoverPrompt, buildStoryAdventureCoverPrompt, type StoryAdventureCoverPromptOptions } from "./promptBuilder";
 
 export interface ImageGenerationResult {
   success: boolean;
@@ -633,6 +633,173 @@ export function clearAllCachedImages(): void {
       sessionStorage.removeItem(`adventureImage_${world}_${adventure}`);
     });
   });
+}
+
+/**
+ * Interface for story adventure cover generation options
+ */
+export interface StoryAdventureCoverOptions {
+  characterImageUrl: string
+  characterName?: string
+  characterType?: 'person' | 'animal' | 'magical'
+  characterStyle?: '3d' | 'cartoon' | 'anime'
+  storyWorld?: string
+  adventureType?: string
+  ageGroup?: string
+  storyTitle?: string
+  saveToStorage?: boolean
+  storageKey?: string
+}
+
+/**
+ * Generate story adventure cover image
+ * Uses the character image and builds a prompt using buildStoryAdventureCoverPrompt
+ */
+export async function generateStoryAdventureCover(
+  options: StoryAdventureCoverOptions
+): Promise<ImageGenerationResult> {
+  if (!browser) {
+    return { success: false, error: 'Browser environment required' };
+  }
+
+  try {
+    const {
+      characterImageUrl,
+      characterName,
+      characterType,
+      characterStyle,
+      storyWorld,
+      adventureType,
+      ageGroup,
+      storyTitle,
+      saveToStorage = true,
+      storageKey
+    } = options;
+
+    if (!characterImageUrl) {
+      return { success: false, error: 'No character image URL provided' };
+    }
+
+    // Get character details from options or sessionStorage
+    let charName = characterName;
+    let charType: 'person' | 'animal' | 'magical' = 'person';
+    let charStyle: '3d' | 'cartoon' | 'anime' = 'cartoon';
+    let world = storyWorld || '';
+    let adventure = adventureType || '';
+    let age = ageGroup || '';
+    let title = storyTitle || '';
+
+    // Get character name
+    if (!charName) {
+      charName = sessionStorage.getItem('characterName') || 'Character';
+    }
+
+    // Get character type
+    if (characterType) {
+      if (characterType === 'magical') {
+        charType = 'magical';
+      } else if (characterType === 'animal') {
+        charType = 'animal';
+      } else {
+        charType = 'person';
+      }
+    } else {
+      const storedType = sessionStorage.getItem('selectedCharacterType') || 'person';
+      if (storedType === 'magical_creature' || storedType === 'magical') {
+        charType = 'magical';
+      } else if (storedType === 'animal') {
+        charType = 'animal';
+      } else {
+        charType = 'person';
+      }
+    }
+
+    // Get character style
+    if (characterStyle) {
+      charStyle = characterStyle;
+    } else {
+      const storedStyle = sessionStorage.getItem('selectedStyle') || 'cartoon';
+      if (storedStyle === '3d' || storedStyle === 'cartoon' || storedStyle === 'anime') {
+        charStyle = storedStyle as '3d' | 'cartoon' | 'anime';
+      }
+    }
+
+    // Get story world
+    if (!world) {
+      world = sessionStorage.getItem('selectedWorld') || 'forest';
+    }
+
+    // Map world names to prompt1.json format
+    const worldMapping: { [key: string]: string } = {
+      'forest': 'enchantedForest',
+      'outerspace': 'outerSpace',
+      'underwater': 'underwaterKingdom'
+    };
+    const mappedWorld = worldMapping[world.toLowerCase()] || 'enchantedForest';
+
+    // Get adventure type
+    if (!adventure) {
+      adventure = sessionStorage.getItem('selectedAdventure') || 'treasure';
+    }
+
+    // Get age group
+    if (!age) {
+      age = sessionStorage.getItem('ageGroup') || '7-10';
+    }
+
+    // Get story title
+    if (!title) {
+      title = sessionStorage.getItem('storyTitle') || 'Adventure Story';
+    }
+
+    // Build the cover prompt
+    const prompt = buildStoryAdventureCoverPrompt({
+      characterName: charName,
+      characterType: charType === 'magical' ? 'magical' : charType === 'animal' ? 'animal' : 'person',
+      characterStyle: charStyle,
+      storyWorld: mappedWorld,
+      adventureType: adventure,
+      ageGroup: age,
+      storyTitle: title,
+      characterImageUrl: characterImageUrl
+    });
+
+    // Call the image editing API
+    const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        image_url: characterImageUrl,
+        prompt: prompt
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to generate cover image: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.storage_info?.uploaded && data.storage_info?.url) {
+      const cleanUrl = data.storage_info.url.split('?')[0];
+
+      // Save to sessionStorage if requested
+      if (saveToStorage) {
+        const key = storageKey || 'storyCover';
+        sessionStorage.setItem(key, data.storage_info.url);
+      }
+
+      return { success: true, url: cleanUrl };
+    } else {
+      throw new Error('No image URL received from the API');
+    }
+  } catch (err) {
+    console.error('Error generating story adventure cover:', err);
+    const errorMessage = err instanceof Error ? err.message : 'Failed to generate story adventure cover. Please try again.';
+    return { success: false, error: errorMessage };
+  }
 }
 
 /**

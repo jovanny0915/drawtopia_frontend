@@ -10,8 +10,9 @@
   import { onMount } from "svelte";
   import small from "../../../assets/small.png";
   import classic from "../../../assets/classic.png";
+  import spinner from "../../../assets/Spinner.svg";
   import { storyCreation } from "../../../lib/stores/storyCreation";
-  import { generateIntersearchCover, generateStyledImage, saveSelectedImageUrl } from "../../../lib/imageGeneration";
+  import { generateIntersearchCover, generateStoryAdventureCover, generateStyledImage, saveSelectedImageUrl } from "../../../lib/imageGeneration";
 
   let isMobile = false;
   let characterName = "";
@@ -146,21 +147,29 @@
       let adventureImageUrl = sessionStorage.getItem(adventureCacheKey);
       
       if (!adventureImageUrl) {
-        const adventureResult = await generateStyledImage({
-          imageUrl: environmentImageUrl,
-          style: 'adventure',
-          quality: `${selectedWorld}_${adventureKey}` as any,
+        // Get character image for cover generation
+        const characterImageUrl = sessionStorage.getItem('selectedCharacterEnhancedImage') || environmentImageUrl;
+        
+        if (!characterImageUrl) {
+          console.error('No character image available for cover generation');
+          return;
+        }
+        
+        const coverResult = await generateStoryAdventureCover({
+          characterImageUrl: characterImageUrl,
+          storyWorld: selectedWorld,
+          adventureType: adventureKey,
           saveToStorage: true,
           storageKey: adventureCacheKey
         });
         
-        if (adventureResult.success && adventureResult.url) {
-          adventureImageUrl = adventureResult.url;
-          selectedImageFromStep6 = adventureResult.url;
+        if (coverResult.success && coverResult.url) {
+          adventureImageUrl = coverResult.url;
+          selectedImageFromStep6 = coverResult.url;
           saveSelectedImageUrl('6', adventureImageUrl);
           storyCreation.setOriginalImageUrl(adventureImageUrl);
         } else {
-          console.error('Failed to generate adventure image:', adventureResult.error);
+          console.error('Failed to generate story adventure cover:', coverResult.error);
         }
       } else {
         adventureImageUrl = adventureImageUrl.split('?')[0];
@@ -290,7 +299,7 @@
         </div>
         {#if isGeneratingImage}
           <div class="generating-overlay">
-            <div class="spinner"></div>
+            <img src={spinner} alt="Loading" class="spinner" />
             <div class="generating-text">Generating adventure image...</div>
           </div>
         {:else}
@@ -1300,10 +1309,7 @@
   .spinner {
     width: 48px;
     height: 48px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #438bff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 1.5s linear infinite;
   }
 
   .generating-text {
