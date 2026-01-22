@@ -9,6 +9,7 @@
 
   import { giftCreation } from "../../../../lib/stores/giftCreation";
   import { getGiftById, type Gift } from "../../../../lib/database/gifts";
+  import { getStoryById, createStory, type Story } from "../../../../lib/database/stories";
   import {
     user,
     authLoading,
@@ -16,13 +17,15 @@
   } from "../../../../lib/stores/auth";
 
   let giftState: any = {};
-  let giftData: Gift | null = null;
+  let giftData: Gift | any = null; // Use any to access gift_type and story_id from Supabase
   let gifterName = "Grandma"; // Default or get from store/params
   let recipientName = "";
   let recipientAge = "";
   let occasion = "";
   let giftMessage = "";
   let loadingGift = false;
+  let giftType: string | null = null;
+  let storyId: string | null = null;
 
   // Reactive statements for auth state
   $: currentUser = $user;
@@ -34,29 +37,37 @@
   $: giftId = $page.url.searchParams.get('giftId');
 
   // Load gift data from database if giftId is provided
-  onMount(async () => {
+  onMount(() => {
     // First try to load from URL parameter (from notification click)
     if (giftId) {
-      loadingGift = true;
-      try {
-        const result = await getGiftById(giftId);
-        if (result.success && result.data) {
-          giftData = result.data as Gift;
-          // Populate fields from gift data
-          recipientName = giftData.child_name || "Emma";
-          recipientAge = giftData.age_group ? getAgeFromRange(giftData.age_group) : "7";
-          occasion = giftData.occasion || "Birthday";
-          giftMessage = giftData.special_msg || "";
-          
-          // TODO: Fetch sender's name from user profile using giftData.from_user_id
-          // For now, use relationship or default
-          gifterName = giftData.relationship || "Someone";
+      const currentGiftId = giftId; // Store in const to satisfy TypeScript
+      async function loadGift() {
+        loadingGift = true;
+        try {
+          const result = await getGiftById(currentGiftId);
+          if (result.success && result.data) {
+            giftData = result.data;
+            // Populate fields from gift data
+            recipientName = giftData.child_name || "Emma";
+            recipientAge = giftData.age_group ? getAgeFromRange(giftData.age_group) : "7";
+            occasion = giftData.occasion || "Birthday";
+            giftMessage = giftData.special_msg || "";
+            
+            // Extract gift_type and story_id from Supabase data
+            giftType = giftData.gift_type || null;
+            storyId = giftData.story_id || null;
+            
+            // TODO: Fetch sender's name from user profile using giftData.from_user_id
+            // For now, use relationship or default
+            gifterName = giftData.relationship || "Someone";
+          }
+        } catch (err) {
+          console.error('Error loading gift:', err);
+        } finally {
+          loadingGift = false;
         }
-      } catch (err) {
-        console.error('Error loading gift:', err);
-      } finally {
-        loadingGift = false;
       }
+      loadGift();
     } else {
       // Fallback to store if no giftId
       const unsubscribe = giftCreation.subscribe((state) => {
@@ -84,10 +95,97 @@
     return ageRange.split("-")[0] || "7";
   }
 
-  const handleStartCreating = () => {
-    // Navigate to gift creation flow
-    // TODO: Update with actual creation flow route
-    goto("/create-character/1");
+  // Reactive button text based on gift_type
+  $: buttonText = giftType === "story" ? "View The Gift Story" : "Start Creating The Gift";
+
+  const handleStartCreating = async () => {
+    if (giftType === "story" && storyId) {
+      // Handle story gift: copy story for current user and navigate
+      try {
+        if (!currentUser?.id) {
+          alert("Please log in to view the story");
+          return;
+        }
+
+        // Get the story from database
+        const storyResult = await getStoryById(storyId);
+        if (!storyResult.success || !storyResult.data) {
+          alert("Story not found");
+          return;
+        }
+
+        const originalStory = Array.isArray(storyResult.data) ? storyResult.data[0] : storyResult.data;
+        const storyType = originalStory.story_type || "story";
+
+        // Handle audio_urls - database stores as audio_url (array)
+        let audioUrls: (string | null)[] = [];
+        if (originalStory.audio_url) {
+          if (Array.isArray(originalStory.audio_url)) {
+            audioUrls = originalStory.audio_url;
+          } else if (typeof originalStory.audio_url === 'string') {
+            try {
+              audioUrls = JSON.parse(originalStory.audio_url);
+            } catch {
+              audioUrls = [];
+            }
+          }
+        }
+
+        // Copy story for current user
+        // We need to get or use a child_profile_id for the current user
+        // For now, we'll use the original child_profile_id or create a new one
+        // In a real scenario, you might want to create a child profile or use an existing one
+        const newStoryData: Story = {
+          user_id: currentUser.id,
+          child_profile_id: originalStory.child_profile_id, // Use original or create new
+          character_id: originalStory.character_id,
+          character_name: originalStory.character_name,
+          character_type: originalStory.character_type,
+          special_ability: originalStory.special_ability,
+          character_style: originalStory.character_style,
+          story_world: originalStory.story_world,
+          adventure_type: originalStory.adventure_type,
+          original_image_url: originalStory.original_image_url,
+          enhanced_images: originalStory.enhanced_images || [],
+          story_title: originalStory.story_title,
+          story_cover: originalStory.story_cover,
+          cover_design: originalStory.cover_design,
+          story_content: originalStory.story_content,
+          scene_images: originalStory.scene_images || [],
+          audio_urls: audioUrls,
+          dedication_text: originalStory.dedication_text,
+          dedication_image: originalStory.dedication_image,
+          status: originalStory.status || "completed",
+          story_type: originalStory.story_type,
+          hints: originalStory.hints,
+          gift_id: giftId || undefined // Store the gift_id with the story
+        };
+
+        const createResult = await createStory(newStoryData);
+        if (!createResult.success || !createResult.data) {
+          alert("Failed to save story");
+          return;
+        }
+
+        const newStoryId = createResult.data.uid || createResult.data.id;
+
+        // Navigate based on story type
+        if (storyType === "search") {
+          goto(`/intersearch/1?storyId=${newStoryId}`);
+        } else {
+          goto(`/preview/default?storyId=${newStoryId}`);
+        }
+      } catch (error) {
+        console.error("Error handling story gift:", error);
+        alert("An error occurred while loading the story");
+      }
+    } else if (giftType === "link") {
+      // Handle link gift: navigate to character creation
+      goto("/create-character/1");
+    } else {
+      // Default behavior (fallback)
+      goto("/create-character/1");
+    }
   };
 </script>
 
@@ -142,7 +240,7 @@
             fill="white"
           />
         </svg>
-        Start Creating The Gift
+        {buttonText}
       </button>
 
       <!-- Expiration Notice -->

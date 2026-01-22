@@ -3,16 +3,88 @@
     import { page } from "$app/stores";
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
+    import { user } from "../../../lib/stores/auth";
+    import { sendPaymentSuccessEmail, sendReceiptEmail } from "../../../lib/emails";
     import drawtopia from "../../../assets/logo.png";
     
     const goToDashboard = () => {
         goto('/dashboard');
     };
 
+    const BACKEND_URL = 'https://image-edit-five.vercel.app'; // http://localhost:8000
+
     let sessionId: string | null = null;
     let isVerifying = true;
     let verificationSuccess = false;
     let errorMessage = "";
+    let savedStoryId: string | null = null; // Story ID from URL or sessionStorage
+    let savedSceneIndex: string | null = null; // Scene index from URL
+    let emailSent = false; // Track if emails have been sent
+
+    // Helper function to send payment confirmation emails
+    async function sendPaymentEmails(sessionData: any) {
+        if (emailSent) return; // Prevent duplicate sends
+        
+        try {
+            const customerEmail = sessionData.customer_email || $user?.email;
+            const customerName = sessionData.customer_name || 
+                ($user?.first_name && $user?.last_name 
+                    ? `${$user.first_name} ${$user.last_name}`.trim()
+                    : $user?.first_name || $user?.last_name || 'there');
+            
+            if (!customerEmail) {
+                console.warn('Cannot send payment emails: no email address available');
+                return;
+            }
+
+            // Send payment success email (for subscriptions)
+            if (sessionData.mode === 'subscription' && sessionData.plan_type) {
+                const paymentResult = await sendPaymentSuccessEmail(
+                    customerEmail,
+                    customerName,
+                    sessionData.plan_type,
+                    sessionData.amount,
+                    sessionData.next_billing_date
+                );
+                
+                if (paymentResult.success) {
+                    console.log('✅ Payment success email sent');
+                } else {
+                    console.error('❌ Failed to send payment success email:', paymentResult.error);
+                }
+            }
+
+            // Send receipt email
+            const receiptResult = await sendReceiptEmail(
+                customerEmail,
+                customerName,
+                sessionData.invoice_id || sessionData.session_id,
+                [{
+                    name: sessionData.mode === 'subscription' 
+                        ? `${sessionData.plan_type?.charAt(0).toUpperCase() + sessionData.plan_type?.slice(1) || 'Subscription'} Subscription`
+                        : sessionData.purchase_type === 'story_bundle' 
+                            ? 'Story Bundle'
+                            : 'Single Story',
+                    amount: sessionData.amount ? parseFloat(sessionData.amount.replace('$', '')) : 0
+                }],
+                sessionData.amount ? parseFloat(sessionData.amount.replace('$', '')) : 0,
+                0, // tax
+                sessionData.amount ? parseFloat(sessionData.amount.replace('$', '')) : 0,
+                new Date().toISOString()
+            );
+            
+            if (receiptResult.success) {
+                console.log('✅ Receipt email sent');
+            } else {
+                console.error('❌ Failed to send receipt email:', receiptResult.error);
+            }
+            
+            emailSent = true;
+        } catch (error) {
+            console.error('Error sending payment emails:', error);
+            // Don't block the user if email sending fails
+        }
+    }
 
     onMount(async () => {
         if (browser) {
@@ -20,11 +92,80 @@
             sessionId = $page.url.searchParams.get('session_id');
             
             if (sessionId) {
-                // Optionally verify the session with the backend
-                // For now, we'll assume success if we have a session_id
-                verificationSuccess = true;
+                try {
+                    // Fetch session details from backend
+                    const response = await fetch(`${BACKEND_URL}/api/stripe/session/${sessionId}`);
+                    
+                    if (response.ok) {
+                        const sessionData = await response.json();
+                        
+                        if (sessionData.success && sessionData.payment_status === 'paid') {
+                            verificationSuccess = true;
+                            
+                            // Send payment confirmation emails
+                            await sendPaymentEmails(sessionData);
+                        } else {
+                            errorMessage = "Payment not completed";
+                        }
+                    } else {
+                        errorMessage = "Failed to verify payment";
+                    }
+                } catch (error) {
+                    console.error('Error verifying session:', error);
+                    errorMessage = "Error verifying payment";
+                }
             } else {
                 errorMessage = "No session found";
+            }
+            
+            // Get story ID and scene index from URL parameters (passed through Stripe redirect)
+            const urlStoryId = $page.url.searchParams.get('storyId');
+            const urlSceneIndex = $page.url.searchParams.get('sceneIndex');
+            
+            if (urlStoryId) {
+                savedStoryId = urlStoryId;
+                console.log(`[subscription/success] Found story ID from URL: ${savedStoryId}`);
+                
+                // If scene index is in URL, restore it to sessionStorage
+                if (urlSceneIndex) {
+                    savedSceneIndex = urlSceneIndex;
+                    try {
+                        sessionStorage.setItem(`preview_scene_index_${savedStoryId}`, urlSceneIndex);
+                        console.log(`[subscription/success] Restored scene index ${urlSceneIndex} to sessionStorage for story ${savedStoryId}`);
+                    } catch (error) {
+                        console.error('[subscription/success] Error restoring scene index to sessionStorage:', error);
+                    }
+                } else {
+                    // Fallback: Check sessionStorage if URL doesn't have scene index
+                    try {
+                        const storedIndex = sessionStorage.getItem(`preview_scene_index_${savedStoryId}`);
+                        if (storedIndex) {
+                            savedSceneIndex = storedIndex;
+                            console.log(`[subscription/success] Found scene index in sessionStorage: ${savedSceneIndex}`);
+                        }
+                    } catch (error) {
+                        console.error('[subscription/success] Error checking sessionStorage:', error);
+                    }
+                }
+            } else {
+                // Fallback: Check sessionStorage if URL doesn't have story ID
+                try {
+                    for (let i = 0; i < sessionStorage.length; i++) {
+                        const key = sessionStorage.key(i);
+                        if (key && key.startsWith('preview_scene_index_')) {
+                            // Extract storyId from key (format: preview_scene_index_${storyId})
+                            const extractedStoryId = key.replace('preview_scene_index_', '');
+                            if (extractedStoryId) {
+                                savedStoryId = extractedStoryId;
+                                savedSceneIndex = sessionStorage.getItem(key);
+                                console.log(`[subscription/success] Found saved scene index for story: ${savedStoryId}, index: ${savedSceneIndex}`);
+                                break; // Use the first one found
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('[subscription/success] Error checking sessionStorage:', error);
+                }
             }
             
             isVerifying = false;
@@ -37,6 +178,15 @@
 
     function handleStartCreating() {
         goto('/create-character/1');
+    }
+
+    function handleContinueReading() {
+        if (savedStoryId) {
+            goto(`/preview/default?storyId=${savedStoryId}`);
+        } else {
+            // Fallback to dashboard if no story ID found
+            goto('/dashboard');
+        }
     }
 </script>
 
@@ -89,9 +239,15 @@
                 <button class="primary-btn" on:click={handleStartCreating}>
                     Start Creating Stories
                 </button>
-                <button class="secondary-btn" on:click={handleGoToDashboard}>
-                    Go to Dashboard
-                </button>
+                {#if savedStoryId}
+                    <button class="secondary-btn" on:click={handleContinueReading}>
+                        Continue to Read
+                    </button>
+                {:else}
+                    <button class="secondary-btn" on:click={handleGoToDashboard}>
+                        Go to Dashboard
+                    </button>
+                {/if}
             </div>
         </div>
     {:else}

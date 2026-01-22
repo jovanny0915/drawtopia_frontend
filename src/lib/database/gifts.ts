@@ -24,6 +24,8 @@ export interface Gift {
   notification_sent?: boolean; // Whether push notification has been sent
   notification_sent_at?: string; // Timestamp when notification was sent
   notification_scheduled?: boolean; // Whether notification has been scheduled
+  gift_type?: string; // Type of gift: "story" for created stories, or other types for link gifts
+  story_id?: string; // Story ID when gift_type is "story"
 }
 
 export interface DatabaseResult {
@@ -62,6 +64,30 @@ export async function createGift(gift: Gift): Promise<DatabaseResult> {
       console.log('Could not check recipient user, will store email only:', err);
     }
 
+    // Determine gift_type and story_id based on gift_mode
+    // Check gift_mode from sessionStorage (client-side only)
+    let giftType: string | undefined = gift.gift_type;
+    let storyId: string | undefined = gift.story_id;
+    
+    if (typeof window !== 'undefined') {
+      const giftMode = sessionStorage.getItem('gift_mode');
+      
+      if (giftMode === 'create') {
+        // For create mode: set gift_type to "story" and story_id to current story ID
+        giftType = 'story';
+        const currentStoryId = sessionStorage.getItem('currentStoryId');
+        if (currentStoryId) {
+          storyId = currentStoryId;
+        }
+      } else if (giftMode === 'link') {
+        // For link mode: only set gift_type (story_id should not be set)
+        // If gift_type is not already provided, we'll leave it undefined
+        // The caller should provide the appropriate gift_type for link mode
+        giftType = gift.gift_type; // Use provided gift_type or leave undefined
+        storyId = undefined; // Explicitly don't set story_id for link mode
+      }
+    }
+
     const { data, error } = await supabase
       .from('gifts')
       .insert([{
@@ -77,7 +103,9 @@ export async function createGift(gift: Gift): Promise<DatabaseResult> {
         delivery_email: recipientEmail, // Keep for backward compatibility
         child_name: gift.child_name,
         age_group: gift.age_group,
-        checked: false // Notification not checked yet
+        checked: false, // Notification not checked yet
+        gift_type: giftType, // Set gift_type based on gift_mode
+        story_id: storyId // Set story_id only for create mode
       }])
       .select('*')
       .single();
@@ -100,17 +128,12 @@ export async function createGift(gift: Gift): Promise<DatabaseResult> {
                         user.email?.split('@')[0] || 
                         'Someone special';
       
-      // Determine delivery method
-      const deliveryMethod = gift.delivery_time ? 'scheduled_delivery' : 'immediate_email';
-      
       const emailResult = await queueGiftNotificationEmail(
         recipientEmail,
         gift.child_name,
         giverName,
         gift.occasion,
-        gift.special_msg || '',
-        deliveryMethod,
-        gift.delivery_time // ISO datetime string
+        gift.special_msg || ''
       );
       
       if (emailResult.success) {

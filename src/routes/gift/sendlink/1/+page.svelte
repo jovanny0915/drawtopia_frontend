@@ -48,6 +48,7 @@
     let characterCount = 0;
     const maxCharacters = 200;
     let scheduleDelivery = false;
+    let giftMode = "";
 
     // Reactive statements for auth state
     $: currentUser = $user;
@@ -58,9 +59,16 @@
     // Update character count
     $: characterCount = dedicationMessage.length;
 
+    // Reactive title and subtitle based on gift_mode
+    $: pageTitle = giftMode === "create" ? "Send Story Created" : "Send Creation Link";
+    $: pageSubtitle = giftMode === "create" ? "Copy and send the story to your recipient" : "Copy and send the link to your recipient";
+
     // Check authentication on mount (client-side only)
     onMount(() => {
         if (browser) {
+            // Read gift_mode from sessionStorage
+            giftMode = sessionStorage.getItem("gift_mode") || "";
+            
             setTimeout(() => {
                 if (safeToRedirect && !authenticated) {
                     goto("/login");
@@ -163,11 +171,15 @@
     const handleBack = () => {
         goto("/gift/1");
     };
+
+    const handleLogoClick = () => {
+        goto("/dashboard");
+    };
 </script>
 
 <div class="send-link-page">
     <div class="navbar">
-        <div class="logo-text-full">
+        <div class="logo-text-full" on:click={handleLogoClick} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && handleLogoClick()}>
             <img src={logo} alt="logo" class="logo-img">
         </div>
     </div>
@@ -175,8 +187,8 @@
     <div class="content">
         <div class="divider">
             <div class="header">
-                <h1 class="title">Send Creation Link</h1>
-                <p class="subtitle">Copy and send the link to your recipient</p>
+                <h1 class="title">{pageTitle}</h1>
+                <p class="subtitle">{pageSubtitle}</p>
             </div>
 
             <div class="preview-button">
@@ -375,6 +387,18 @@
         width: 203.32px;
         height: 38px;
         position: relative;
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+    }
+
+    .logo-text-full:hover {
+        opacity: 0.8;
+    }
+
+    .logo-text-full:focus {
+        outline: 2px solid #438bff;
+        outline-offset: 2px;
+        border-radius: 4px;
     }
 
     .logo-img {

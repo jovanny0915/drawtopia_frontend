@@ -119,7 +119,7 @@
   onMount(async () => {
     if (browser) {
       // Check subscription status first
-      checkSubscriptionStatus();
+      await checkSubscriptionStatus();
       
       // Get story ID from URL query params
       const storyId = $page.url.searchParams.get('storyId');
@@ -158,6 +158,9 @@
         console.log("[preview] Story purchased status:", isPurchased);
         console.log("[preview] Story ID:", currentStoryId);
         console.log("[preview] Story data purchased field:", storyData?.purchased);
+        
+        // Re-check subscription status after loading story (in case it changed during payment)
+        await checkSubscriptionStatus();
         
         // Load audio URLs from database (audio_url field)
         if (storyData?.audio_url) {
@@ -256,7 +259,33 @@
         // Set the scenes array (cover + scenes)
         if (loadedScenes.length > 0) {
           storyScenes = loadedScenes;
-          currentSceneIndex = 0;
+          
+          // Check if we have a stored scene index for this story (from returning after payment)
+          let savedSceneIndex: number | null = null;
+          if (browser && currentStoryId) {
+            const savedIndex = sessionStorage.getItem(`preview_scene_index_${currentStoryId}`);
+            if (savedIndex !== null) {
+              const parsedIndex = parseInt(savedIndex, 10);
+              if (!isNaN(parsedIndex) && parsedIndex >= 0 && parsedIndex < loadedScenes.length) {
+                savedSceneIndex = parsedIndex;
+                console.log(`[preview] Found saved scene index ${savedSceneIndex} for story ${currentStoryId}`);
+              }
+            }
+          }
+          
+          // If story is purchased or user has premium subscription, restore saved scene index
+          // Otherwise start at the beginning
+          if (savedSceneIndex !== null && (isPurchased || !isFreePlan)) {
+            currentSceneIndex = savedSceneIndex;
+            // Clear the saved index after restoring it
+            if (browser && currentStoryId) {
+              sessionStorage.removeItem(`preview_scene_index_${currentStoryId}`);
+            }
+            console.log(`[preview] Restored scene index to ${currentSceneIndex} after payment`);
+          } else {
+            currentSceneIndex = 0;
+          }
+          
           console.log('[preview] Total scenes (including cover):', storyScenes.length);
         }
         
@@ -468,9 +497,17 @@
     showPreviewLockModal = false;
     const storyId = event.detail?.storyId || currentStoryId;
     
-    // Pass story ID as URL parameter to pricing page
+    // Store current scene index in sessionStorage so we can restore it after payment
+    if (browser && storyId && currentSceneIndex !== undefined) {
+      sessionStorage.setItem(`preview_scene_index_${storyId}`, currentSceneIndex.toString());
+      console.log(`[preview] Stored scene index ${currentSceneIndex} for story ${storyId}`);
+    }
+    
+    // Pass story ID and scene index as URL parameters to pricing page
+    // This ensures the scene index persists through Stripe redirects
     if (storyId) {
-      goto(`/pricing?storyId=${storyId}`);
+      const sceneIndexParam = currentSceneIndex !== undefined ? `&sceneIndex=${currentSceneIndex}` : '';
+      goto(`/pricing?storyId=${storyId}${sceneIndexParam}`);
     } else {
       goto('/pricing');
     }

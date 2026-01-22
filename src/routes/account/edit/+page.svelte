@@ -156,19 +156,24 @@
             
             // Logic: 
             // - If subscriptions.status = 'active' AND users.subscription_status = 'premium' → Premium Plan
+            // - If subscriptions.status = 'cancelled' but still within period → Premium Plan (Cancelled)
             // - Otherwise → Free Plan
             const hasActiveSubscription = subscriptionData && !subscriptionError;
             const userIsPremium = userData?.subscription_status === "premium";
+            const isCancelled = userData?.subscription_status === "cancelled" || subscriptionData?.status === "cancelled" || subscriptionData?.status === "canceled";
             
-            if (hasActiveSubscription && userIsPremium) {
-                // Premium Plan - both conditions met
+            if (hasActiveSubscription && (userIsPremium || isCancelled)) {
+                // Premium Plan or Cancelled but still active
                 isSubscriptionActive = true;
-                subscriptionStatus = "premium";
-                subscriptionPlan = "Premium Plan";
+                subscriptionStatus = isCancelled ? "cancelled" : "premium";
+                subscriptionPlan = isCancelled ? "Premium Plan (Cancelled)" : "Premium Plan";
                 planType = subscriptionData.plan_type || "monthly";
                 stripeSubscriptionId = subscriptionData.stripe_subscription_id || null;
                 if (subscriptionData.current_period_end) {
                     currentPeriodEnd = new Date(subscriptionData.current_period_end);
+                } else if (userData?.subscription_expires) {
+                    // Fallback to subscription_expires from users table
+                    currentPeriodEnd = new Date(userData.subscription_expires);
                 }
             } else {
                 // Free Plan - subscription not active
@@ -207,7 +212,9 @@
             'free plan': 'Free Plan',
             'free': 'Free Plan',
             'trial': 'Trial Plan',
-            'basic': 'Basic Plan'
+            'basic': 'Basic Plan',
+            'cancelled': 'Premium Plan (Cancelled)',
+            'canceled': 'Premium Plan (Cancelled)'
         };
         
         const normalizedStatus = status.toLowerCase();
@@ -253,20 +260,35 @@
             const data = await response.json();
             
             if (!response.ok) {
-                throw new Error(data.detail || 'Failed to cancel subscription');
+                throw new Error(data.detail || data.message || 'Failed to cancel subscription');
             }
             
-            // Update local state
-            isSubscriptionActive = false;
-            subscriptionStatus = "free";
-            subscriptionPlan = "Free Plan";
-            planType = "";
-            currentPeriodEnd = null;
-            stripeSubscriptionId = null;
+            // Update local state - subscription is cancelled but access continues until period end
+            subscriptionStatus = "cancelled";
+            // Keep isSubscriptionActive true if there's still access until period end
+            // This allows user to see their remaining access time
+            if (data.access_until) {
+                // Parse the access_until date if provided
+                try {
+                    const accessDate = new Date(data.access_until);
+                    if (accessDate > new Date()) {
+                        currentPeriodEnd = accessDate;
+                        isSubscriptionActive = true; // Still active until period end
+                    }
+                } catch (e) {
+                    // If date parsing fails, keep currentPeriodEnd as is
+                }
+            }
             
             // Close modal and show success message
             showCancelConfirmModal = false;
-            alert("Your subscription has been cancelled successfully. You'll retain access until the end of your current billing period.");
+            const message = data.message || data.access_until 
+                ? `Your subscription has been cancelled successfully. You'll retain access until ${data.access_until || 'the end of your current billing period'}.`
+                : "Your subscription has been cancelled successfully. You'll retain access until the end of your current billing period.";
+            alert(message);
+            
+            // Refresh subscription data to get updated status
+            await getAuthInfo();
             
         } catch (error) {
             console.error('Error cancelling subscription:', error);
@@ -606,16 +628,26 @@
                                 </div>
                                 {#if currentPeriodEnd}
                                     <div class="detail-row">
-                                        <span class="detail-label">Next Billing Date:</span>
+                                        <span class="detail-label">{subscriptionStatus === 'cancelled' || subscriptionStatus === 'canceled' ? 'Access Until:' : 'Next Billing Date:'}</span>
                                         <span class="detail-value">{formatDate(currentPeriodEnd)}</span>
+                                    </div>
+                                {/if}
+                                {#if subscriptionStatus === 'cancelled' || subscriptionStatus === 'canceled'}
+                                    <div class="detail-row">
+                                        <span class="detail-label" style="color: #e53e3e;">Status:</span>
+                                        <span class="detail-value" style="color: #e53e3e;">Cancelled - Access until period end</span>
                                     </div>
                                 {/if}
                             </div>
                             
                             <div class="subscription-actions">
-                                <button class="cancel-subscription-button" on:click={showCancelConfirmation} disabled={isCancelling}>
-                                    <span>{isCancelling ? 'Cancelling...' : 'Cancel Subscription'}</span>
-                                </button>
+                                {#if subscriptionStatus !== 'cancelled' && subscriptionStatus !== 'canceled'}
+                                    <button class="cancel-subscription-button" on:click={showCancelConfirmation} disabled={isCancelling}>
+                                        <span>{isCancelling ? 'Cancelling...' : 'Cancel Subscription'}</span>
+                                    </button>
+                                {:else}
+                                    <p style="color: #718096; font-size: 14px; margin: 0;">Your subscription has been cancelled. You can resubscribe anytime.</p>
+                                {/if}
                             </div>
                         {:else}
                             <div class="subscription-upgrade-cta">

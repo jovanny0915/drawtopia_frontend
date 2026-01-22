@@ -231,11 +231,13 @@
 
       const childProfileIds = childProfiles.map(cp => cp.id);
       
-      // Direct query to stories table
+      // Direct query to stories table - filter by both child_profile_id and user_id
+      // to ensure we only get stories belonging to this user
       const { data: storiesData, error: storiesError } = await supabase
         .from('stories')
         .select('*')
         .in('child_profile_id', childProfileIds)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (storiesError) {
@@ -582,6 +584,21 @@
     // Navigate to create-character/1 page
     goto("/create-character/1");
   };
+
+
+    async function sendTestEmail(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement; }) {
+      const response = await fetch('https://image-edit-five.vercel.app/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        to: "noahigh293@gmail.com",
+        subject: "Test Email",
+        body: "Go!!!!"
+      })
+    });
+    }
 </script>
 
 {#if !isMobile}

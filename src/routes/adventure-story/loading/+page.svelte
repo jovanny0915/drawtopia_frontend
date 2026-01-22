@@ -9,6 +9,7 @@
     import type { ChildProfile } from '../../../lib/database/childProfiles';
     import { createStory } from '../../../lib/database/stories';
     import { user } from '../../../lib/stores/auth';
+    import { sendBookCompletionEmail } from '../../../lib/emails';
     import { buildStoryTextPrompt, buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt } from '../../../lib/promptBuilder';
     import drawtopia from "../../../assets/logo.png";
     import shieldstar from "../../../assets/ShieldStar.svg";
@@ -61,8 +62,16 @@
                     goto('/intersearch/1');
                 }
             } else {
-                // Navigate to adventure story final page
-                goto('/adventure-story/final');
+                // Check if gift_mode is "create" for regular stories
+                const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
+                if (giftMode === 'create') {
+                    // Story ID is already stored in sessionStorage as 'currentStoryId'
+                    // Navigate to gift send link page
+                    goto('/gift/sendlink/1');
+                } else {
+                    // Navigate to adventure story final page
+                    goto('/adventure-story/final');
+                }
             }
         }, 500);
     }
@@ -604,13 +613,22 @@
             if (result.success && result.data) {
                 console.log('Interactive story saved successfully:', result.data);
                 if (browser && result.data.uid) {
-                    sessionStorage.setItem('currentStoryId', result.data.uid.toString());
+                    const storyId = result.data.uid.toString();
+                    sessionStorage.setItem('currentStoryId', storyId);
                     // Clear any error flag since story was saved successfully
                     sessionStorage.removeItem('storyGenerationError');
                     storyCreation.update(state => ({
                         ...state,
-                        storyId: result.data.uid.toString()
+                        storyId: storyId
                     }));
+                    
+                    // Send book completion email after successful story save
+                    await sendBookCompletionEmailAfterSave(
+                        storyId,
+                        storyState,
+                        storyData.story_title || storyState.storyTitle || `${storyState.characterName || 'Character'}'s Search Adventure`,
+                        'interactive_search'
+                    );
                 }
             } else {
                 console.error('Failed to save interactive story:', result.error);
@@ -625,6 +643,84 @@
             if (browser) {
                 sessionStorage.setItem('storyGenerationError', 'true');
             }
+        }
+    }
+
+    // Helper function to send book completion email after successful story save
+    async function sendBookCompletionEmailAfterSave(
+        storyId: string,
+        storyState: any,
+        bookTitle: string,
+        bookFormat: string = 'story_adventure'
+    ) {
+        try {
+            // Get user information
+            if (!$user?.id || !$user?.email) {
+                console.warn('Cannot send book completion email: User not available');
+                return;
+            }
+
+            // Get user name
+            const parentName = ($user.first_name && $user.last_name) 
+                ? `${$user.first_name} ${$user.last_name}`.trim()
+                : $user.first_name || $user.last_name || 'there';
+
+            // Get child profile name
+            let childName = 'your child';
+            if (storyState.selectedChildProfileId && storyState.selectedChildProfileId !== 'undefined') {
+                try {
+                    const { data: childProfile, error: profileError } = await supabase
+                        .from('child_profiles')
+                        .select('first_name')
+                        .eq('id', parseInt(storyState.selectedChildProfileId))
+                        .single();
+                    
+                    if (!profileError && childProfile?.first_name) {
+                        childName = childProfile.first_name;
+                    }
+                } catch (error) {
+                    console.warn('Could not fetch child profile name for email:', error);
+                }
+            }
+
+            // Build preview and download links
+            const frontendUrl = browser ? window.location.origin : 'https://drawtopia.com';
+            const previewLink = `${frontendUrl}/story/${storyId}`;
+            const downloadLink = `${frontendUrl}/api/books/${storyId}/download`;
+
+            // Get character details
+            const characterName = storyState.characterName || 'Your Character';
+            const characterType = storyState.characterType || 'Character';
+            const specialAbility = storyState.specialAbility || 'special powers';
+            const storyWorld = storyState.storyWorld;
+            const adventureType = storyState.adventureType;
+
+            // Send book completion email
+            console.log('Sending book completion email...');
+            const emailResult = await sendBookCompletionEmail(
+                $user.email,
+                parentName,
+                childName,
+                characterName,
+                characterType,
+                bookTitle,
+                specialAbility,
+                bookFormat,
+                previewLink,
+                downloadLink,
+                storyWorld,
+                adventureType
+            );
+
+            if (emailResult.success) {
+                console.log('✅ Book completion email sent successfully');
+            } else {
+                console.error('❌ Failed to send book completion email:', emailResult.error);
+                // Don't throw error - email failure shouldn't block the user
+            }
+        } catch (error) {
+            console.error('Error sending book completion email:', error);
+            // Don't throw error - email failure shouldn't block the user
         }
     }
 
@@ -711,13 +807,21 @@
                 console.log('Story saved successfully:', result.data);
                 // Store story ID in session storage and story creation store
                 if (browser && result.data.uid) {
-                    sessionStorage.setItem('currentStoryId', result.data.uid.toString());
+                    const storyId = result.data.uid.toString();
+                    sessionStorage.setItem('currentStoryId', storyId);
                     // Clear any error flag since story was saved successfully
                     sessionStorage.removeItem('storyGenerationError');
                     storyCreation.update(state => ({
                         ...state,
-                        storyId: result.data.uid.toString()
+                        storyId: storyId
                     }));
+                    
+                    // Send book completion email after successful story save
+                    await sendBookCompletionEmailAfterSave(
+                        storyId,
+                        storyState,
+                        storyData.story_title || storyState.storyTitle || 'Your Story'
+                    );
                 }
             } else {
                 console.error('Failed to save story:', result.error);

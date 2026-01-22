@@ -25,12 +25,16 @@
     let subscriptionError = "";
     let purchaseError = "";
     
-    // Get story ID from URL query parameters
+    // Get story ID and scene index from URL query parameters
     $: purchaseStoryId = $page.url.searchParams.get('storyId');
+    $: sceneIndex = $page.url.searchParams.get('sceneIndex');
     
     // Log when story ID is present
     $: if (purchaseStoryId) {
         console.log('[pricing] Found story ID for purchase:', purchaseStoryId);
+        if (sceneIndex) {
+            console.log('[pricing] Found scene index:', sceneIndex);
+        }
     }
 
     async function handlePurchase(purchaseType: 'single_story' | 'story_bundle') {
@@ -58,6 +62,15 @@
             console.log('[handlePurchase] userId:', userId);
             console.log('[handlePurchase] purchaseType:', purchaseType);
 
+            // Build success URL with story ID and scene index to persist through Stripe redirects
+            let successUrl = `${window.location.origin}/purchase/success?session_id={CHECKOUT_SESSION_ID}`;
+            if (purchaseStoryId) {
+                successUrl += `&storyId=${purchaseStoryId}`;
+            }
+            if (sceneIndex) {
+                successUrl += `&sceneIndex=${sceneIndex}`;
+            }
+
             // Call the backend to create a Stripe checkout session
             const response = await fetch(`${API_BASE_URL}/api/stripe/create-onetime-checkout`, {
                 method: 'POST',
@@ -69,7 +82,7 @@
                     story_id: purchaseStoryId, // Include story ID if available
                     user_email: userEmail,
                     user_id: userId,
-                    success_url: `${window.location.origin}/purchase/success?session_id={CHECKOUT_SESSION_ID}`,
+                    success_url: successUrl,
                     cancel_url: `${window.location.origin}/pricing`
                 })
             });
@@ -133,6 +146,15 @@
             console.log('[handleStartSubscription] userEmail:', userEmail);
             console.log('[handleStartSubscription] userId:', userId);
 
+            // Build success URL with story ID and scene index to persist through Stripe redirects
+            let successUrl = `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
+            if (purchaseStoryId) {
+                successUrl += `&storyId=${purchaseStoryId}`;
+            }
+            if (sceneIndex) {
+                successUrl += `&sceneIndex=${sceneIndex}`;
+            }
+
             // Call the backend to create a Stripe checkout session
             const response = await fetch(`${API_BASE_URL}/api/stripe/create-subscription-checkout`, {
                 method: 'POST',
@@ -143,7 +165,7 @@
                     price_type: 'monthly',
                     user_email: userEmail,
                     user_id: userId,
-                    success_url: `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+                    success_url: successUrl,
                     cancel_url: `${window.location.origin}/pricing`
                 })
             });

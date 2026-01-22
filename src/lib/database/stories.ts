@@ -31,6 +31,7 @@ export interface Story {
   story_type?: string; // Type of story: adventure story book or search adventure
   reading_state?: ReadingState; // Reading statistics
   hints?: number | null; // Number of hints remaining (for search type stories, default is 3)
+  gift_id?: string; // Gift ID if this story was created from a gift
 }
 
 // Reading state interfaces
@@ -97,7 +98,8 @@ export async function createStory(story: Story): Promise<DatabaseResult> {
         dedication_image: story.dedication_image || null,
         status: story.status || 'generating',
         story_type: story.story_type || 'story',
-        hints: story.story_type === 'search' ? (story.hints !== undefined ? story.hints : 3) : null
+        hints: story.story_type === 'search' ? (story.hints !== undefined ? story.hints : 3) : null,
+        gift_id: story.gift_id || null
       }])
       .select('*')
       .single();
