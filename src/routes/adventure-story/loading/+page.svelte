@@ -21,7 +21,7 @@
     import ProgressBar from "../../../components/ProgressBar.svelte";
     import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";
 
-    const TOTAL_TIME = 60; // 60 seconds (fallback timer)
+    const TOTAL_TIME = 300; // 60 seconds (fallback timer)
     let timeRemaining = TOTAL_TIME;
     let completionPercent = 0;
     let intervalId: number | null = null;

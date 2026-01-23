@@ -133,8 +133,9 @@
                 .select("*")
                 .eq("user_id", userId)
                 .eq("status", "active")
-                .single();
-
+                .single()
+            
+            
             console.log('[fetchSubscriptionDetails] subscriptionData:', subscriptionData);
             
             // Logic: 

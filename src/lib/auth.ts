@@ -92,7 +92,7 @@ export async function signUpWithEmail(email: string, password: string, firstName
     
     // Send welcome email immediately after user registration
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://app.drawtopia.ai/';
       const customerName = firstName && lastName ? `${firstName} ${lastName}` : firstName || null;
       
       await fetch(`${API_BASE_URL}/api/emails/welcome`, {
@@ -198,7 +198,7 @@ export async function signUpWithPhone(phone: string, password: string, firstName
     // Send welcome email if user has email in the database
     if (userProfile?.email) {
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://app.drawtopia.ai/';
         const customerName = firstName && lastName ? `${firstName} ${lastName}` : firstName || null;
         
         await fetch(`${API_BASE_URL}/api/emails/welcome`, {
