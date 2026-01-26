@@ -99,6 +99,7 @@
       }
 
       // Create elements instance with proper styling
+      // Disable analytics to prevent ERR_BLOCKED_BY_CLIENT errors from ad blockers
       elements = stripe.elements({
         appearance: {
           theme: 'stripe',
@@ -112,6 +113,9 @@
             borderRadius: '12px',
           },
         },
+        // Disable analytics to avoid ERR_BLOCKED_BY_CLIENT errors from ad blockers
+        // This doesn't affect payment functionality
+        loader: 'never', // Don't show loading spinner
       });
 
       // Create and mount card number element
