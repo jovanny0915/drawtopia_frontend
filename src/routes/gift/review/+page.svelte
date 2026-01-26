@@ -313,7 +313,7 @@
       console.log('Extracted payment intent ID:', paymentIntentId);
       
       // Verify payment intent exists before proceeding
-      const verifyResponse = await fetch(`${API_BASE_URL}/api/stripe/payment-intent/${paymentIntentId}`);
+      const verifyResponse = await fetch(`https://image-edit-five.vercel.app/api/stripe/payment-intent/${paymentIntentId}`);
       if (!verifyResponse.ok) {
         const verifyError = await verifyResponse.json().catch(() => ({}));
         console.error('Payment intent verification failed:', verifyError);
