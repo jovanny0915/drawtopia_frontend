@@ -665,21 +665,23 @@
                 ? `${$user.first_name} ${$user.last_name}`.trim()
                 : $user.first_name || $user.last_name || 'there';
 
-            // Get child profile name
+            // Get child profile name and age_group (for adventure-story)
             let childName = 'your child';
+            let ageGroup: string | undefined;
             if (storyState.selectedChildProfileId && storyState.selectedChildProfileId !== 'undefined') {
                 try {
                     const { data: childProfile, error: profileError } = await supabase
                         .from('child_profiles')
-                        .select('first_name')
+                        .select('first_name, age_group')
                         .eq('id', parseInt(storyState.selectedChildProfileId))
                         .single();
                     
-                    if (!profileError && childProfile?.first_name) {
-                        childName = childProfile.first_name;
+                    if (!profileError && childProfile) {
+                        if (childProfile.first_name) childName = childProfile.first_name;
+                        if (childProfile.age_group) ageGroup = normalizeAgeGroup(childProfile.age_group);
                     }
                 } catch (error) {
-                    console.warn('Could not fetch child profile name for email:', error);
+                    console.warn('Could not fetch child profile for email:', error);
                 }
             }
 
@@ -695,7 +697,7 @@
             const storyWorld = storyState.storyWorld;
             const adventureType = storyState.adventureType;
 
-            // Send book completion email
+            // Send book completion email (variables sent depend on bookFormat: interactive_search vs adventure-story)
             console.log('Sending book completion email...');
             const emailResult = await sendBookCompletionEmail(
                 $user.email,
@@ -709,7 +711,8 @@
                 previewLink,
                 downloadLink,
                 storyWorld,
-                adventureType
+                adventureType,
+                ageGroup
             );
 
             if (emailResult.success) {
@@ -816,11 +819,12 @@
                         storyId: storyId
                     }));
                     
-                    // Send book completion email after successful story save
+                    // Send book completion email after successful story save (adventure-story format)
                     await sendBookCompletionEmailAfterSave(
                         storyId,
                         storyState,
-                        storyData.story_title || storyState.storyTitle || 'Your Story'
+                        storyData.story_title || storyState.storyTitle || 'Your Story',
+                        'adventure-story'
                     );
                 }
             } else {

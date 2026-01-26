@@ -10,9 +10,13 @@
   import { onMount } from "svelte";
   import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
   import { browser } from "$app/environment";
+  import { page } from "$app/stores";
+  import { env } from "../../../lib/env";
 
   let isLoading = false;
   let giftState: any = {};
+  let isVerifyingPayment = false;
+  let paymentVerified = false;
 
   // Reactive statements for auth state
   $: currentUser = $user;
@@ -39,6 +43,15 @@
     const unsubscribe = giftCreation.subscribe(state => {
       giftState = state;
     });
+    
+    // Check if we're returning from Stripe checkout
+    const sessionId = $page.url.searchParams.get('session_id');
+    if (sessionId && browser) {
+      // Call async function without blocking
+      verifyStripePayment(sessionId).catch(error => {
+        console.error('Error in verifyStripePayment:', error);
+      });
+    }
     
     return unsubscribe;
   });
@@ -75,36 +88,73 @@
     goto("/gift/review");
   };
 
-  const handleFinish = async () => {
-    if (isLoading) return;
+  const verifyStripePayment = async (sessionId: string) => {
+    if (isVerifyingPayment) return;
     
+    isVerifyingPayment = true;
+    
+    try {
+      // Get API base URL
+      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
+      
+      // Fetch session details from backend
+      const response = await fetch(`${API_BASE_URL}/api/stripe/session/${sessionId}`);
+      
+      if (response.ok) {
+        const sessionData = await response.json();
+        
+        if (sessionData.success && sessionData.payment_status === 'paid' && sessionData.purchase_type === 'gift') {
+          paymentVerified = true;
+          
+          // Save gift to Supabase after successful payment
+          await saveGiftAfterPayment();
+        } else {
+          console.error('Payment verification failed:', sessionData);
+          alert('Payment verification failed. Please contact support.');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to verify payment session:', errorData);
+        alert('Failed to verify payment. Please contact support.');
+      }
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      alert('An error occurred while verifying payment. Please contact support.');
+    } finally {
+      isVerifyingPayment = false;
+    }
+  };
+
+  const saveGiftAfterPayment = async () => {
     try {
       isLoading = true;
       
       // Convert gift state to gift object
       const giftData = giftCreation.toGiftObject(giftState);
       
-      // Save gift to database
+      // Save gift to Supabase database
       const result = await createGift(giftData);
       
       if (result.success) {
         // Store the gift ID
         giftCreation.setGiftId(result.data.id);
-        
-        console.log('Gift saved successfully:', result.data);
-        
-        // Navigate to dashboard or success page
-        goto('/dashboard');
+        console.log('✅ Gift saved successfully to Supabase after payment:', result.data);
       } else {
-        console.error('Failed to save gift:', result.error);
-        alert('Failed to save gift. Please try again.');
+        console.error('❌ Failed to save gift:', result.error);
+        alert('Payment successful but failed to save gift. Please contact support.');
       }
     } catch (error) {
-      console.error('Error saving gift:', error);
-      alert('An error occurred while saving the gift. Please try again.');
+      console.error('❌ Error saving gift after payment:', error);
+      alert('Payment successful but an error occurred while saving the gift. Please contact support.');
     } finally {
       isLoading = false;
     }
+  };
+
+  const handleFinish = () => {
+    // Simply navigate to dashboard
+    // Gift should already be saved if coming from Stripe payment
+    goto('/dashboard');
   };
 </script>
 
@@ -284,16 +334,21 @@
       <div class="frame-1410103991">
         <div 
           class="button" 
-          class:loading={isLoading}
+          class:loading={isLoading || isVerifyingPayment}
+          class:disabled={isLoading || isVerifyingPayment}
           role="button"
-          tabindex="0"
+          tabindex={isLoading || isVerifyingPayment ? -1 : 0}
           on:click={handleFinish}
-          on:keydown={(e) => e.key === "Enter" && handleFinish()}
+          on:keydown={(e) => !isLoading && !isVerifyingPayment && e.key === "Enter" && handleFinish()}
         >
           <div class="finish">
             <span class="finish_span">
-              {#if isLoading}
-                Saving Gift...
+              {#if isVerifyingPayment || isLoading}
+                {#if isVerifyingPayment}
+                  Verifying Payment...
+                {:else}
+                  Saving Gift...
+                {/if}
               {:else}
                 Finish
               {/if}
@@ -789,6 +844,17 @@
   }
 
   .button.loading:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .button.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .button.disabled:hover {
     transform: none;
     box-shadow: none;
   }

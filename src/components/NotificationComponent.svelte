@@ -1,17 +1,21 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { browser } from '$app/environment';
   import { getGiftsReceivedByUser, markGiftAsChecked, type Gift } from '../lib/database/gifts';
   import { user } from '../lib/stores/auth';
-  import { setGiftNotifications, removeGiftNotification, unreadCount } from '../lib/stores/giftNotifications';
-  import { initializePushNotifications, updateBadgeCount } from '../lib/pushNotifications';
+  import { setGiftNotifications, removeGiftNotification, unreadCount, addGiftNotification } from '../lib/stores/giftNotifications';
+  import { supabase } from '../lib/supabase';
   import giftIcon from '../assets/Gift.svg';
+  import type { RealtimeChannel } from '@supabase/supabase-js';
 
   let notifications: Gift[] = [];
   let loading = true;
   let error = '';
   let showDropdown = false;
   let notificationElement: HTMLElement;
+  let realtimeChannel: RealtimeChannel | null = null;
+  let scheduledGiftTimers: Map<string, NodeJS.Timeout> = new Map();
 
   // Fetch notifications (gifts received by user) from Supabase
   const fetchNotifications = async () => {
@@ -22,9 +26,33 @@
       const result = await getGiftsReceivedByUser();
       
       if (result.success && result.data) {
-        notifications = result.data as Gift[];
+        const fetchedGifts = result.data as Gift[];
+        notifications = fetchedGifts;
         // Update the store
         setGiftNotifications(notifications);
+        
+        // Schedule any gifts that are scheduled for future delivery
+        // We need to check all unchecked gifts (including future ones) to set up timers
+        const currentUser = get(user);
+        if (currentUser?.id && currentUser?.email) {
+          // Fetch all unchecked gifts for this user (including future scheduled ones)
+          // to set up timers for scheduled gifts
+          const { data: allGifts, error: allGiftsError } = await supabase
+            .from('gifts')
+            .select('*')
+            .or(`to_user_id.eq.${currentUser.id},delivery_email.eq.${currentUser.email?.toLowerCase().trim()}`)
+            .or('checked.is.null,checked.eq.false')
+            .order('delivery_time', { ascending: true });
+          
+          if (!allGiftsError && allGifts) {
+            allGifts.forEach((gift: Gift) => {
+              // If gift is not yet deliverable, schedule it
+              if (gift.delivery_time && !shouldShowGift(gift)) {
+                scheduleGiftNotification(gift);
+              }
+            });
+          }
+        }
       } else {
         error = result.error || 'Failed to fetch notifications';
         notifications = [];
@@ -137,34 +165,224 @@
     }
   };
 
-  onMount(() => {
-    // Initialize push notifications
-    if (browser) {
-      initializePushNotifications().catch(err => {
-        console.error('Failed to initialize push notifications:', err);
-      });
+  // Helper function to check if a gift is for the current user
+  const isGiftForUser = (gift: Gift, userId: string, userEmail?: string): boolean => {
+    return (
+      (gift.to_user_id !== undefined && gift.to_user_id === userId) ||
+      (userEmail !== undefined && gift.delivery_email?.toLowerCase().trim() === userEmail.toLowerCase().trim())
+    );
+  };
 
-      // Set up service worker message listener for push notifications
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data && event.data.type === 'NOTIFICATION_RECEIVED') {
-            console.log('Received push notification, refreshing notifications...');
-            fetchNotifications();
-          }
-        });
-      }
+  // Helper function to check if a gift should be shown (delivery time has passed and not checked)
+  const shouldShowGift = (gift: Gift): boolean => {
+    // Check if gift is not checked
+    const isUnchecked = gift.checked === false || gift.checked === null || gift.checked === undefined;
+    if (!isUnchecked) return false;
+    
+    // If no delivery_time, don't show
+    if (!gift.delivery_time) return false;
+    
+    // Check if delivery_time has passed
+    const deliveryDate = new Date(gift.delivery_time);
+    const now = new Date();
+    const isDeliverable = deliveryDate <= now;
+    
+    return isDeliverable;
+  };
+
+  // Schedule a gift to be shown at its delivery_time
+  const scheduleGiftNotification = (gift: Gift) => {
+    if (!browser || !gift.id || !gift.delivery_time) return;
+
+    // Clear existing timer for this gift if any
+    const existingTimer = scheduledGiftTimers.get(gift.id);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      scheduledGiftTimers.delete(gift.id);
     }
 
+    const deliveryDate = new Date(gift.delivery_time);
+    const now = new Date();
+    const delay = deliveryDate.getTime() - now.getTime();
+
+    // If delivery time has already passed, show immediately
+    if (delay <= 0) {
+      console.log('Gift delivery time has passed, showing immediately:', gift.id);
+      if (shouldShowGift(gift)) {
+        addGiftNotification(gift);
+        fetchNotifications();
+      }
+      return;
+    }
+
+    // Schedule notification for future delivery
+    const giftId = gift.id; // Store gift.id in a const for use in callback
+    if (!giftId) return; // Type guard - ensure giftId is defined
+    
+    console.log(`Scheduling gift notification for ${giftId} at ${gift.delivery_time} (in ${Math.round(delay / 1000)}s)`);
+    
+    const timer = setTimeout(() => {
+      console.log('Scheduled gift delivery time arrived:', giftId);
+      scheduledGiftTimers.delete(giftId);
+      
+      // Re-check if gift should still be shown (might have been checked in the meantime)
+      fetchNotifications().then(() => {
+        // The fetchNotifications will update the list with current state
+        // But we also want to trigger a real-time check
+        const currentGift = notifications.find(n => n.id === giftId);
+        if (currentGift && shouldShowGift(currentGift)) {
+          addGiftNotification(currentGift);
+        }
+      });
+    }, delay);
+
+    scheduledGiftTimers.set(giftId, timer);
+  };
+
+  // Clean up scheduled timers
+  const cleanupScheduledTimers = () => {
+    scheduledGiftTimers.forEach((timer) => clearTimeout(timer));
+    scheduledGiftTimers.clear();
+  };
+
+  // Set up real-time subscription for gift notifications
+  const setupRealtimeSubscription = (userId: string, userEmail?: string) => {
+    if (!browser) return;
+
+    // Clean up existing subscription if any
+    if (realtimeChannel) {
+      console.log('Cleaning up existing real-time subscription');
+      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+
+    // Clean up scheduled timers
+    cleanupScheduledTimers();
+
+    console.log('Setting up real-time subscription for user:', userId, 'email:', userEmail);
+
+    // Create a channel for gift notifications
+    // We subscribe to all INSERT/UPDATE events and filter in the callback
+    // This allows us to match by both to_user_id and delivery_email
+    realtimeChannel = supabase
+      .channel(`gift-notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'gifts'
+        },
+        (payload) => {
+          console.log('New gift inserted via real-time:', payload);
+          const newGift = payload.new as Gift;
+          
+          // Check if gift is for this user
+          if (!isGiftForUser(newGift, userId, userEmail)) {
+            console.log('Gift not for this user:', {
+              to_user_id: newGift.to_user_id,
+              delivery_email: newGift.delivery_email
+            });
+            return;
+          }
+
+          // Check if gift should be shown immediately or scheduled
+          if (shouldShowGift(newGift)) {
+            // Immediate gift - show notification right away
+            console.log('Adding immediate gift notification:', newGift);
+            addGiftNotification(newGift);
+            fetchNotifications();
+          } else if (newGift.delivery_time) {
+            // Scheduled gift - schedule notification for delivery_time
+            console.log('Scheduling gift notification for future delivery:', newGift.id);
+            scheduleGiftNotification(newGift);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'gifts'
+        },
+        (payload) => {
+          console.log('Gift updated via real-time:', payload);
+          const updatedGift = payload.new as Gift;
+          const oldGift = payload.old as Gift;
+          
+          // Check if this gift is for the current user
+          if (!isGiftForUser(updatedGift, userId, userEmail)) {
+            return;
+          }
+          
+          // If gift was marked as checked, remove it from notifications
+          if (updatedGift.checked === true && oldGift.checked !== true) {
+            console.log('Gift marked as checked, removing from notifications');
+            removeGiftNotification(updatedGift.id!);
+            notifications = notifications.filter(n => n.id !== updatedGift.id);
+            // Also clear any scheduled timer
+            const timer = scheduledGiftTimers.get(updatedGift.id!);
+            if (timer) {
+              clearTimeout(timer);
+              scheduledGiftTimers.delete(updatedGift.id!);
+            }
+          } else if (shouldShowGift(updatedGift)) {
+            // Gift became deliverable (status changed to completed, delivery_time passed, etc.)
+            const exists = notifications.some(n => n.id === updatedGift.id);
+            if (!exists) {
+              console.log('Gift became deliverable, adding to notifications:', updatedGift);
+              addGiftNotification(updatedGift);
+              fetchNotifications();
+            }
+          } else if (updatedGift.delivery_time && !shouldShowGift(updatedGift)) {
+            // Delivery time might have been updated to a future time - reschedule
+            scheduleGiftNotification(updatedGift);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to real-time gift notifications');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Real-time subscription error');
+          error = 'Failed to connect to real-time notifications';
+        }
+      });
+
+    return realtimeChannel;
+  };
+
+  onMount(() => {
     // Fetch notifications when component mounts
     if ($user?.id) {
       fetchNotifications();
+      // Set up real-time subscription with user email for matching
+      setupRealtimeSubscription($user.id, $user.email);
     }
 
     // Listen for user changes
     const unsubscribe = user.subscribe(($user) => {
       if ($user?.id) {
-        fetchNotifications();
+        fetchNotifications().then(() => {
+          // After fetching, check for any scheduled gifts that need timers
+          notifications.forEach((gift) => {
+            if (gift.delivery_time && !shouldShowGift(gift)) {
+              scheduleGiftNotification(gift);
+            }
+          });
+        });
+        // Set up real-time subscription for new user with email
+        setupRealtimeSubscription($user.id, $user.email);
       } else {
+        // Clean up subscription when user logs out
+        if (realtimeChannel) {
+          console.log('User logged out, cleaning up real-time subscription');
+          supabase.removeChannel(realtimeChannel);
+          realtimeChannel = null;
+        }
+        cleanupScheduledTimers();
         notifications = [];
         setGiftNotifications([]);
         loading = false;
@@ -178,6 +396,12 @@
 
     return () => {
       unsubscribe();
+      // Clean up real-time subscription
+      if (realtimeChannel) {
+        console.log('Component unmounting, cleaning up real-time subscription');
+        supabase.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
       if (browser) {
         document.removeEventListener('click', handleClickOutside);
       }
@@ -185,6 +409,14 @@
   });
 
   onDestroy(() => {
+    // Clean up real-time subscription
+    if (realtimeChannel) {
+      console.log('Component destroying, cleaning up real-time subscription');
+      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+    // Clean up scheduled timers
+    cleanupScheduledTimers();
     if (browser) {
       document.removeEventListener('click', handleClickOutside);
     }

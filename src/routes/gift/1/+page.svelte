@@ -89,25 +89,28 @@
                         style={`background-image: url(${createSend});`}
                     ></div>
                     <div class="card-body">
-                        <div class="card-title">Create & Send</div>
+                        <div class="card-title">I'll Create It</div>
                         <div class="card-desc">
-                            You create the book using the recipient’s details
-                            and send it when complete.
+                            The child sees their artwork come to life in a personalized adventure!
                         </div>
                         <div class="best-for">
-                            <div class="best-for-title">Best For</div>
+                            <div class="best-for-title">Perfect when you:</div>
                             <ul>
                                 <li class="best-for-list-item">
                                     <img src={people_svg} alt="peoplesvg" class="peoplesvg" />
-                                    Grandparents
+                                    Have the child's drawing already
                                 </li>
                                 <li class="best-for-list-item">
                                     <img src={people_svg} alt="peoplesvg" class="peoplesvg" />
-                                    Teachers
+                                    Want to create the complete experience
                                 </li>
                                 <li class="best-for-list-item">
                                     <img src={people_svg} alt="peoplesvg" class="peoplesvg" />
-                                    Surprise gifts
+                                    Are a grandparent or close family member
+                                </li>
+                                <li class="best-for-list-item">
+                                    <img src={people_svg} alt="peoplesvg" class="peoplesvg" />
+                                    Want it ready to gift immediately
                                 </li>
                             </ul>
                         </div>
@@ -135,23 +138,26 @@
                     <div class="card-body">
                         <div class="card-title">Send Creation Link</div>
                         <div class="card-desc">
-                            Parent creates the book with their child using the
-                            creation link you send them.
+                            They create the book with their own drawing at the center.
                         </div>
                         <div class="best-for">
-                            <div class="best-for-title">Best For</div>
+                            <div class="best-for-title">Perfect when you:</div>
                             <ul>
                                 <li class="best-for-list-item">
                                     <img src={people_svg} alt="peoplesvg" class="peoplesvg" />
-                                    Sending to parents
+                                    Want the child to draw their own character
                                 </li>
                                 <li class="best-for-list-item">
                                     <img src={people_svg} alt="peoplesvg" class="peoplesvg" />
-                                    Group gifts
+                                    Prefer the parent or child to direct the story
                                 </li>
                                 <li class="best-for-list-item">
                                     <img src={people_svg} alt="peoplesvg" class="peoplesvg" />
-                                    Birthday invites
+                                    Are gifting to friends or acquaintances
+                                </li>
+                                <li class="best-for-list-item">
+                                    <img src={people_svg} alt="peoplesvg" class="peoplesvg" />
+                                    Want a hands-off approach
                                 </li>
                             </ul>
                         </div>

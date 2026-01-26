@@ -65,6 +65,7 @@
   let selectedCharacter: any = null;
   let characterBooks: any[] = [];
   let subscriptionStatus: string = "Premium Plan";
+  let storyCredits: number | null = null; // Story credits from user's credit column
   
   // Story counts and reading times from HomeLibraryView
   let adventureStoriesCount: number = 0;
@@ -186,7 +187,7 @@
     return statusMap[normalizedStatus] || status.charAt(0).toUpperCase() + status.slice(1) + ' Plan';
   };
 
-  // Fetch user subscription status
+  // Fetch user subscription status and credits
   const fetchSubscriptionStatus = async (userId: string) => {
     try {
       const { getUserProfile } = await import("../../lib/auth");
@@ -198,10 +199,22 @@
         } else {
           subscriptionStatus = formatSubscriptionStatus(null);
         }
+        
+        // Fetch story credits from user's credit column
+        if (profile?.credit !== undefined && profile?.credit !== null) {
+          // Parse credit as number if it's a string
+          const creditValue = typeof profile.credit === 'string' 
+            ? parseInt(profile.credit, 10) 
+            : profile.credit;
+          storyCredits = isNaN(creditValue) ? 0 : creditValue;
+        } else {
+          storyCredits = 0; // Default to 0 if no credit is set
+        }
       }
     } catch (error) {
       console.error("Error fetching subscription status:", error);
       subscriptionStatus = "Free Plan";
+      storyCredits = 0;
     }
   };
 
@@ -537,6 +550,12 @@
   // Track the last fetched user ID to prevent duplicate fetches
   let lastFetchedUserId: string | null = null;
 
+  // Fetch subscription status and credits when user is available
+  $: if (browser && $user && $user.id && $user.id !== lastFetchedUserId) {
+    lastFetchedUserId = $user.id;
+    fetchSubscriptionStatus($user.id);
+  }
+
   // Fetch profiles, stories, and gifts when component mounts and user is available
   onMount(() => {
     // Clear sessionStorage on dashboard page load
@@ -546,6 +565,11 @@
     
     // Check initial screen size
     checkScreenSize();
+    
+    // Fetch subscription status and credits if user is already available
+    if ($user && $user.id) {
+      fetchSubscriptionStatus($user.id);
+    }
 
     return () => {
       if (browser) {
@@ -827,7 +851,9 @@
               </div>
             </div>
             <div>
-              <span class="fstorycreditsleft_span">3 story credits left</span>
+              <span class="fstorycreditsleft_span">
+                {storyCredits !== null ? `${storyCredits} story credit${storyCredits !== 1 ? 's' : ''} left` : 'Loading...'}
+              </span>
             </div>
           </div>
           <AccountDropdown />

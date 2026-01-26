@@ -1,14 +1,37 @@
 <script lang="ts">
-  import arrow_left from "../../../assets/ArrowLeft.svg";
-  import arrowsquareout from "../../../assets/ArrowSquareOut.svg";
-  import sealcheck from "../../../assets/SealCheck_green.svg";
   import { giftCreation } from "../../../lib/stores/giftCreation";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
   import { browser } from "$app/environment";
+  import { env } from "../../../lib/env";
+  import { loadStripe } from "@stripe/stripe-js";
+  import arrow_left from "../../../assets/ArrowLeft.svg";
+  import arrowsquareout from "../../../assets/ArrowSquareOut.svg";
+  import sealcheck from "../../../assets/SealCheck_green.svg";
 
   let giftState: any = {};
+  
+  // Checkbox states
+  let includeGiftReceipt = false;
+  let agreeToTerms = false;
+  
+  // Input field values (billing name only - card details handled by Stripe Elements)
+  let billingName = '';
+  
+  // Loading state for Stripe checkout
+  let isLoadingStripe = false;
+  
+  // Loading state for payment processing
+  let isProcessingPayment = false;
+  
+  // Stripe instance and Elements
+  let stripeInstance: any = null;
+  let elements: any = null;
+  let cardElement: any = null;
+  
+  // Refs for Stripe Elements containers - using single card element
+  let cardElementContainer: HTMLElement;
 
   // Reactive statements for auth state
   $: currentUser = $user;
@@ -18,6 +41,18 @@
   
   // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
+  
+  // Validation states for Stripe Elements
+  let cardComplete = false;
+  let expiryComplete = false;
+  let cvcComplete = false;
+  
+  // Helper function to validate billing name (should not be empty)
+  $: isValidBillingName = billingName.trim().length > 0;
+  
+  // Enable purchase button only when all fields are filled and terms are agreed
+  // Note: We'll validate card details through Stripe Elements instead of manual validation
+  $: canPurchase = agreeToTerms && cardComplete && expiryComplete && cvcComplete && isValidBillingName;
 
   // Subscribe to gift creation state
   onMount(() => {
@@ -30,6 +65,53 @@
           return;
         }
       }, 100);
+      
+      // Initialize Stripe and Elements
+      if (env.STRIPE_PUBLISHABLE_KEY) {
+        loadStripe(env.STRIPE_PUBLISHABLE_KEY).then(async stripe => {
+          stripeInstance = stripe;
+          if (stripe) {
+            // Create Elements instance
+            elements = stripe.elements();
+            
+            // Wait for DOM to be ready before mounting Elements
+            setTimeout(() => {
+              if (cardElementContainer && elements) {
+                // Create a single card element that combines all card fields
+                cardElement = elements.create('card', {
+                  style: {
+                    base: {
+                      fontSize: '16px',
+                      fontFamily: 'Nunito, sans-serif',
+                      color: '#141414',
+                      '::placeholder': {
+                        color: '#141414',
+                        opacity: 0.6,
+                      },
+                    },
+                    invalid: {
+                      color: '#fa755a',
+                    },
+                  },
+                });
+                
+                // Mount element to container
+                cardElement.mount(cardElementContainer);
+                
+                // Listen for change events to track completion
+                cardElement.on('change', (event: any) => {
+                  // The card element reports complete when all fields are valid
+                  cardComplete = event.complete;
+                  expiryComplete = event.complete;
+                  cvcComplete = event.complete;
+                });
+              }
+            }, 100);
+          }
+        }).catch(error => {
+          console.error('Failed to load Stripe:', error);
+        });
+      }
     }
 
     const unsubscribe = giftCreation.subscribe(state => {
@@ -50,9 +132,210 @@
     goto("/gift/sendlink/7");
   };
 
-  const handlePurchase = () => {
-    // Navigate to purchase page
-    goto("/gift/purchase");
+  const handlePurchase = async () => {
+    if (isProcessingPayment || !canPurchase) return;
+    
+    isProcessingPayment = true;
+    
+    try {
+      // Validate that Stripe is loaded
+      if (!stripeInstance) {
+        // Try to load Stripe if not already loaded
+        if (env.STRIPE_PUBLISHABLE_KEY) {
+          stripeInstance = await loadStripe(env.STRIPE_PUBLISHABLE_KEY);
+        } else {
+          throw new Error('Stripe publishable key is not configured');
+        }
+      }
+      
+      if (!stripeInstance) {
+        throw new Error('Failed to initialize Stripe');
+      }
+      
+      // Get current user info
+      let userEmail = null;
+      let userId = null;
+      
+      if (currentUser) {
+        userEmail = currentUser.email;
+        userId = currentUser.id;
+      }
+      
+      // Get API base URL
+      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
+      
+      // Step 1: Create Payment Intent on backend
+      const createIntentResponse = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          purchase_type: 'gift',
+          gift_id: giftState?.giftId || null,
+          user_email: userEmail,
+          user_id: userId
+        })
+      });
+      
+      if (!createIntentResponse.ok) {
+        let errorMessage = 'Failed to create payment intent';
+        try {
+          const errorData = await createIntentResponse.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (parseError) {
+          const errorText = await createIntentResponse.text();
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const intentData = await createIntentResponse.json();
+      
+      if (!intentData.success || !intentData.client_secret) {
+        throw new Error(intentData.message || 'Failed to create payment intent');
+      }
+      
+      // Step 2: Create Payment Method from Stripe Elements
+      if (!cardElement) {
+        throw new Error('Stripe Elements not initialized. Please refresh the page.');
+      }
+      
+      // Create payment method using the card element
+      // When using separate elements, the cardNumber element works as it references the other elements
+      const { error: pmError, paymentMethod } = await stripeInstance.createPaymentMethod({
+        type: 'card',
+        card: cardElement,
+        billing_details: {
+          name: billingName,
+          email: userEmail || undefined,
+        },
+      });
+      
+      if (pmError) {
+        throw new Error(pmError.message || 'Failed to create payment method');
+      }
+      
+      if (!paymentMethod) {
+        throw new Error('Payment method creation returned no result');
+      }
+      
+      // Step 3: Confirm Payment Intent with Payment Method
+      const { error: confirmError, paymentIntent } = await stripeInstance.confirmCardPayment(
+        intentData.client_secret,
+        {
+          payment_method: paymentMethod.id,
+        }
+      );
+      
+      if (confirmError) {
+        throw new Error(confirmError.message || 'Payment confirmation failed');
+      }
+      
+      if (paymentIntent.status === 'succeeded') {
+        // Payment successful! Redirect to success page
+        console.log('Payment succeeded:', paymentIntent.id);
+        goto(`/gift/purchase?session_id=${paymentIntent.id}`);
+      } else {
+        throw new Error(`Payment status: ${paymentIntent.status}`);
+      }
+      
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while processing payment';
+      alert(`Payment failed: ${errorMessage}\n\nPlease check your card details and try again.`);
+    } finally {
+      isProcessingPayment = false;
+    }
+  };
+
+  const handleManageOnStripe = async () => {
+    if (isLoadingStripe) return;
+    
+    isLoadingStripe = true;
+    
+    try {
+      // Get current user info
+      let userEmail = null;
+      let userId = null;
+      
+      if (currentUser) {
+        userEmail = currentUser.email;
+        userId = currentUser.id;
+      }
+      
+      // Build success URL - redirect to gift purchase success page
+      const successUrl = `${window.location.origin}/gift/purchase?session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${window.location.origin}/gift/review`;
+      
+      // Get API base URL
+      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
+      
+      // Prepare request body - only include fields that are not null/undefined
+      const requestBody: any = {
+        purchase_type: 'gift',
+        success_url: successUrl,
+        cancel_url: cancelUrl
+      };
+      
+      // Add optional fields only if they have values
+      if (giftState?.giftId) {
+        requestBody.gift_id = giftState.giftId;
+      }
+      if (userEmail) {
+        requestBody.user_email = userEmail;
+      }
+      if (userId) {
+        requestBody.user_id = userId;
+      }
+      
+      console.log('Creating Stripe checkout session with:', requestBody);
+      console.log('Current giftState:', giftState);
+      
+      // Call the backend to create a Stripe checkout session for gift
+      const response = await fetch(`${API_BASE_URL}/api/stripe/create-onetime-checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        let errorMessage = 'Failed to create checkout session';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+          console.error('Backend error response:', errorData);
+        } catch (parseError) {
+          const errorText = await response.text();
+          console.error('Backend error (text):', errorText);
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.checkout_url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error(data.message || 'Failed to get checkout URL');
+      }
+    } catch (error) {
+      console.error('Stripe checkout error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while starting payment';
+      console.error('Full error details:', {
+        error,
+        giftState,
+        userId,
+        API_BASE_URL: env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000'
+      });
+      alert(`Failed to start payment: ${errorMessage}\n\nPlease check the browser console for more details.`);
+    } finally {
+      isLoadingStripe = false;
+    }
   };
 
   // Format delivery time for display
@@ -166,9 +449,22 @@
             </div>
           </div>
         </div>
-        <div class="frame-1410104131">
+        <div class="frame-1410104131" role="button" tabindex="0" on:click={() => includeGiftReceipt = !includeGiftReceipt} on:keydown={(e) => e.key === "Enter" && (includeGiftReceipt = !includeGiftReceipt)}>
+          <input
+            type="checkbox"
+            id="gift-receipt-checkbox"
+            bind:checked={includeGiftReceipt}
+            class="checkbox-input"
+            aria-label="Include gift receipt"
+          />
           <div class="checkbox">
-            <div class="square"></div>
+            <div class="square" class:checked={includeGiftReceipt}>
+              {#if includeGiftReceipt}
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" class="checkmark">
+                  <path d="M11.6667 3.5L5.25 9.91667L2.33334 7" stroke="#438bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              {/if}
+            </div>
           </div>
           <div class="frame-1410104132">
             <div class="include-gift-receipt">
@@ -192,51 +488,66 @@
              <div>
                <span class="paymentinformation_span">Payment Information</span>
              </div>
-             <div class="button desktop-stripe-button">
+             <div 
+               class="button desktop-stripe-button"
+               role="button"
+               tabindex="0"
+               on:click={handleManageOnStripe}
+               on:keydown={(e) => e.key === "Enter" && handleManageOnStripe()}
+             >
                <img src={arrowsquareout} alt="arrowsquareout" />
                <div class="manage-on-stripe">
-                 <span class="manageonstripe_span">Manage on Stripe</span>
+                 <span class="manageonstripe_span">
+                   {#if isLoadingStripe}
+                     Loading...
+                   {:else}
+                     Manage on Stripe
+                   {/if}
+                 </span>
                </div>
              </div>
            </div>
-           <div class="mobile-stripe-button">
+           <div 
+             class="mobile-stripe-button"
+             role="button"
+             tabindex="0"
+             on:click={handleManageOnStripe}
+             on:keydown={(e) => e.key === "Enter" && handleManageOnStripe()}
+           >
              <img src={arrowsquareout} alt="arrowsquareout" />
              <div class="manage-on-stripe">
-               <span class="manageonstripe_span">Manage on Stripe</span>
+               <span class="manageonstripe_span">
+                 {#if isLoadingStripe}
+                   Loading...
+                 {:else}
+                   Manage on Stripe
+                 {/if}
+               </span>
              </div>
            </div>
           <div class="stroke"></div>
           <div class="form">
             <div class="card-number">
-              <span class="cardnumber_span">Card Number</span>
+              <span class="cardnumber_span">Card Details</span>
             </div>
-            <div class="input-placeholder" role="button" tabindex="0">
-              <div><span class="f242_span">•••• •••• •••• 4242</span></div>
-            </div>
+            <div 
+              bind:this={cardElementContainer}
+              class="input-placeholder input-field stripe-element-container"
+            ></div>
           </div>
-          <div class="frame-1410104133">
-            <div class="form_01">
-              <div class="expiry-date">
-                <span class="expirydate_span">Expiry Date</span>
-              </div>
-              <div class="input-placeholder_01" role="button" tabindex="0">
-                <div><span class="f228_span">12/28</span></div>
-              </div>
-            </div>
-            <div class="form_02">
-              <div class="cvc"><span class="cvc_span">CVC</span></div>
-              <div class="input-placeholder_02" role="button" tabindex="0">
-                <div><span class="fspan">•••</span></div>
-              </div>
-            </div>
+          <div class="frame-1410104133" style="display: none;">
+            <!-- Hidden - using single card element instead -->
           </div>
           <div class="form_03">
             <div class="billing-name">
               <span class="billingname_span">Billing Name</span>
             </div>
-            <div class="input-placeholder_03" role="button" tabindex="0">
-              <div><span class="johndoe_span">John Doe</span></div>
-            </div>
+            <input
+              type="text"
+              bind:value={billingName}
+              placeholder="John Doe"
+              class="input-placeholder_03 input-field"
+            />
           </div>
           <div class="frame-1410104035">
             <div class="sealcheck">
@@ -249,9 +560,22 @@
             </div>
           </div>
         </div>
-        <div class="frame-1410104135">
+        <div class="frame-1410104135" role="button" tabindex="0" on:click={() => agreeToTerms = !agreeToTerms} on:keydown={(e) => e.key === "Enter" && (agreeToTerms = !agreeToTerms)}>
+          <input
+            type="checkbox"
+            id="terms-checkbox"
+            bind:checked={agreeToTerms}
+            class="checkbox-input"
+            aria-label="I agree to the Gift Purchase Terms"
+          />
           <div class="checkbox_01">
-            <div class="square_01"></div>
+            <div class="square_01" class:checked={agreeToTerms}>
+              {#if agreeToTerms}
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" class="checkmark">
+                  <path d="M11.6667 3.5L5.25 9.91667L2.33334 7" stroke="#438bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              {/if}
+            </div>
           </div>
           <div class="frame-1410104136">
             <div>
@@ -281,13 +605,20 @@
       <div class="frame-1410103991">
         <div 
           class="button_01"
+          class:disabled={!canPurchase || isProcessingPayment}
           role="button"
-          tabindex="0"
-          on:click={handlePurchase}
-          on:keydown={(e) => e.key === "Enter" && handlePurchase()}
+          tabindex={canPurchase && !isProcessingPayment ? 0 : -1}
+          on:click={canPurchase && !isProcessingPayment ? handlePurchase : undefined}
+          on:keydown={(e) => canPurchase && !isProcessingPayment && e.key === "Enter" && handlePurchase()}
         >
           <div class="purchase-gift-story">
-            <span class="purchasegiftstory_span">Purchase Gift Story</span>
+            <span class="purchasegiftstory_span">
+              {#if isProcessingPayment}
+                Processing Payment...
+              {:else}
+                Purchase Gift Story
+              {/if}
+            </span>
           </div>
         </div>
       </div>
@@ -502,6 +833,24 @@
     text-align: right;
   }
 
+  .checkbox-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .frame-1410104131,
+  .frame-1410104135 {
+    cursor: pointer;
+  }
+
+  .frame-1410104131:hover,
+  .frame-1410104135:hover {
+    background: #f8fafb;
+  }
+
   .square {
     width: 20px;
     height: 20px;
@@ -511,6 +860,19 @@
     background: white;
     border-radius: 6px;
     border: 1px #dfe1e7 solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .square.checked {
+    background: white;
+    border: 2px #438bff solid;
+  }
+
+  .checkmark {
+    display: block;
   }
 
   .includegiftreceipt_span {
@@ -677,6 +1039,15 @@
     background: white;
     border-radius: 6px;
     border: 1px #dfe1e7 solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .square_01.checked {
+    background: white;
+    border: 2px #438bff solid;
   }
 
   .iagreetothegiftpurchaseterms_span {
@@ -842,12 +1213,30 @@
     border-radius: 12px;
     outline: 1px #dcdcdc solid;
     outline-offset: -1px;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    display: inline-flex;
     transition: all 0.2s ease;
-    cursor: pointer;
+    border: none;
+    font-family: Nunito;
+    font-size: 16px;
+    color: #141414;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .stripe-element-container {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+  }
+
+  .stripe-element-container .StripeElement {
+    width: 100%;
+    padding: 0;
+  }
+
+  .stripe-element-container .StripeElement--focus {
+    outline: 2px solid #438bff;
+    outline-offset: -2px;
+    box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
   }
 
   .input-placeholder:hover {
@@ -862,6 +1251,11 @@
     transform: translateY(-1px);
   }
 
+  .input-placeholder::placeholder {
+    color: #141414;
+    opacity: 0.6;
+  }
+
   .input-placeholder_01 {
     align-self: stretch;
     height: 50px;
@@ -874,12 +1268,13 @@
     border-radius: 12px;
     outline: 1px #dcdcdc solid;
     outline-offset: -1px;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    display: inline-flex;
     transition: all 0.2s ease;
-    cursor: pointer;
+    border: none;
+    font-family: Nunito;
+    font-size: 16px;
+    color: #141414;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .input-placeholder_01:hover {
@@ -894,6 +1289,11 @@
     transform: translateY(-1px);
   }
 
+  .input-placeholder_01::placeholder {
+    color: #141414;
+    opacity: 0.6;
+  }
+
   .input-placeholder_02 {
     align-self: stretch;
     height: 50px;
@@ -906,12 +1306,13 @@
     border-radius: 12px;
     outline: 1px #dcdcdc solid;
     outline-offset: -1px;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    display: inline-flex;
     transition: all 0.2s ease;
-    cursor: pointer;
+    border: none;
+    font-family: Nunito;
+    font-size: 16px;
+    color: #141414;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .input-placeholder_02:hover {
@@ -926,6 +1327,11 @@
     transform: translateY(-1px);
   }
 
+  .input-placeholder_02::placeholder {
+    color: #141414;
+    opacity: 0.6;
+  }
+
   .input-placeholder_03 {
     align-self: stretch;
     height: 50px;
@@ -938,12 +1344,13 @@
     border-radius: 12px;
     outline: 1px #dcdcdc solid;
     outline-offset: -1px;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    display: inline-flex;
     transition: all 0.2s ease;
-    cursor: pointer;
+    border: none;
+    font-family: Nunito;
+    font-size: 16px;
+    color: #141414;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .input-placeholder_03:hover {
@@ -956,6 +1363,11 @@
     outline-offset: -2px;
     box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
     transform: translateY(-1px);
+  }
+
+  .input-placeholder_03::placeholder {
+    color: #141414;
+    opacity: 0.6;
   }
 
   .frame-1410104050 {
@@ -995,21 +1407,32 @@
     overflow: hidden;
   }
 
-  .button_01:hover {
+  .button_01:hover:not(.disabled) {
     background: #3a7ae4;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(67, 139, 255, 0.3);
   }
 
-  .button_01:active {
+  .button_01:active:not(.disabled) {
     transform: translateY(0);
     box-shadow: 0 2px 6px rgba(67, 139, 255, 0.2);
     background: #2e6bc7;
   }
 
-  .button_01:focus {
+  .button_01:focus:not(.disabled) {
     outline: 2px solid #438bff;
     outline-offset: 2px;
+  }
+
+  .button_01.disabled {
+    background: #dcdcdc;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .button_01.disabled:hover {
+    transform: none;
+    box-shadow: none;
   }
 
   /* Ripple effect */
@@ -1188,6 +1611,8 @@
     align-items: center;
     gap: 12px;
     display: inline-flex;
+    position: relative;
+    transition: background-color 0.2s ease;
   }
 
   .button {
@@ -1246,6 +1671,8 @@
     align-items: flex-start;
     gap: 12px;
     display: inline-flex;
+    position: relative;
+    transition: background-color 0.2s ease;
   }
 
   .button_02 {

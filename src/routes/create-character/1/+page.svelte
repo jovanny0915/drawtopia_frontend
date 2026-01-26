@@ -25,15 +25,17 @@
   };
   import MobileBackBtn from "../../../components/MobileBackBtn.svelte";
   import { uploadCharacterImage } from "../../../lib/storage";
-  import { user } from "../../../lib/stores/auth";
+  import { user, auth } from "../../../lib/stores/auth";
   import { storyCreation } from "../../../lib/stores/storyCreation";
   import { onMount } from "svelte";
+  import { get } from "svelte/store";
   import PrimaryInput from "../../../components/PrimaryInput.svelte";
   import AdvancedSelect from "../../../components/AdvancedSelect.svelte";
   import { getChildProfiles } from "../../../lib/database/childProfiles";
   import ChildrenSelect from "../../../components/ChildrenSelect.svelte";
   import { createCharacter, updateCharacter, getCharacterById } from "../../../lib/database/characters";
   import { supabase } from "../../../lib/supabase";
+  import { getUserProfile } from "../../../lib/auth";
 
   let fileInput: HTMLInputElement;
   let isDragOver = false;
@@ -46,6 +48,11 @@
   let showUploadNotification = false;
   let showErrorNotification = false;
   let errorNotificationMessage = "";
+  let showCreditErrorNotification = false;
+  let creditErrorNotificationMessage = "";
+  let isCheckingCredit = false;
+  let userCredit: number | null = null; // null means not loaded yet
+  let isCreditLoaded = false;
 
   // Form state
   let selectedChildProfileId = "";
@@ -79,6 +86,31 @@
   // Check for selected child profile and fetch child profiles
   onMount(async () => {
     if (browser) {
+      // Fetch user credit on mount
+      if ($user?.id) {
+        try {
+          const profileResult = await getUserProfile($user.id);
+          if (profileResult.success && profileResult.profile) {
+            const profile = Array.isArray(profileResult.profile) ? profileResult.profile[0] : profileResult.profile;
+            const currentCredit = profile?.credit !== undefined && profile?.credit !== null
+              ? (typeof profile.credit === 'string' ? parseInt(profile.credit, 10) : profile.credit)
+              : 0;
+            userCredit = isNaN(currentCredit) ? 0 : currentCredit;
+            isCreditLoaded = true;
+          } else {
+            userCredit = 0;
+            isCreditLoaded = true;
+          }
+        } catch (error) {
+          console.error('Error fetching user credit:', error);
+          userCredit = 0;
+          isCreditLoaded = true;
+        }
+      } else {
+        userCredit = 0;
+        isCreditLoaded = true;
+      }
+      
       // Get child profile ID from sessionStorage (set from dashboard)
       const childProfileId = sessionStorage.getItem("selectedChildProfileId");
 
@@ -371,6 +403,11 @@
       return;
     }
 
+    // Prevent navigation if checking credit
+    if (isCheckingCredit) {
+      return;
+    }
+
     try {
       // Get current user
       const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -379,6 +416,87 @@
         uploadError = "Please log in to continue";
         return;
       }
+
+      // Check and deduct credit before proceeding
+      isCheckingCredit = true;
+      
+      // Get user credit first
+      const profileResult = await getUserProfile(currentUser.id);
+      if (profileResult.success && profileResult.profile) {
+        const profile = Array.isArray(profileResult.profile) ? profileResult.profile[0] : profileResult.profile;
+        const currentCredit = profile?.credit !== undefined && profile?.credit !== null
+          ? (typeof profile.credit === 'string' ? parseInt(profile.credit, 10) : profile.credit)
+          : 0;
+        
+        userCredit = isNaN(currentCredit) ? 0 : currentCredit;
+        
+        // Check if user has credit
+        if (userCredit !== null && userCredit <= 0) {
+          isCheckingCredit = false;
+          showCreditErrorNotification = true;
+          creditErrorNotificationMessage = "Lack of credit, so you can't story";
+          setTimeout(() => {
+            showCreditErrorNotification = false;
+          }, 5000);
+          return;
+        }
+        
+        // Deduct credit via API
+        const API_BASE_URL = "https://image-edit-five.vercel.app";
+        const authState = get(auth);
+        
+        if (!authState.session?.access_token) {
+          isCheckingCredit = false;
+          uploadError = "Please log in to continue";
+          return;
+        }
+        
+        const deductResponse = await fetch(`${API_BASE_URL}/api/users/deduct-credit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authState.session.access_token}`
+          },
+          body: JSON.stringify({ amount: 1 })
+        });
+        
+        if (!deductResponse.ok) {
+          const errorData = await deductResponse.json().catch(() => ({ detail: 'Failed to deduct credit' }));
+          isCheckingCredit = false;
+          showCreditErrorNotification = true;
+          creditErrorNotificationMessage = errorData.detail || errorData.message || "Failed to deduct credit";
+          setTimeout(() => {
+            showCreditErrorNotification = false;
+          }, 5000);
+          return;
+        }
+        
+        const deductResult = await deductResponse.json();
+        
+        if (!deductResult.success) {
+          isCheckingCredit = false;
+          showCreditErrorNotification = true;
+          creditErrorNotificationMessage = deductResult.message || "Insufficient credits";
+          setTimeout(() => {
+            showCreditErrorNotification = false;
+          }, 5000);
+          return;
+        }
+        
+        // Update local credit value
+        userCredit = deductResult.remaining_credits || 0;
+        isCreditLoaded = true;
+      } else {
+        isCheckingCredit = false;
+        showCreditErrorNotification = true;
+        creditErrorNotificationMessage = "Failed to check credit balance";
+        setTimeout(() => {
+          showCreditErrorNotification = false;
+        }, 5000);
+        return;
+      }
+      
+      isCheckingCredit = false;
 
       // Prepare special ability value
       const specialAbilityValue = customSpecialAbility || selectedSpecialAbility;
@@ -472,13 +590,31 @@
       goto("/create-character/2");
     } catch (error) {
       console.error('Error in handleContinue:', error);
-      // Continue anyway
-      goto("/create-character/2");
+      isCheckingCredit = false;
+      // Don't navigate if there was an error
+      showCreditErrorNotification = true;
+      creditErrorNotificationMessage = "An error occurred. Please try again.";
+      setTimeout(() => {
+        showCreditErrorNotification = false;
+      }, 5000);
     }
   };
 </script>
 
 <div class="character-creation-default">
+  <!-- Credit Error Notification Toast -->
+  {#if showCreditErrorNotification}
+    <div class="credit-error-toast">
+      <div class="credit-error-toast-content">
+        <div class="credit-error-toast-icon">
+          <img src={warningIcon} alt="warning" class="warning-icon">
+        </div>
+        <div class="credit-error-toast-message">
+          <span class="credit-error-toast-text">{creditErrorNotificationMessage}</span>
+        </div>
+      </div>
+    </div>
+  {/if}
   <div class="navbar">
     <div class="logo-text-full" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()}>
       <div class="logo-img"></div>
@@ -958,7 +1094,7 @@
       <button
         class="button-fill"
         on:click={handleContinue}
-        disabled={uploading || !isFormValid}
+        disabled={uploading || !isFormValid || isCheckingCredit}
       >
         <div class="continue-to-enhancement-preview">
           <span class="continuetoenhancementpreview_span">
@@ -2377,5 +2513,86 @@
     gap: 12px;
     display: inline-flex;
     margin-top: 12px;
+  }
+
+  /* Credit Error Toast Notification */
+  .credit-error-toast {
+    position: fixed;
+    top: 50px;
+    right: 50px;
+    z-index: 1000;
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .credit-error-toast-content {
+    padding: 16px 24px;
+    background: #FFF0F3;
+    border-radius: 12px;
+    outline: 2px #DF1C41 solid;
+    outline-offset: -2px;
+    box-shadow: 0px 4px 12px rgba(223, 28, 65, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    max-width: 500px;
+  }
+
+  .credit-error-toast-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .credit-error-toast-message {
+    flex: 1;
+  }
+
+  .credit-error-toast-text {
+    color: #DF1C41;
+    font-size: 16px;
+    font-family: Quicksand;
+    font-weight: 600;
+    line-height: 22.4px;
+    word-wrap: break-word;
+  }
+
+  @media (max-width: 800px) {
+    .credit-error-toast {
+      top: 80px;
+      left: 20px;
+      right: 20px;
+      transform: none;
+    }
+
+    .credit-error-toast-content {
+      min-width: auto;
+      width: 100%;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   }
 </style>

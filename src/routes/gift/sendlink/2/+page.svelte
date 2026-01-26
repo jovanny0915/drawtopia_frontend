@@ -7,7 +7,6 @@
   import logo from "../../../../assets/logo.png";
   import PaperPlaneTilt from "../../../../assets/PaperPlaneTilt.svg";
   import XIcon from "../../../../assets/X.svg";
-  import green_check from "../../../../assets/green_check.svg";
 
   import GiftPackaging1 from "../../../../assets/giftpackage1.png";
   import GiftPackaging2 from "../../../../assets/giftpackage2.png";
@@ -20,7 +19,6 @@
     isAuthenticated,
   } from "../../../../lib/stores/auth";
   import GiftStepComponent from "../../../../components/GiftStepComponent.svelte";
-  import { createGift } from "../../../../lib/database/gifts";
 
   const exampleMessages = [
     "Happy Birthday, Emma!",
@@ -36,10 +34,6 @@
   let selectedCardDesign: GiftCardDesign = "blue";
   let characterCount = 0;
   let showPreviewModal = false;
-  let showStatusModal = false;
-  let isSuccess = false;
-  let isLoading = false;
-  let errorMessage = "";
   const maxCharacters = 200;
 
   // Reactive statements for auth state
@@ -103,7 +97,7 @@
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     // Validate required fields
     if (!giftMessage.trim()) {
       alert("Please enter a gift message");
@@ -114,67 +108,13 @@
       return;
     }
 
-    if (isLoading) return;
-
-    try {
-      isLoading = true;
-      isSuccess = false;
-      errorMessage = "";
-
-      // Update the store with the message from this page
-      giftCreation.setDeliveryDetails({
-        specialMsg: giftMessage,
-      });
-      
-      // Get updated state after setting the message
-      const giftState = $giftCreation;
-
-      // Convert gift state to Gift object for database
-      const giftData = giftCreation.toGiftObject(giftState);
-      
-      // Save gift to database
-      const result = await createGift(giftData);
-      
-      if (result.success) {
-        // Store the gift ID
-        if (result.data?.id) {
-          giftCreation.setGiftId(result.data.id);
-        }
-        
-        isSuccess = true;
-        showStatusModal = true;
-      } else {
-        isSuccess = false;
-        errorMessage = result.error || 'Failed to send gift creation link';
-        showStatusModal = true;
-      }
-    } catch (error: any) {
-      console.error('Error sending gift:', error);
-      isSuccess = false;
-      errorMessage = error.message || 'An error occurred while sending the gift creation link';
-      showStatusModal = true;
-    } finally {
-      isLoading = false;
-    }
-  };
-
-  const handleCloseStatusModal = () => {
-    showStatusModal = false;
-  };
-
-  const handleDoneButton = () => {
-    if (isSuccess) {
-      goto("/dashboard");
-    } else {
-      // If failed, just close the modal
-      handleCloseStatusModal();
-    }
-  };
-
-  const handleStatusModalBackdropClick = (event: MouseEvent) => {
-    if (event.target === event.currentTarget) {
-      handleCloseStatusModal();
-    }
+    // Update the store with the message from this page
+    giftCreation.setDeliveryDetails({
+      specialMsg: giftMessage,
+    });
+    
+    // Navigate to review page
+    goto("/gift/review");
   };
 
   const handleBack = () => {
@@ -287,14 +227,10 @@
       <button
         class="send-button"
         on:click={handleSend}
-        disabled={!giftMessage.trim() || !selectedCardDesign || isLoading}
+        disabled={!giftMessage.trim() || !selectedCardDesign}
       >
-      {#if isLoading}
-        Sending...
-      {:else}
         Send Gift Creation Link
         <img src={PaperPlaneTilt} alt="send" class="send-icon" />
-      {/if}
       </button>
       <button class="back-button" on:click={handleBack}>
         <img src={arrow_left} alt="back" class="arrow-icon" />
@@ -353,56 +289,6 @@
   </div>
 {/if}
 
-{#if showStatusModal}
-  <!-- Status Modal (Success/Failed) -->
-  <div
-    class="modal-overlay"
-    on:click={handleStatusModalBackdropClick}
-    on:keydown={(e) => e.key === "Escape" && handleCloseStatusModal()}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="status-modal-title"
-    tabindex="-1"
-  >
-    <div class="status-modal-content" on:click|stopPropagation role="document">
-      <div class="status-modal-header">
-        <div class="modal-logo">
-          <img src={logo} alt="logo" class="logo-img" />
-        </div>
-        <button
-          class="modal-close"
-          on:click={handleCloseStatusModal}
-          aria-label="Close status modal"
-        >
-          <img src={XIcon} alt="close" />
-        </button>
-      </div>
-
-      <div class="status-modal-body">
-        {#if isSuccess}
-          <img src={green_check} alt="success" class="status-icon" />
-          <div class="status-title">Gift Sent Successfully!</div>
-          <div class="status-message">
-            Your gift creation link has been sent successfully. The recipient will receive the link shortly.
-          </div>
-        {:else}
-          <div class="status-icon error-icon">❌</div>
-          <div class="status-title error-title">Failed to Send Gift</div>
-          <div class="status-message error-message">
-            {errorMessage || 'An error occurred while sending the gift creation link. Please try again.'}
-          </div>
-        {/if}
-        <button class="status-button" on:click={handleDoneButton}>
-          {#if isSuccess}
-            Done
-          {:else}
-            Try Again
-          {/if}
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
 
 <style>
   .finishing-touches-page {

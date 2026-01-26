@@ -116,6 +116,11 @@ export async function queueGiftNotificationEmail(
 
 /**
  * Send book completion notification email
+ * Sends variables according to book_format:
+ * - interactive_search: to_email, parent_name, child_name, character_name, character_type,
+ *   book_title, special_ability, book_format, preview_link, download_link
+ * - adventure-story: the above plus story_world, adventure_type, age_group
+ *
  * @param toEmail - Recipient's email address
  * @param parentName - Parent's name
  * @param childName - Child's name
@@ -126,8 +131,9 @@ export async function queueGiftNotificationEmail(
  * @param bookFormat - Book format ('story_adventure' or 'interactive_search')
  * @param previewLink - Link to preview the story
  * @param downloadLink - Link to download the story
- * @param storyWorld - Story world setting (optional)
- * @param adventureType - Adventure type (optional)
+ * @param storyWorld - Story world setting (adventure-story only)
+ * @param adventureType - Adventure type (adventure-story only)
+ * @param ageGroup - Age group (adventure-story only)
  * @returns Promise with result
  */
 export async function sendBookCompletionEmail(
@@ -142,28 +148,39 @@ export async function sendBookCompletionEmail(
   previewLink: string,
   downloadLink: string,
   storyWorld?: string,
-  adventureType?: string
+  adventureType?: string,
+  ageGroup?: string
 ): Promise<EmailResult> {
   try {
+    const baseBody: Record<string, string> = {
+      to_email: toEmail,
+      parent_name: parentName,
+      child_name: childName,
+      character_name: characterName,
+      character_type: characterType,
+      book_title: bookTitle,
+      special_ability: specialAbility,
+      book_format: bookFormat,
+      preview_link: previewLink,
+      download_link: downloadLink,
+    };
+
+    const body =
+      bookFormat === 'interactive_search'
+        ? baseBody
+        : {
+            ...baseBody,
+            ...(storyWorld != null && { story_world: storyWorld }),
+            ...(adventureType != null && { adventure_type: adventureType }),
+            ...(ageGroup != null && { age_group: ageGroup }),
+          };
+
     const response = await fetch(`${BACKEND_URL}/api/emails/book-completion`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        to_email: toEmail,
-        parent_name: parentName,
-        child_name: childName,
-        character_name: characterName,
-        character_type: characterType,
-        book_title: bookTitle,
-        special_ability: specialAbility,
-        book_format: bookFormat,
-        preview_link: previewLink,
-        download_link: downloadLink,
-        story_world: storyWorld,
-        adventure_type: adventureType,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

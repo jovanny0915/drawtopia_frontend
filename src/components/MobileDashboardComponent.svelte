@@ -34,7 +34,7 @@
   let libraryView: "all" | "characters" | "children" = "all";
   let sidebarOpen = false;
   let activeMenu: "home" | "story-library" | "characters" | "child-profiles" | "gift-tracking" = "home";
-  let storyCredits: number = 3;
+  let storyCredits: number | null = null; // Story credits from user's credit column
   
   // State for character preview
   let showCharacterPreview = false;
@@ -411,6 +411,29 @@
     }
   };
 
+  // Fetch user credits from users table
+  const fetchUserCredits = async (userId: string) => {
+    try {
+      const { getUserProfile } = await import("../lib/auth");
+      const result = await getUserProfile(userId);
+      if (result.success && result.profile) {
+        const profile = Array.isArray(result.profile) ? result.profile[0] : result.profile;
+        if (profile?.credit !== undefined && profile?.credit !== null) {
+          // Parse credit as number if it's a string
+          const creditValue = typeof profile.credit === 'string' 
+            ? parseInt(profile.credit, 10) 
+            : profile.credit;
+          storyCredits = isNaN(creditValue) ? 0 : creditValue;
+        } else {
+          storyCredits = 0; // Default to 0 if no credit is set
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user credits:", error);
+      storyCredits = 0;
+    }
+  };
+
   const determineOccasion = (
     adventureType: string,
     storyWorld: string,
@@ -539,12 +562,14 @@
         fetchStories($user.id);
         fetchGifts();
         fetchCharacters($user.id);
+        fetchUserCredits($user.id);
       } else {
         childProfiles = [];
         stories = [];
         rawStories = [];
         characters = [];
         gifts = [];
+        storyCredits = 0;
         loading = false;
         loadingStories = false;
         loadingGifts = false;
@@ -766,7 +791,9 @@
               <img src={books} alt="books" />
             </div>
           </div>
-          <div><span class="fstorycreditsleft_span">{storyCredits} story credits left</span></div>
+          <div><span class="fstorycreditsleft_span">
+            {storyCredits !== null ? `${storyCredits} story credit${storyCredits !== 1 ? 's' : ''} left` : 'Loading...'}
+          </span></div>
         </div>
       </div>
     </div>
