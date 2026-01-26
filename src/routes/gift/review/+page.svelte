@@ -83,8 +83,10 @@
             
             // Wait for DOM to be ready before mounting Elements
             // Use a longer timeout to ensure DOM is fully rendered
-            setTimeout(() => {
-              if (cardNumberElement && cardExpiryElement && cardCvcElement && elements) {
+            // Also use requestAnimationFrame for better timing
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                if (cardNumberElement && cardExpiryElement && cardCvcElement && elements) {
                 try {
                   // Create separate card elements with styling that matches the existing design
                   cardNumberEl = elements.create('cardNumber', {
@@ -143,7 +145,26 @@
                   cardExpiryEl.mount(cardExpiryElement);
                   cardCvcEl.mount(cardCvcElement);
                   
-                  console.log('Stripe Elements mounted successfully');
+                  console.log('Stripe Elements mounted successfully', {
+                    cardNumberElement: cardNumberElement,
+                    cardExpiryElement: cardExpiryElement,
+                    cardCvcElement: cardCvcElement,
+                    cardNumberEl: cardNumberEl,
+                    cardExpiryEl: cardExpiryEl,
+                    cardCvcEl: cardCvcEl
+                  });
+                  
+                  // Verify elements are mounted
+                  setTimeout(() => {
+                    const cardNumberIframe = cardNumberElement.querySelector('iframe');
+                    const cardExpiryIframe = cardExpiryElement.querySelector('iframe');
+                    const cardCvcIframe = cardCvcElement.querySelector('iframe');
+                    console.log('Stripe iframes found:', {
+                      cardNumber: !!cardNumberIframe,
+                      cardExpiry: !!cardExpiryIframe,
+                      cardCvc: !!cardCvcIframe
+                    });
+                  }, 500);
                   
                   // Listen for change events to track completion
                   cardNumberEl.on('change', (event: any) => {
@@ -177,6 +198,7 @@
                 });
               }
             }, 200);
+            });
           }
         }).catch(error => {
           console.error('Failed to load Stripe:', error);
@@ -604,6 +626,7 @@
             <div 
               bind:this={cardNumberElement}
               class="input-placeholder input-field stripe-element-container"
+              id="card-number-element"
             ></div>
           </div>
           <div class="frame-1410104133">
@@ -614,6 +637,7 @@
               <div 
                 bind:this={cardExpiryElement}
                 class="input-placeholder_01 input-field stripe-element-container"
+                id="card-expiry-element"
               ></div>
             </div>
             <div class="form_02">
@@ -621,6 +645,7 @@
               <div 
                 bind:this={cardCvcElement}
                 class="input-placeholder_02 input-field stripe-element-container"
+                id="card-cvc-element"
               ></div>
             </div>
           </div>
@@ -1306,6 +1331,12 @@
     color: #141414;
     width: 100%;
     box-sizing: border-box;
+    position: relative;
+  }
+
+  /* Override overflow for Stripe Elements containers */
+  .input-placeholder.stripe-element-container {
+    overflow: visible;
   }
 
   .stripe-element-container {
@@ -1313,12 +1344,31 @@
     align-items: center;
     min-height: 42px;
     width: 100%;
+    position: relative;
+    pointer-events: auto;
+    overflow: visible;
   }
 
   .stripe-element-container :global(.StripeElement) {
     width: 100%;
     padding: 0;
     height: 100%;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+  }
+
+  .stripe-element-container :global(.StripeElement iframe) {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 42px !important;
+    pointer-events: auto !important;
+    z-index: 1;
+  }
+
+  .stripe-element-container :global(.StripeElement) {
+    z-index: 1;
+    position: relative;
   }
 
   .stripe-element-container :global(.StripeElement--focus) {
@@ -1329,6 +1379,14 @@
 
   .stripe-element-container :global(.StripeElement--invalid) {
     color: #fa755a;
+  }
+
+  /* Ensure input containers with Stripe Elements allow interaction */
+  .input-placeholder.stripe-element-container,
+  .input-placeholder_01.stripe-element-container,
+  .input-placeholder_02.stripe-element-container {
+    overflow: visible;
+    pointer-events: auto;
   }
 
   .input-placeholder:hover {
