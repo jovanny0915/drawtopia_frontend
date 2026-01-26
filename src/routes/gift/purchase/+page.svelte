@@ -44,12 +44,19 @@
       giftState = state;
     });
     
-    // Check if we're returning from Stripe checkout
+    // Check if we're returning from Stripe checkout or payment intent
     const sessionId = $page.url.searchParams.get('session_id');
+    const paymentIntentId = $page.url.searchParams.get('payment_intent');
+    
     if (sessionId && browser) {
       // Call async function without blocking
       verifyStripePayment(sessionId).catch(error => {
         console.error('Error in verifyStripePayment:', error);
+      });
+    } else if (paymentIntentId && browser) {
+      // Verify payment intent
+      verifyPaymentIntent(paymentIntentId).catch(error => {
+        console.error('Error in verifyPaymentIntent:', error);
       });
     }
     
@@ -119,6 +126,43 @@
       }
     } catch (error) {
       console.error('Error verifying payment:', error);
+      alert('An error occurred while verifying payment. Please contact support.');
+    } finally {
+      isVerifyingPayment = false;
+    }
+  };
+
+  const verifyPaymentIntent = async (paymentIntentId: string) => {
+    if (isVerifyingPayment) return;
+    
+    isVerifyingPayment = true;
+    
+    try {
+      // Get API base URL
+      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
+      
+      // Fetch payment intent details from backend
+      const response = await fetch(`${API_BASE_URL}/api/stripe/payment-intent/${paymentIntentId}`);
+      
+      if (response.ok) {
+        const intentData = await response.json();
+        
+        if (intentData.success && intentData.status === 'succeeded' && intentData.purchase_type === 'gift') {
+          paymentVerified = true;
+          
+          // Save gift to Supabase after successful payment
+          await saveGiftAfterPayment();
+        } else {
+          console.error('Payment intent verification failed:', intentData);
+          alert('Payment verification failed. Please contact support.');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to verify payment intent:', errorData);
+        alert('Failed to verify payment. Please contact support.');
+      }
+    } catch (error) {
+      console.error('Error verifying payment intent:', error);
       alert('An error occurred while verifying payment. Please contact support.');
     } finally {
       isVerifyingPayment = false;
