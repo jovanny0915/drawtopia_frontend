@@ -30,8 +30,15 @@
   let elements: any = null;
   let cardElement: any = null;
   
-  // Refs for Stripe Elements containers - using single card element
-  let cardElementContainer: HTMLElement;
+  // Refs for Stripe Elements containers - separate elements for better UI
+  let cardNumberElement: HTMLElement;
+  let cardExpiryElement: HTMLElement;
+  let cardCvcElement: HTMLElement;
+  
+  // Store element references
+  let cardNumberEl: any = null;
+  let cardExpiryEl: any = null;
+  let cardCvcEl: any = null;
 
   // Reactive statements for auth state
   $: currentUser = $user;
@@ -75,38 +82,101 @@
             elements = stripe.elements();
             
             // Wait for DOM to be ready before mounting Elements
+            // Use a longer timeout to ensure DOM is fully rendered
             setTimeout(() => {
-              if (cardElementContainer && elements) {
-                // Create a single card element that combines all card fields
-                cardElement = elements.create('card', {
-                  style: {
-                    base: {
-                      fontSize: '16px',
-                      fontFamily: 'Nunito, sans-serif',
-                      color: '#141414',
-                      '::placeholder': {
+              if (cardNumberElement && cardExpiryElement && cardCvcElement && elements) {
+                try {
+                  // Create separate card elements with styling that matches the existing design
+                  cardNumberEl = elements.create('cardNumber', {
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        fontFamily: 'Nunito, sans-serif',
                         color: '#141414',
-                        opacity: 0.6,
+                        '::placeholder': {
+                          color: '#141414',
+                          opacity: 0.6,
+                        },
+                      },
+                      invalid: {
+                        color: '#fa755a',
                       },
                     },
-                    invalid: {
-                      color: '#fa755a',
+                  });
+                  
+                  cardExpiryEl = elements.create('cardExpiry', {
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        fontFamily: 'Nunito, sans-serif',
+                        color: '#141414',
+                        '::placeholder': {
+                          color: '#141414',
+                          opacity: 0.6,
+                        },
+                      },
+                      invalid: {
+                        color: '#fa755a',
+                      },
                     },
-                  },
-                });
-                
-                // Mount element to container
-                cardElement.mount(cardElementContainer);
-                
-                // Listen for change events to track completion
-                cardElement.on('change', (event: any) => {
-                  // The card element reports complete when all fields are valid
-                  cardComplete = event.complete;
-                  expiryComplete = event.complete;
-                  cvcComplete = event.complete;
+                  });
+                  
+                  cardCvcEl = elements.create('cardCvc', {
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        fontFamily: 'Nunito, sans-serif',
+                        color: '#141414',
+                        '::placeholder': {
+                          color: '#141414',
+                          opacity: 0.6,
+                        },
+                      },
+                      invalid: {
+                        color: '#fa755a',
+                      },
+                    },
+                  });
+                  
+                  // Mount elements to containers
+                  cardNumberEl.mount(cardNumberElement);
+                  cardExpiryEl.mount(cardExpiryElement);
+                  cardCvcEl.mount(cardCvcElement);
+                  
+                  console.log('Stripe Elements mounted successfully');
+                  
+                  // Listen for change events to track completion
+                  cardNumberEl.on('change', (event: any) => {
+                    cardComplete = event.complete;
+                    console.log('Card number complete:', event.complete);
+                  });
+                  
+                  cardExpiryEl.on('change', (event: any) => {
+                    expiryComplete = event.complete;
+                    console.log('Expiry complete:', event.complete);
+                  });
+                  
+                  cardCvcEl.on('change', (event: any) => {
+                    cvcComplete = event.complete;
+                    console.log('CVC complete:', event.complete);
+                  });
+                  
+                  // Store cardNumber element for payment processing
+                  // When using separate elements from the same Elements instance,
+                  // passing cardNumber to createPaymentMethod will use all three elements
+                  cardElement = cardNumberEl;
+                } catch (error) {
+                  console.error('Error creating Stripe Elements:', error);
+                }
+              } else {
+                console.warn('Stripe Elements containers not found:', {
+                  cardNumberElement: !!cardNumberElement,
+                  cardExpiryElement: !!cardExpiryElement,
+                  cardCvcElement: !!cardCvcElement,
+                  elements: !!elements
                 });
               }
-            }, 100);
+            }, 200);
           }
         }).catch(error => {
           console.error('Failed to load Stripe:', error);
@@ -197,15 +267,16 @@
       }
       
       // Step 2: Create Payment Method from Stripe Elements
-      if (!cardElement) {
+      if (!cardElement || !cardNumberEl || !cardExpiryEl || !cardCvcEl) {
         throw new Error('Stripe Elements not initialized. Please refresh the page.');
       }
       
-      // Create payment method using the card element
-      // When using separate elements, the cardNumber element works as it references the other elements
+      // Create payment method using the cardNumber element
+      // When using separate elements from the same Elements instance, 
+      // Stripe automatically uses data from all three elements
       const { error: pmError, paymentMethod } = await stripeInstance.createPaymentMethod({
         type: 'card',
-        card: cardElement,
+        card: cardElement, // cardNumber element - Stripe will use expiry and CVC from the same Elements instance
         billing_details: {
           name: billingName,
           email: userEmail || undefined,
@@ -528,15 +599,30 @@
           <div class="stroke"></div>
           <div class="form">
             <div class="card-number">
-              <span class="cardnumber_span">Card Details</span>
+              <span class="cardnumber_span">Card Number</span>
             </div>
             <div 
-              bind:this={cardElementContainer}
+              bind:this={cardNumberElement}
               class="input-placeholder input-field stripe-element-container"
             ></div>
           </div>
-          <div class="frame-1410104133" style="display: none;">
-            <!-- Hidden - using single card element instead -->
+          <div class="frame-1410104133">
+            <div class="form_01">
+              <div class="expiry-date">
+                <span class="expirydate_span">Expiry Date</span>
+              </div>
+              <div 
+                bind:this={cardExpiryElement}
+                class="input-placeholder_01 input-field stripe-element-container"
+              ></div>
+            </div>
+            <div class="form_02">
+              <div class="cvc"><span class="cvc_span">CVC</span></div>
+              <div 
+                bind:this={cardCvcElement}
+                class="input-placeholder_02 input-field stripe-element-container"
+              ></div>
+            </div>
           </div>
           <div class="form_03">
             <div class="billing-name">
@@ -1226,17 +1312,23 @@
     display: flex;
     align-items: center;
     min-height: 42px;
+    width: 100%;
   }
 
-  .stripe-element-container .StripeElement {
+  .stripe-element-container :global(.StripeElement) {
     width: 100%;
     padding: 0;
+    height: 100%;
   }
 
-  .stripe-element-container .StripeElement--focus {
+  .stripe-element-container :global(.StripeElement--focus) {
     outline: 2px solid #438bff;
     outline-offset: -2px;
     box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
+  }
+
+  .stripe-element-container :global(.StripeElement--invalid) {
+    color: #fa755a;
   }
 
   .input-placeholder:hover {
