@@ -264,7 +264,7 @@
       }
 
       // Step 2: Create payment intent with gift_id
-      const createIntentResponse = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
+      const createIntentResponse = await fetch(`https://image-edit-five.vercel.app/api/stripe/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
