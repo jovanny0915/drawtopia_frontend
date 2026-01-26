@@ -237,7 +237,7 @@
         userId = currentUser.id;
       }
 
-      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://app.drawtopia.ai';
+      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'https://image-edit-five.vercel.app';
 
       // Step 1: Create gift with "pending_payment" status BEFORE payment
       // This allows us to include gift_id in the payment intent metadata
