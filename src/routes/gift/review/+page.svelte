@@ -6,6 +6,7 @@
   import { browser } from "$app/environment";
   import { env } from "../../../lib/env";
   import { loadStripe, type Stripe, type StripeElements, type StripeCardElement } from "@stripe/stripe-js";
+  import { createGift } from "../../../lib/database/gifts";
   import arrow_left from "../../../assets/ArrowLeft.svg";
   import arrowsquareout from "../../../assets/ArrowSquareOut.svg";
   import sealcheck from "../../../assets/SealCheck_green.svg";
@@ -66,26 +67,38 @@
     }
 
     try {
+      // Load Stripe
       stripe = await loadStripe(publishableKey);
       if (!stripe) {
         console.error('Failed to load Stripe');
         return;
       }
 
-      // Wait for containers to be available in the DOM
-      let retries = 0;
-      while ((!cardNumberElementContainer || !cardExpiryElementContainer || !cardCvcElementContainer) && retries < 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        retries++;
-      }
+      // Wait for containers to be available in the DOM using a more reliable method
+      const waitForContainers = (): Promise<void> => {
+        return new Promise((resolve) => {
+          const checkContainers = () => {
+            if (cardNumberElementContainer && cardExpiryElementContainer && cardCvcElementContainer) {
+              resolve();
+            } else {
+              requestAnimationFrame(checkContainers);
+            }
+          };
+          checkContainers();
+        });
+      };
+
+      // Wait a bit for Svelte to render, then check for containers
+      await new Promise(resolve => setTimeout(resolve, 200));
+      await waitForContainers();
 
       if (!cardNumberElementContainer || !cardExpiryElementContainer || !cardCvcElementContainer) {
-        console.error('Stripe element containers not found');
+        console.error('Stripe element containers not found after waiting');
         paymentError = 'Payment form containers not found. Please refresh the page.';
         return;
       }
 
-      // Create elements instance
+      // Create elements instance with proper styling
       elements = stripe.elements({
         appearance: {
           theme: 'stripe',
@@ -101,40 +114,65 @@
         },
       });
 
-      // Create individual card elements
-      if (cardNumberElementContainer) {
-        const cardNumberElement = elements.create('cardNumber', {
-          placeholder: '4242 4242 4242 4242',
-        });
-        cardNumberElement.mount(cardNumberElementContainer);
-      }
+      // Create and mount card number element
+      const cardNumberEl = elements.create('cardNumber', {
+        placeholder: '4242 4242 4242 4242',
+        style: {
+          base: {
+            fontSize: '16px',
+            fontFamily: 'Nunito, sans-serif',
+            color: '#141414',
+            '::placeholder': {
+              color: '#141414',
+              opacity: 0.6,
+            },
+          },
+        },
+      });
+      cardNumberEl.mount(cardNumberElementContainer);
+      cardElement = cardNumberEl;
 
-      if (cardExpiryElementContainer) {
-        const cardExpiryElement = elements.create('cardExpiry', {
-          placeholder: 'MM/YY',
-        });
-        cardExpiryElement.mount(cardExpiryElementContainer);
-      }
+      // Create and mount card expiry element
+      const cardExpiryEl = elements.create('cardExpiry', {
+        placeholder: 'MM/YY',
+        style: {
+          base: {
+            fontSize: '16px',
+            fontFamily: 'Nunito, sans-serif',
+            color: '#141414',
+            '::placeholder': {
+              color: '#141414',
+              opacity: 0.6,
+            },
+          },
+        },
+      });
+      cardExpiryEl.mount(cardExpiryElementContainer);
 
-      if (cardCvcElementContainer) {
-        const cardCvcElement = elements.create('cardCvc', {
-          placeholder: 'CVC',
-        });
-        cardCvcElement.mount(cardCvcElementContainer);
-      }
+      // Create and mount card CVC element
+      const cardCvcEl = elements.create('cardCvc', {
+        placeholder: 'CVC',
+        style: {
+          base: {
+            fontSize: '16px',
+            fontFamily: 'Nunito, sans-serif',
+            color: '#141414',
+            '::placeholder': {
+              color: '#141414',
+              opacity: 0.6,
+            },
+          },
+        },
+      });
+      cardCvcEl.mount(cardCvcElementContainer);
 
-      // Get cardNumberElement for payment method creation
-      if (cardNumberElementContainer && elements) {
-        const cardNumberEl = elements.getElement('cardNumber');
-        if (cardNumberEl) {
-          cardElement = cardNumberEl as any;
-        }
-      }
+      console.log('Stripe Elements initialized successfully');
     } catch (error) {
       console.error('Error initializing Stripe:', error);
       paymentError = 'Failed to initialize payment form. Please refresh the page.';
     }
   };
+
 
   // Subscribe to gift creation state
   onMount(() => {
@@ -148,8 +186,10 @@
         }
       }, 100);
 
-      // Initialize Stripe Elements
-      initializeStripe();
+      // Initialize Stripe Elements after a delay to ensure DOM is ready
+      setTimeout(() => {
+        initializeStripe();
+      }, 300);
     }
 
     const unsubscribe = giftCreation.subscribe(state => {
@@ -162,7 +202,11 @@
   onDestroy(() => {
     // Clean up Stripe Elements
     if (cardElement) {
-      cardElement.unmount();
+      try {
+        cardElement.unmount();
+      } catch (e) {
+        // Ignore unmount errors
+      }
     }
   });
 
@@ -195,7 +239,31 @@
 
       const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
 
-      // Step 1: Create payment intent
+      // Step 1: Create gift with "pending_payment" status BEFORE payment
+      // This allows us to include gift_id in the payment intent metadata
+      let giftId = giftState?.giftId;
+      
+      if (!giftId) {
+        try {
+          const giftData = giftCreation.toGiftObject(giftState);
+          // Set status to pending_payment so we can track it
+          giftData.status = 'pending_payment';
+          
+          const giftResult = await createGift(giftData);
+          if (giftResult.success && giftResult.data?.id) {
+            giftId = giftResult.data.id;
+            giftCreation.setGiftId(giftId);
+            console.log('Gift created with pending_payment status:', giftId);
+          } else {
+            console.warn('Failed to create gift before payment, continuing without gift_id:', giftResult.error);
+          }
+        } catch (error) {
+          console.error('Error creating gift before payment:', error);
+          // Continue without gift_id if creation fails
+        }
+      }
+
+      // Step 2: Create payment intent with gift_id
       const createIntentResponse = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
         method: 'POST',
         headers: {
@@ -203,7 +271,7 @@
         },
         body: JSON.stringify({
           purchase_type: 'gift',
-          gift_id: giftState?.giftId || null,
+          gift_id: giftId || null,
           user_email: userEmail,
           user_id: userId,
         }),
@@ -215,6 +283,12 @@
       }
 
       const intentData = await createIntentResponse.json();
+      console.log('Payment intent created:', {
+        success: intentData.success,
+        payment_intent_id: intentData.payment_intent_id,
+        client_secret_preview: intentData.client_secret ? intentData.client_secret.substring(0, 30) + '...' : 'missing'
+      });
+      
       if (!intentData.success || !intentData.client_secret) {
         throw new Error(intentData.message || 'Failed to create payment intent');
       }
@@ -224,17 +298,41 @@
         throw new Error('Failed to get payment intent client secret');
       }
 
+      // Validate client_secret format
+      if (!clientSecret.startsWith('pi_') || !clientSecret.includes('_secret_')) {
+        console.error('Invalid client_secret format:', clientSecret);
+        throw new Error('Invalid payment intent client secret format');
+      }
+
+      // Extract payment intent ID from client_secret for verification
+      const paymentIntentId = clientSecret.split('_secret_')[0];
+      console.log('Extracted payment intent ID:', paymentIntentId);
+      
+      // Verify payment intent exists before proceeding
+      const verifyResponse = await fetch(`${API_BASE_URL}/api/stripe/payment-intent/${paymentIntentId}`);
+      if (!verifyResponse.ok) {
+        const verifyError = await verifyResponse.json().catch(() => ({}));
+        console.error('Payment intent verification failed:', verifyError);
+        throw new Error('Payment intent verification failed. Please try again.');
+      }
+      const verifyData = await verifyResponse.json();
+      console.log('Payment intent verified:', verifyData);
+
       paymentIntentClientSecret = clientSecret;
 
       // Step 2: Create payment method from card element
-      const cardNumberEl = elements.getElement('cardNumber');
-      if (!cardNumberEl) {
-        throw new Error('Card number element not found');
+      if (!cardElement) {
+        const cardNumberEl = elements.getElement('cardNumber');
+        if (!cardNumberEl) {
+          throw new Error('Card number element not found');
+        }
+        cardElement = cardNumberEl;
       }
 
+      console.log('Creating payment method...');
       const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
-        card: cardNumberEl,
+        card: cardElement,
         billing_details: {
           name: billingName,
           email: userEmail || undefined,
@@ -242,10 +340,16 @@
       });
 
       if (pmError || !paymentMethod) {
+        console.error('Payment method creation error:', pmError);
         throw new Error(pmError?.message || 'Failed to create payment method');
       }
 
-      // Step 3: Confirm payment intent
+      console.log('Payment method created:', paymentMethod.id);
+      console.log('Confirming payment intent with client_secret:', clientSecret.substring(0, 20) + '...');
+      console.log('Full client_secret length:', clientSecret.length);
+
+      // Step 3: Confirm payment intent using client_secret
+      // Note: confirmCardPayment automatically extracts payment_intent_id from client_secret
       const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
         clientSecret,
         {
@@ -253,8 +357,25 @@
         }
       );
 
+      console.log('Payment confirmation result:', {
+        error: confirmError,
+        paymentIntent: paymentIntent ? {
+          id: paymentIntent.id,
+          status: paymentIntent.status,
+          amount: paymentIntent.amount,
+        } : null
+      });
+
       if (confirmError) {
-        throw new Error(confirmError.message || 'Payment failed');
+        console.error('Payment confirmation error:', confirmError);
+        // Provide more detailed error message
+        if (confirmError.code === 'resource_missing') {
+          throw new Error('Payment intent not found. Please try again or contact support.');
+        } else if (confirmError.type === 'card_error') {
+          throw new Error(confirmError.message || 'Card payment failed. Please check your card details.');
+        } else {
+          throw new Error(confirmError.message || 'Payment confirmation failed. Please try again.');
+        }
       }
 
       if (paymentIntent?.status === 'succeeded') {
@@ -1380,19 +1501,25 @@
   /* Stripe Elements Container Styles */
   .stripe-element-container {
     align-self: stretch;
-    height: 50px;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-top: 4px;
-    padding-bottom: 4px;
+    min-height: 50px;
+    height: auto;
+    padding: 4px 10px;
     background: white;
-    overflow: hidden;
+    overflow: visible;
     border-radius: 12px;
     outline: 1px #dcdcdc solid;
     outline-offset: -1px;
     transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
+    display: block;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Ensure Stripe Elements iframe is visible and interactive */
+  .stripe-element-container iframe {
+    width: 100% !important;
+    height: 50px !important;
   }
 
   .stripe-element-container:hover {

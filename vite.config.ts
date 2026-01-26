@@ -6,5 +6,12 @@ export default defineConfig({
 	// Ensure ESM-only Supabase client is bundled for SSR builds (Vercel)
 	ssr: {
 		noExternal: ['@supabase/supabase-js']
+	},
+	server: {
+		allowedHosts: [
+			'frostily-untamable-wanita.ngrok-free.dev',
+			'.ngrok-free.dev',
+			'.ngrok.io'
+		]
 	}
 });

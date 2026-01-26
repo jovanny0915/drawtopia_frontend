@@ -5,7 +5,7 @@
   import envelope from "../../../assets/Envelope.svg";
   import arrow_left from "../../../assets/ArrowLeft.svg";
   import { giftCreation } from "../../../lib/stores/giftCreation";
-  import { createGift } from "../../../lib/database/gifts";
+  import { createGift, updateGift } from "../../../lib/database/gifts";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
@@ -173,25 +173,52 @@
     try {
       isLoading = true;
       
-      // Convert gift state to gift object
-      const giftData = giftCreation.toGiftObject(giftState);
+      // Check if gift already exists (created before payment with pending_payment status)
+      const existingGiftId = giftState?.giftId;
       
-      // Save gift to Supabase database
-      const result = await createGift(giftData);
-      
-      if (result.success) {
-        // Store the gift ID
-        giftCreation.setGiftId(result.data.id);
-        console.log('✅ Gift saved successfully to Supabase after payment:', result.data);
+      if (existingGiftId) {
+        // Update existing gift status from "pending_payment" to "generating"
+        try {
+          const updateResult = await updateGift(existingGiftId, { status: 'generating' });
+          
+          if (updateResult.success) {
+            console.log('✅ Gift status updated from pending_payment to generating:', existingGiftId);
+          } else {
+            console.error('❌ Failed to update gift status:', updateResult.error);
+            // Fallback: create new gift if update fails
+            await createNewGift();
+          }
+        } catch (error) {
+          console.error('❌ Error updating gift status:', error);
+          // Fallback: create new gift if update fails
+          await createNewGift();
+        }
       } else {
-        console.error('❌ Failed to save gift:', result.error);
-        alert('Payment successful but failed to save gift. Please contact support.');
+        // Gift doesn't exist, create it now
+        await createNewGift();
       }
     } catch (error) {
       console.error('❌ Error saving gift after payment:', error);
       alert('Payment successful but an error occurred while saving the gift. Please contact support.');
     } finally {
       isLoading = false;
+    }
+  };
+
+  const createNewGift = async () => {
+    // Convert gift state to gift object
+    const giftData = giftCreation.toGiftObject(giftState);
+    
+    // Save gift to Supabase database
+    const result = await createGift(giftData);
+    
+    if (result.success) {
+      // Store the gift ID
+      giftCreation.setGiftId(result.data.id);
+      console.log('✅ Gift saved successfully to Supabase after payment:', result.data);
+    } else {
+      console.error('❌ Failed to save gift:', result.error);
+      alert('Payment successful but failed to save gift. Please contact support.');
     }
   };
 
