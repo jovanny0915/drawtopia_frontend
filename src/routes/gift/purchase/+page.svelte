@@ -5,7 +5,7 @@
   import envelope from "../../../assets/Envelope.svg";
   import arrow_left from "../../../assets/ArrowLeft.svg";
   import { giftCreation } from "../../../lib/stores/giftCreation";
-  import { createGift, updateGift } from "../../../lib/database/gifts";
+  import { createGift } from "../../../lib/database/gifts";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
@@ -44,19 +44,12 @@
       giftState = state;
     });
     
-    // Check if we're returning from Stripe checkout or payment intent
+    // Check if we're returning from Stripe checkout
     const sessionId = $page.url.searchParams.get('session_id');
-    const paymentIntentId = $page.url.searchParams.get('payment_intent');
-    
     if (sessionId && browser) {
       // Call async function without blocking
       verifyStripePayment(sessionId).catch(error => {
         console.error('Error in verifyStripePayment:', error);
-      });
-    } else if (paymentIntentId && browser) {
-      // Verify payment intent
-      verifyPaymentIntent(paymentIntentId).catch(error => {
-        console.error('Error in verifyPaymentIntent:', error);
       });
     }
     
@@ -132,93 +125,29 @@
     }
   };
 
-  const verifyPaymentIntent = async (paymentIntentId: string) => {
-    if (isVerifyingPayment) return;
-    
-    isVerifyingPayment = true;
-    
-    try {
-      // Get API base URL
-      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
-      
-      // Fetch payment intent details from backend
-      const response = await fetch(`${API_BASE_URL}/api/stripe/payment-intent/${paymentIntentId}`);
-      
-      if (response.ok) {
-        const intentData = await response.json();
-        
-        if (intentData.success && intentData.status === 'succeeded' && intentData.purchase_type === 'gift') {
-          paymentVerified = true;
-          
-          // Save gift to Supabase after successful payment
-          await saveGiftAfterPayment();
-        } else {
-          console.error('Payment intent verification failed:', intentData);
-          alert('Payment verification failed. Please contact support.');
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to verify payment intent:', errorData);
-        alert('Failed to verify payment. Please contact support.');
-      }
-    } catch (error) {
-      console.error('Error verifying payment intent:', error);
-      alert('An error occurred while verifying payment. Please contact support.');
-    } finally {
-      isVerifyingPayment = false;
-    }
-  };
-
   const saveGiftAfterPayment = async () => {
     try {
       isLoading = true;
       
-      // Check if gift already exists (created before payment with pending_payment status)
-      const existingGiftId = giftState?.giftId;
+      // Convert gift state to gift object
+      const giftData = giftCreation.toGiftObject(giftState);
       
-      if (existingGiftId) {
-        // Update existing gift status from "pending_payment" to "generating"
-        try {
-          const updateResult = await updateGift(existingGiftId, { status: 'generating' });
-          
-          if (updateResult.success) {
-            console.log('✅ Gift status updated from pending_payment to generating:', existingGiftId);
-          } else {
-            console.error('❌ Failed to update gift status:', updateResult.error);
-            // Fallback: create new gift if update fails
-            await createNewGift();
-          }
-        } catch (error) {
-          console.error('❌ Error updating gift status:', error);
-          // Fallback: create new gift if update fails
-          await createNewGift();
-        }
+      // Save gift to Supabase database
+      const result = await createGift(giftData);
+      
+      if (result.success) {
+        // Store the gift ID
+        giftCreation.setGiftId(result.data.id);
+        console.log('✅ Gift saved successfully to Supabase after payment:', result.data);
       } else {
-        // Gift doesn't exist, create it now
-        await createNewGift();
+        console.error('❌ Failed to save gift:', result.error);
+        alert('Payment successful but failed to save gift. Please contact support.');
       }
     } catch (error) {
       console.error('❌ Error saving gift after payment:', error);
       alert('Payment successful but an error occurred while saving the gift. Please contact support.');
     } finally {
       isLoading = false;
-    }
-  };
-
-  const createNewGift = async () => {
-    // Convert gift state to gift object
-    const giftData = giftCreation.toGiftObject(giftState);
-    
-    // Save gift to Supabase database
-    const result = await createGift(giftData);
-    
-    if (result.success) {
-      // Store the gift ID
-      giftCreation.setGiftId(result.data.id);
-      console.log('✅ Gift saved successfully to Supabase after payment:', result.data);
-    } else {
-      console.error('❌ Failed to save gift:', result.error);
-      alert('Payment successful but failed to save gift. Please contact support.');
     }
   };
 

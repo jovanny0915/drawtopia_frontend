@@ -1,12 +1,11 @@
 <script lang="ts">
   import { giftCreation } from "../../../lib/stores/giftCreation";
   import { goto } from "$app/navigation";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
   import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
   import { browser } from "$app/environment";
   import { env } from "../../../lib/env";
-  import { loadStripe, type Stripe, type StripeElements, type StripeCardElement } from "@stripe/stripe-js";
-  import { createGift } from "../../../lib/database/gifts";
+  import StripePaymentElement from "../../../components/StripePaymentElement.svelte";
   import arrow_left from "../../../assets/ArrowLeft.svg";
   import arrowsquareout from "../../../assets/ArrowSquareOut.svg";
   import sealcheck from "../../../assets/SealCheck_green.svg";
@@ -17,25 +16,14 @@
   let includeGiftReceipt = false;
   let agreeToTerms = false;
   
-  // Billing name
-  let billingName = '';
-  
-  // Stripe Elements
-  let stripe: Stripe | null = null;
-  let elements: StripeElements | null = null;
-  let cardElement: StripeCardElement | null = null;
-  let cardElementContainer: HTMLDivElement;
-  let cardNumberElementContainer: HTMLDivElement;
-  let cardExpiryElementContainer: HTMLDivElement;
-  let cardCvcElementContainer: HTMLDivElement;
-  
-  // Payment processing state
-  let isProcessingPayment = false;
-  let paymentError: string | null = null;
-  let paymentIntentClientSecret: string | null = null;
-  
-  // Loading state for Stripe checkout (kept for backward compatibility, but not used)
+  // Payment states
+  let paymentMode: 'elements' | 'checkout' = 'elements'; // 'elements' for Stripe Elements, 'checkout' for Checkout Session
+  let clientSecret = '';
+  let paymentIntentId = '';
+  let isLoadingPaymentIntent = false;
   let isLoadingStripe = false;
+  let showPaymentForm = false;
+  let paymentAmount = 999; // $9.99 in cents
 
   // Reactive statements for auth state
   $: currentUser = $user;
@@ -46,137 +34,8 @@
   // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
   
-  // Helper function to validate billing name (should not be empty)
-  $: isValidBillingName = billingName.trim().length > 0;
-  
-  // Enable purchase button only when terms are agreed and billing name is filled
-  // Stripe Elements will handle card validation
-  $: canPurchase = agreeToTerms && isValidBillingName && !isProcessingPayment && stripe !== null && elements !== null;
-
-  // Initialize Stripe Elements
-  const initializeStripe = async () => {
-    if (!browser) {
-      return;
-    }
-
-    const publishableKey = env.STRIPE_PUBLISHABLE_KEY;
-    if (!publishableKey) {
-      console.error('Stripe publishable key not found');
-      paymentError = 'Payment system not configured. Please contact support.';
-      return;
-    }
-
-    try {
-      // Load Stripe
-      stripe = await loadStripe(publishableKey);
-      if (!stripe) {
-        console.error('Failed to load Stripe');
-        return;
-      }
-
-      // Wait for containers to be available in the DOM using a more reliable method
-      const waitForContainers = (): Promise<void> => {
-        return new Promise((resolve) => {
-          const checkContainers = () => {
-            if (cardNumberElementContainer && cardExpiryElementContainer && cardCvcElementContainer) {
-              resolve();
-            } else {
-              requestAnimationFrame(checkContainers);
-            }
-          };
-          checkContainers();
-        });
-      };
-
-      // Wait a bit for Svelte to render, then check for containers
-      await new Promise(resolve => setTimeout(resolve, 200));
-      await waitForContainers();
-
-      if (!cardNumberElementContainer || !cardExpiryElementContainer || !cardCvcElementContainer) {
-        console.error('Stripe element containers not found after waiting');
-        paymentError = 'Payment form containers not found. Please refresh the page.';
-        return;
-      }
-
-      // Create elements instance with proper styling
-      // Disable analytics to prevent ERR_BLOCKED_BY_CLIENT errors from ad blockers
-      elements = stripe.elements({
-        appearance: {
-          theme: 'stripe',
-          variables: {
-            colorPrimary: '#438bff',
-            colorBackground: '#ffffff',
-            colorText: '#141414',
-            colorDanger: '#df1b41',
-            fontFamily: 'Nunito, system-ui, sans-serif',
-            spacingUnit: '4px',
-            borderRadius: '12px',
-          },
-        },
-        // Disable analytics to avoid ERR_BLOCKED_BY_CLIENT errors from ad blockers
-        // This doesn't affect payment functionality
-        loader: 'never', // Don't show loading spinner
-      });
-
-      // Create and mount card number element
-      const cardNumberEl = elements.create('cardNumber', {
-        placeholder: '4242 4242 4242 4242',
-        style: {
-          base: {
-            fontSize: '16px',
-            fontFamily: 'Nunito, sans-serif',
-            color: '#141414',
-            '::placeholder': {
-              color: '#141414',
-              opacity: 0.6,
-            },
-          },
-        },
-      });
-      cardNumberEl.mount(cardNumberElementContainer);
-      cardElement = cardNumberEl;
-
-      // Create and mount card expiry element
-      const cardExpiryEl = elements.create('cardExpiry', {
-        placeholder: 'MM/YY',
-        style: {
-          base: {
-            fontSize: '16px',
-            fontFamily: 'Nunito, sans-serif',
-            color: '#141414',
-            '::placeholder': {
-              color: '#141414',
-              opacity: 0.6,
-            },
-          },
-        },
-      });
-      cardExpiryEl.mount(cardExpiryElementContainer);
-
-      // Create and mount card CVC element
-      const cardCvcEl = elements.create('cardCvc', {
-        placeholder: 'CVC',
-        style: {
-          base: {
-            fontSize: '16px',
-            fontFamily: 'Nunito, sans-serif',
-            color: '#141414',
-            '::placeholder': {
-              color: '#141414',
-              opacity: 0.6,
-            },
-          },
-        },
-      });
-      cardCvcEl.mount(cardCvcElementContainer);
-
-      console.log('Stripe Elements initialized successfully');
-    } catch (error) {
-      console.error('Error initializing Stripe:', error);
-      paymentError = 'Failed to initialize payment form. Please refresh the page.';
-    }
-  };
-
+  // Enable purchase button only when terms are agreed
+  $: canPurchase = agreeToTerms;
 
   // Subscribe to gift creation state
   onMount(() => {
@@ -189,11 +48,6 @@
           return;
         }
       }, 100);
-
-      // Initialize Stripe Elements after a delay to ensure DOM is ready
-      setTimeout(() => {
-        initializeStripe();
-      }, 300);
     }
 
     const unsubscribe = giftCreation.subscribe(state => {
@@ -201,17 +55,6 @@
     });
     
     return unsubscribe;
-  });
-
-  onDestroy(() => {
-    // Clean up Stripe Elements
-    if (cardElement) {
-      try {
-        cardElement.unmount();
-      } catch (e) {
-        // Ignore unmount errors
-      }
-    }
   });
 
   // Reactive redirect when auth state changes (client-side only)
@@ -225,12 +68,11 @@
     goto("/gift/sendlink/7");
   };
 
-  const handlePurchase = async () => {
-    if (!stripe || !elements || isProcessingPayment) return;
-
-    isProcessingPayment = true;
-    paymentError = null;
-
+  const createPaymentIntent = async () => {
+    if (isLoadingPaymentIntent) return;
+    
+    isLoadingPaymentIntent = true;
+    
     try {
       // Get current user info
       let userEmail = null;
@@ -240,175 +82,79 @@
         userEmail = currentUser.email;
         userId = currentUser.id;
       }
-
-      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'https://image-edit-five.vercel.app';
-
-      // Step 1: Create gift with "pending_payment" status BEFORE payment
-      // This allows us to include gift_id in the payment intent metadata
-      let giftId = giftState?.giftId;
       
-      if (!giftId) {
-        try {
-          const giftData = giftCreation.toGiftObject(giftState);
-          // Set status to pending_payment so we can track it
-          giftData.status = 'pending_payment';
-          
-          const giftResult = await createGift(giftData);
-          if (giftResult.success && giftResult.data?.id) {
-            giftId = giftResult.data.id;
-            giftCreation.setGiftId(giftId);
-            console.log('Gift created with pending_payment status:', giftId);
-          } else {
-            console.warn('Failed to create gift before payment, continuing without gift_id:', giftResult.error);
-          }
-        } catch (error) {
-          console.error('Error creating gift before payment:', error);
-          // Continue without gift_id if creation fails
-        }
-      }
-
-      // Step 2: Create payment intent with gift_id
-      const createIntentResponse = await fetch(`https://image-edit-five.vercel.app/api/stripe/create-payment-intent`, {
+      // Get API base URL
+      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
+      
+      // Prepare request body
+      const requestBody: any = {
+        purchase_type: 'gift',
+        user_id: userId,
+        user_email: userEmail,
+        gift_id: giftState?.giftId
+      };
+      
+      console.log('Creating payment intent with:', requestBody);
+      
+      // Call the backend to create a Payment Intent
+      const response = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          purchase_type: 'gift',
-          gift_id: giftId || null,
-          user_email: userEmail,
-          user_id: userId,
-        }),
-      });
-
-      if (!createIntentResponse.ok) {
-        const errorData = await createIntentResponse.json();
-        throw new Error(errorData.detail || 'Failed to create payment intent');
-      }
-
-      const intentData = await createIntentResponse.json();
-      console.log('Payment intent created:', {
-        success: intentData.success,
-        payment_intent_id: intentData.payment_intent_id,
-        client_secret_preview: intentData.client_secret ? intentData.client_secret.substring(0, 30) + '...' : 'missing'
+        body: JSON.stringify(requestBody)
       });
       
-      if (!intentData.success || !intentData.client_secret) {
-        throw new Error(intentData.message || 'Failed to create payment intent');
+      if (!response.ok) {
+        let errorMessage = 'Failed to create payment intent';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+          console.error('Backend error response:', errorData);
+        } catch (parseError) {
+          const errorText = await response.text();
+          console.error('Backend error (text):', errorText);
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
-
-      const clientSecret = intentData.client_secret;
-      if (!clientSecret) {
-        throw new Error('Failed to get payment intent client secret');
-      }
-
-      // Validate client_secret format
-      if (!clientSecret.startsWith('pi_') || !clientSecret.includes('_secret_')) {
-        console.error('Invalid client_secret format:', clientSecret);
-        throw new Error('Invalid payment intent client secret format');
-      }
-
-      // Extract payment intent ID from client_secret for verification
-      const paymentIntentId = clientSecret.split('_secret_')[0];
-      console.log('Extracted payment intent ID:', paymentIntentId);
       
-      // Verify payment intent exists before proceeding
-      const verifyResponse = await fetch(`https://image-edit-five.vercel.app/api/stripe/payment-intent/${paymentIntentId}`);
-      if (!verifyResponse.ok) {
-        const verifyError = await verifyResponse.json().catch(() => ({}));
-        console.error('Payment intent verification failed:', verifyError);
-        throw new Error('Payment intent verification failed. Please try again.');
-      }
-      const verifyData = await verifyResponse.json();
-      console.log('Payment intent verified:', verifyData);
-
-      paymentIntentClientSecret = clientSecret;
-
-      // Step 2: Create payment method from card element
-      if (!cardElement) {
-        const cardNumberEl = elements.getElement('cardNumber');
-        if (!cardNumberEl) {
-          throw new Error('Card number element not found');
-        }
-        cardElement = cardNumberEl;
-      }
-
-      console.log('Creating payment method...');
-      const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
-        type: 'card',
-        card: cardElement,
-        billing_details: {
-          name: billingName,
-          email: userEmail || undefined,
-        },
-      });
-
-      if (pmError || !paymentMethod) {
-        console.error('Payment method creation error:', pmError);
-        throw new Error(pmError?.message || 'Failed to create payment method');
-      }
-
-      console.log('Payment method created:', paymentMethod.id);
-      console.log('Confirming payment intent with client_secret:', clientSecret.substring(0, 20) + '...');
-      console.log('Full client_secret length:', clientSecret.length);
-
-      // Step 3: Confirm payment intent using client_secret
-      // Note: confirmCardPayment automatically extracts payment_intent_id from client_secret
-      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
-        clientSecret,
-        {
-          payment_method: paymentMethod.id,
-        }
-      );
-
-      console.log('Payment confirmation result:', {
-        error: confirmError,
-        paymentIntent: paymentIntent ? {
-          id: paymentIntent.id,
-          status: paymentIntent.status,
-          amount: paymentIntent.amount,
-        } : null
-      });
-
-      if (confirmError) {
-        console.error('Payment confirmation error:', confirmError);
-        // Provide more detailed error message
-        if (confirmError.code === 'resource_missing') {
-          throw new Error('Payment intent not found. Please try again or contact support.');
-        } else if (confirmError.type === 'card_error') {
-          throw new Error(confirmError.message || 'Card payment failed. Please check your card details.');
-        } else {
-          throw new Error(confirmError.message || 'Payment confirmation failed. Please try again.');
-        }
-      }
-
-      if (paymentIntent?.status === 'succeeded') {
-        // Payment succeeded - navigate to purchase success page
-        goto(`/gift/purchase?payment_intent=${paymentIntent.id}`);
-      } else if (paymentIntent?.status === 'requires_action') {
-        // Handle 3D Secure or other authentication
-        const { error: actionError } = await stripe.handleCardAction(clientSecret);
-        if (actionError) {
-          throw new Error(actionError.message || 'Authentication failed');
-        }
-        // Retry confirmation after action
-        const { error: retryError, paymentIntent: retryIntent } = await stripe.confirmCardPayment(
-          clientSecret
-        );
-        if (retryError || retryIntent?.status !== 'succeeded') {
-          throw new Error(retryError?.message || 'Payment failed after authentication');
-        }
-        goto(`/gift/purchase?payment_intent=${retryIntent.id}`);
+      const data = await response.json();
+      
+      if (data.success && data.client_secret) {
+        clientSecret = data.client_secret;
+        paymentIntentId = data.payment_intent_id;
+        paymentAmount = data.amount;
+        showPaymentForm = true;
+        console.log('Payment intent created successfully:', paymentIntentId);
       } else {
-        throw new Error(`Payment status: ${paymentIntent?.status}`);
+        throw new Error(data.message || 'Failed to get payment intent');
       }
     } catch (error) {
-      console.error('Payment error:', error);
-      paymentError = error instanceof Error ? error.message : 'An error occurred during payment';
-      alert(`Payment failed: ${paymentError}`);
+      console.error('Payment intent error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while preparing payment';
+      alert(`Failed to prepare payment: ${errorMessage}\n\nPlease try again or contact support.`);
     } finally {
-      isProcessingPayment = false;
+      isLoadingPaymentIntent = false;
     }
+  };
+
+  const handlePurchase = async () => {
+    if (!canPurchase) return;
+    
+    // Create payment intent and show payment form
+    await createPaymentIntent();
+  };
+
+  const handlePaymentSuccess = (paymentIntentId: string) => {
+    console.log('Payment succeeded:', paymentIntentId);
+    // Navigate to success page
+    goto(`/gift/purchase?payment_intent=${paymentIntentId}`);
+  };
+
+  const handlePaymentError = (error: string) => {
+    console.error('Payment error:', error);
+    alert(`Payment failed: ${error}\n\nPlease try again or contact support.`);
   };
 
   const handleManageOnStripe = async () => {
@@ -645,69 +391,67 @@
         </div>
       </div>
       <div class="frame-1410104138">
-          <div class="frame-1410104132_01">
-            <div class="frame-1410104137">
-              <div>
-                <span class="paymentinformation_span">Payment Information</span>
-              </div>
-            </div>
-            {#if paymentError}
-              <div class="payment-error">
-                <span class="payment-error-text">{paymentError}</span>
-              </div>
-            {/if}
-          <div class="stroke"></div>
-          <div class="form">
-            <div class="card-number">
-              <span class="cardnumber_span">Card Number</span>
+        <div class="frame-1410104132_01">
+          <div class="frame-1410104137">
+            <div>
+              <span class="paymentinformation_span">Payment Information</span>
             </div>
             <div 
-              bind:this={cardNumberElementContainer}
-              class="stripe-element-container input-placeholder"
-              id="card-number-element"
-            ></div>
-          </div>
-          <div class="frame-1410104133">
-            <div class="form_01">
-              <div class="expiry-date">
-                <span class="expirydate_span">Expiry Date</span>
-              </div>
-              <div 
-                bind:this={cardExpiryElementContainer}
-                class="stripe-element-container input-placeholder_01"
-                id="card-expiry-element"
-              ></div>
-            </div>
-            <div class="form_02">
-              <div class="cvc"><span class="cvc_span">CVC</span></div>
-              <div 
-                bind:this={cardCvcElementContainer}
-                class="stripe-element-container input-placeholder_02"
-                id="card-cvc-element"
-              ></div>
-            </div>
-          </div>
-          <div class="form_03">
-            <div class="billing-name">
-              <span class="billingname_span">Billing Name</span>
-            </div>
-            <input
-              type="text"
-              bind:value={billingName}
-              placeholder="John Doe"
-              class="input-placeholder_03 input-field"
-            />
-          </div>
-          <div class="frame-1410104035">
-            <div class="sealcheck">
-              <img src={sealcheck} alt="sealcheck" />
-            </div>
-            <div class="frame-1410104050">
-              <div class="secured-by-stripe">
-                <span class="securedbystripe_span">Secured by Stripe</span>
+              class="button desktop-stripe-button"
+              role="button"
+              tabindex="0"
+              on:click={handleManageOnStripe}
+              on:keydown={(e) => e.key === "Enter" && handleManageOnStripe()}
+            >
+              <img src={arrowsquareout} alt="arrowsquareout" />
+              <div class="manage-on-stripe">
+                <span class="manageonstripe_span">
+                  {#if isLoadingStripe}
+                    Loading...
+                  {:else}
+                    Manage on Stripe
+                  {/if}
+                </span>
               </div>
             </div>
           </div>
+          <div 
+            class="mobile-stripe-button"
+            role="button"
+            tabindex="0"
+            on:click={handleManageOnStripe}
+            on:keydown={(e) => e.key === "Enter" && handleManageOnStripe()}
+          >
+            <img src={arrowsquareout} alt="arrowsquareout" />
+            <div class="manage-on-stripe">
+              <span class="manageonstripe_span">
+                {#if isLoadingStripe}
+                  Loading...
+                {:else}
+                  Manage on Stripe
+                {/if}
+              </span>
+            </div>
+          </div>
+          <div class="stroke"></div>
+          
+          <!-- Stripe Elements Payment Form -->
+          {#if showPaymentForm && clientSecret}
+            <div class="stripe-payment-container">
+              <StripePaymentElement
+                {clientSecret}
+                buttonText="Complete Payment"
+                amount={paymentAmount}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+              />
+            </div>
+          {:else if isLoadingPaymentIntent}
+            <div class="loading-payment-intent">
+              <div class="spinner"></div>
+              <p>Preparing payment form...</p>
+            </div>
+          {/if}
         </div>
         <div class="frame-1410104135" role="button" tabindex="0" on:click={() => agreeToTerms = !agreeToTerms} on:keydown={(e) => e.key === "Enter" && (agreeToTerms = !agreeToTerms)}>
           <input
@@ -754,16 +498,18 @@
       <div class="frame-1410103991">
         <div 
           class="button_01"
-          class:disabled={!canPurchase}
+          class:disabled={!canPurchase || isLoadingPaymentIntent}
           role="button"
           tabindex={canPurchase ? 0 : -1}
-          on:click={canPurchase ? handlePurchase : undefined}
-          on:keydown={(e) => canPurchase && e.key === "Enter" && handlePurchase()}
+          on:click={canPurchase && !showPaymentForm ? handlePurchase : undefined}
+          on:keydown={(e) => canPurchase && !showPaymentForm && e.key === "Enter" && handlePurchase()}
         >
           <div class="purchase-gift-story">
             <span class="purchasegiftstory_span">
-              {#if isProcessingPayment}
-                Processing Payment...
+              {#if isLoadingPaymentIntent}
+                Preparing Payment...
+              {:else if showPaymentForm}
+                Payment Form Ready
               {:else}
                 Purchase Gift Story
               {/if}
@@ -802,6 +548,40 @@
 </div>
 
 <style>
+  /* Stripe Payment Container */
+  .stripe-payment-container {
+    margin-top: 16px;
+  }
+
+  .loading-payment-intent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 12px;
+  }
+
+  .loading-payment-intent .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #438bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .loading-payment-intent p {
+    color: #666d80;
+    font-size: 14px;
+    font-family: Nunito, sans-serif;
+  }
+
   .logo-img {
     background-image: url("../../../assets/logo.png");
     background-size: contain;
@@ -1500,60 +1280,6 @@
   .input-placeholder_03::placeholder {
     color: #141414;
     opacity: 0.6;
-  }
-
-  /* Stripe Elements Container Styles */
-  .stripe-element-container {
-    align-self: stretch;
-    min-height: 50px;
-    height: auto;
-    padding: 4px 10px;
-    background: white;
-    overflow: visible;
-    border-radius: 12px;
-    outline: 1px #dcdcdc solid;
-    outline-offset: -1px;
-    transition: all 0.2s ease;
-    display: block;
-    position: relative;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* Ensure Stripe Elements iframe is visible and interactive */
-  .stripe-element-container iframe {
-    width: 100% !important;
-    height: 50px !important;
-  }
-
-  .stripe-element-container:hover {
-    outline: 1px #438bff solid;
-    box-shadow: 0 0 0 2px rgba(67, 139, 255, 0.1);
-  }
-
-  .stripe-element-container:focus-within {
-    outline: 2px solid #438bff;
-    outline-offset: -2px;
-    box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
-    transform: translateY(-1px);
-  }
-
-  /* Payment Error Styles */
-  .payment-error {
-    align-self: stretch;
-    padding: 12px;
-    background: #fee;
-    border-radius: 8px;
-    border: 1px solid #fcc;
-    margin-top: 8px;
-  }
-
-  .payment-error-text {
-    color: #c00;
-    font-size: 14px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 20px;
   }
 
   .frame-1410104050 {
