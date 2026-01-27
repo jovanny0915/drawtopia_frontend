@@ -102,7 +102,7 @@
       console.log('Creating payment intent with:', requestBody);
       
       // Call the backend to create a Payment Intent
-      const response = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
+      const response = await fetch(`https://image-edit-five.vercel.app/api/stripe/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
