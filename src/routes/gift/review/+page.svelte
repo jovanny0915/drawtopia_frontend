@@ -253,7 +253,7 @@
         error,
         giftState,
         userId,
-        API_BASE_URL: env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000'
+        API_BASE_URL: env.API_BASE_URL.replace('/api', '')
       });
       alert(`Failed to start payment: ${errorMessage}\n\nPlease check the browser console for more details.`);
     } finally {
