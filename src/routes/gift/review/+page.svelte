@@ -1,7 +1,7 @@
 <script lang="ts">
   import { giftCreation } from "../../../lib/stores/giftCreation";
   import { goto } from "$app/navigation";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
   import { browser } from "$app/environment";
   import { env } from "../../../lib/env";
@@ -16,11 +16,13 @@
   let includeGiftReceipt = false;
   let agreeToTerms = false;
   
-  // Input field values
-  let cardNumber = '';
-  let expiryDate = '';
-  let cvc = '';
-  let billingName = '';
+  // Stripe Elements
+  let stripe: any = null;
+  let elements: any = null;
+  let paymentElement: any = null;
+  $: clientSecret = '';
+  let isLoadingPayment = false;
+  let isPaymentElementReady = false;
   
   // Loading state for Stripe checkout
   let isLoadingStripe = false;
@@ -34,20 +36,8 @@
   // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
   
-  // Helper function to validate card number (should have at least 13 digits after removing spaces)
-  $: isValidCardNumber = cardNumber.replace(/\s/g, '').length >= 13;
-  
-  // Helper function to validate expiry date (should be in MM/YY format)
-  $: isValidExpiryDate = /^\d{2}\/\d{2}$/.test(expiryDate);
-  
-  // Helper function to validate CVC (should have at least 3 digits)
-  $: isValidCVC = cvc.length >= 3;
-  
-  // Helper function to validate billing name (should not be empty)
-  $: isValidBillingName = billingName.trim().length > 0;
-  
-  // Enable purchase button only when all fields are filled and terms are agreed
-  $: canPurchase = agreeToTerms && isValidCardNumber && isValidExpiryDate && isValidCVC && isValidBillingName;
+  // Enable purchase button only when payment element is ready and terms are agreed
+  $: canPurchase = agreeToTerms && isPaymentElementReady && !isLoadingPayment;
 
   // Subscribe to gift creation state
   onMount(() => {
@@ -66,8 +56,111 @@
       giftState = state;
     });
     
-    return unsubscribe;
+    // Initialize Stripe Elements after a small delay to ensure DOM is ready
+    setTimeout(async () => {
+      await initializeStripe();
+    }, 100);
+    
+    return () => {
+      unsubscribe();
+      // Cleanup payment element
+      if (paymentElement) {
+        try {
+          paymentElement.unmount();
+        } catch (e) {
+          console.error('Error unmounting payment element:', e);
+        }
+      }
+    };
   });
+
+  // Initialize Stripe Elements
+  async function initializeStripe() {
+    if (!browser) return;
+    
+    try {
+      // Get API base URL
+      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
+      
+      // Get current user info
+      let userEmail = null;
+      let userId = null;
+      
+      if (currentUser) {
+        userEmail = currentUser.email;
+        userId = currentUser.id;
+      }
+      
+      // Prepare request body for payment intent
+      const requestBody: any = {
+        purchase_type: 'gift',
+        amount: 999 // $9.99 in cents
+      };
+      
+      if (giftState?.giftId) {
+        requestBody.gift_id = giftState.giftId;
+      }
+      if (userEmail) {
+        requestBody.user_email = userEmail;
+      }
+      if (userId) {
+        requestBody.user_id = userId;
+      }
+      
+      // Create payment intent
+      const res = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!res.ok) {
+        throw new Error('Failed to create payment intent');
+      }
+      
+      const data = await res.json();
+      clientSecret = data.clientSecret;
+
+      console.log('Client secret:', clientSecret);
+      
+      // Load Stripe
+      const stripePublishableKey = 'pk_test_51Ss6Ts1ctHVGHBAXdLtvhIcjZxXMpEhSYFqIyfyQxVv2b1DHYJaPrZhVJsDB87WxwGMD78CaAJ9SDhM1IPQb4vBy00kmzjZNp0';
+      if (!stripePublishableKey) {
+        throw new Error('Stripe publishable key not found');
+      }
+      
+      stripe = await loadStripe(stripePublishableKey);
+      if (!stripe) {
+        throw new Error('Failed to load Stripe');
+      }
+      
+      // Create Elements
+      elements = stripe.elements({ 
+        clientSecret,
+        appearance: {
+          theme: 'card',
+        }
+      });
+      
+      // Create and mount Payment Element
+      paymentElement = elements.create('payment');
+      
+      // Wait for the DOM element to be available
+      const paymentElementContainer = document.getElementById('payment-element');
+      if (!paymentElementContainer) {
+        throw new Error('Payment element container not found');
+      }
+      
+      await paymentElement.mount('#payment-element');
+      
+      isPaymentElementReady = true;
+    } catch (error) {
+      console.error('Error initializing Stripe:', error);
+      alert('Failed to initialize payment form. Please refresh the page.');
+    }
+  }
 
   // Reactive redirect when auth state changes (client-side only)
   $: if (safeToRedirect && !authenticated) {
@@ -80,9 +173,32 @@
     goto("/gift/sendlink/7");
   };
 
-  const handlePurchase = () => {
-    // Navigate to purchase page
-    goto("/gift/purchase");
+  const handlePurchase = async () => {
+    if (!stripe || !elements || isLoadingPayment) return;
+    
+    isLoadingPayment = true;
+    
+    try {
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/gift/purchase?session_id={CHECKOUT_SESSION_ID}`
+        },
+        redirect: 'if_required'
+      });
+
+      if (error) {
+        alert(error.message);
+        isLoadingPayment = false;
+      } else {
+        // Payment succeeded, navigate to success page
+        goto("/gift/purchase");
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('An error occurred during payment. Please try again.');
+      isLoadingPayment = false;
+    }
   };
 
   const handleManageOnStripe = async () => {
@@ -362,67 +478,8 @@
              </div>
            </div>
           <div class="stroke"></div>
-          <div class="form">
-            <div class="card-number">
-              <span class="cardnumber_span">Card Number</span>
-            </div>
-            <input
-              type="text"
-              bind:value={cardNumber}
-              placeholder="•••• •••• •••• 4242"
-              class="input-placeholder input-field"
-              maxlength="19"
-              on:input={(e) => {
-                let value = e.currentTarget.value.replace(/\s/g, '').replace(/\D/g, '');
-                let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
-                cardNumber = formatted;
-              }}
-            />
-          </div>
-          <div class="frame-1410104133">
-            <div class="form_01">
-              <div class="expiry-date">
-                <span class="expirydate_span">Expiry Date</span>
-              </div>
-              <input
-                type="text"
-                bind:value={expiryDate}
-                placeholder="12/28"
-                class="input-placeholder_01 input-field"
-                maxlength="5"
-                on:input={(e) => {
-                  let value = e.currentTarget.value.replace(/\D/g, '');
-                  if (value.length >= 2) {
-                    value = value.slice(0, 2) + '/' + value.slice(2, 4);
-                  }
-                  expiryDate = value;
-                }}
-              />
-            </div>
-            <div class="form_02">
-              <div class="cvc"><span class="cvc_span">CVC</span></div>
-              <input
-                type="text"
-                bind:value={cvc}
-                placeholder="•••"
-                class="input-placeholder_02 input-field"
-                maxlength="4"
-                on:input={(e) => {
-                  cvc = e.currentTarget.value.replace(/\D/g, '');
-                }}
-              />
-            </div>
-          </div>
-          <div class="form_03">
-            <div class="billing-name">
-              <span class="billingname_span">Billing Name</span>
-            </div>
-            <input
-              type="text"
-              bind:value={billingName}
-              placeholder="John Doe"
-              class="input-placeholder_03 input-field"
-            />
+          <div class="payment-element-container">
+            <div id="payment-element"></div>
           </div>
           <div class="frame-1410104035">
             <div class="sealcheck">
@@ -487,7 +544,13 @@
           on:keydown={(e) => canPurchase && e.key === "Enter" && handlePurchase()}
         >
           <div class="purchase-gift-story">
-            <span class="purchasegiftstory_span">Purchase Gift Story</span>
+            <span class="purchasegiftstory_span">
+              {#if isLoadingPayment}
+                Processing...
+              {:else}
+                Purchase Gift Story
+              {/if}
+            </span>
           </div>
         </div>
       </div>
@@ -1220,6 +1283,20 @@
   .input-placeholder_03::placeholder {
     color: #141414;
     opacity: 0.6;
+  }
+
+  .payment-element-container {
+    align-self: stretch;
+    padding: 12px;
+    background: white;
+    border-radius: 12px;
+    outline: 1px #dcdcdc solid;
+    outline-offset: -1px;
+    min-height: 200px;
+  }
+
+  #payment-element {
+    width: 100%;
   }
 
   .frame-1410104050 {
