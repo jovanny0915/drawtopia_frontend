@@ -37,7 +37,7 @@
   // Enable purchase button only when terms are agreed
   $: canPurchase = agreeToTerms;
 
-  // Subscribe to gift creation state
+  // Subscribe to gift creation state and auto-load payment form
   onMount(() => {
     // Only run on client side
     if (browser) {
@@ -46,6 +46,11 @@
         if (safeToRedirect && !authenticated) {
           goto('/login');
           return;
+        }
+        
+        // Auto-create payment intent when page loads
+        if (authenticated) {
+          createPaymentIntent();
         }
       }, 100);
     }
@@ -142,7 +147,17 @@
   const handlePurchase = async () => {
     if (!canPurchase) return;
     
-    // Create payment intent and show payment form
+    // If payment form is already showing, do nothing (user should complete payment via form)
+    if (showPaymentForm) {
+      // Scroll to payment form
+      const paymentContainer = document.querySelector('.stripe-payment-container');
+      if (paymentContainer) {
+        paymentContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    
+    // Otherwise create payment intent and show payment form
     await createPaymentIntent();
   };
 
