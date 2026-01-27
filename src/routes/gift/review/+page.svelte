@@ -5,7 +5,7 @@
   import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
   import { browser } from "$app/environment";
   import { env } from "../../../lib/env";
-  import StripePaymentElement from "../../../components/StripePaymentElement.svelte";
+  import { loadStripe } from "@stripe/stripe-js";
   import arrow_left from "../../../assets/ArrowLeft.svg";
   import arrowsquareout from "../../../assets/ArrowSquareOut.svg";
   import sealcheck from "../../../assets/SealCheck_green.svg";
@@ -16,14 +16,14 @@
   let includeGiftReceipt = false;
   let agreeToTerms = false;
   
-  // Payment states
-  let paymentMode: 'elements' | 'checkout' = 'elements'; // 'elements' for Stripe Elements, 'checkout' for Checkout Session
-  let clientSecret = '';
-  let paymentIntentId = '';
-  let isLoadingPaymentIntent = false;
+  // Input field values
+  let cardNumber = '';
+  let expiryDate = '';
+  let cvc = '';
+  let billingName = '';
+  
+  // Loading state for Stripe checkout
   let isLoadingStripe = false;
-  let showPaymentForm = false;
-  let paymentAmount = 999; // $9.99 in cents
 
   // Reactive statements for auth state
   $: currentUser = $user;
@@ -34,10 +34,22 @@
   // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
   
-  // Enable purchase button only when terms are agreed
-  $: canPurchase = agreeToTerms;
+  // Helper function to validate card number (should have at least 13 digits after removing spaces)
+  $: isValidCardNumber = cardNumber.replace(/\s/g, '').length >= 13;
+  
+  // Helper function to validate expiry date (should be in MM/YY format)
+  $: isValidExpiryDate = /^\d{2}\/\d{2}$/.test(expiryDate);
+  
+  // Helper function to validate CVC (should have at least 3 digits)
+  $: isValidCVC = cvc.length >= 3;
+  
+  // Helper function to validate billing name (should not be empty)
+  $: isValidBillingName = billingName.trim().length > 0;
+  
+  // Enable purchase button only when all fields are filled and terms are agreed
+  $: canPurchase = agreeToTerms && isValidCardNumber && isValidExpiryDate && isValidCVC && isValidBillingName;
 
-  // Subscribe to gift creation state and auto-load payment form
+  // Subscribe to gift creation state
   onMount(() => {
     // Only run on client side
     if (browser) {
@@ -46,11 +58,6 @@
         if (safeToRedirect && !authenticated) {
           goto('/login');
           return;
-        }
-        
-        // Auto-create payment intent when page loads
-        if (authenticated) {
-          createPaymentIntent();
         }
       }, 100);
     }
@@ -73,103 +80,9 @@
     goto("/gift/sendlink/7");
   };
 
-  const createPaymentIntent = async () => {
-    if (isLoadingPaymentIntent) return;
-    
-    isLoadingPaymentIntent = true;
-    
-    try {
-      // Get current user info
-      let userEmail = null;
-      let userId = null;
-      
-      if (currentUser) {
-        userEmail = currentUser.email;
-        userId = currentUser.id;
-      }
-      
-      // Get API base URL
-      const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
-      
-      // Prepare request body
-      const requestBody: any = {
-        purchase_type: 'gift',
-        user_id: userId,
-        user_email: userEmail,
-        gift_id: giftState?.giftId
-      };
-      
-      console.log('Creating payment intent with:', requestBody);
-      
-      // Call the backend to create a Payment Intent
-      const response = await fetch(`https://image-edit-five.vercel.app/api/stripe/create-payment-intent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      if (!response.ok) {
-        let errorMessage = 'Failed to create payment intent';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail || errorData.message || errorMessage;
-          console.error('Backend error response:', errorData);
-        } catch (parseError) {
-          const errorText = await response.text();
-          console.error('Backend error (text):', errorText);
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.client_secret) {
-        clientSecret = data.client_secret;
-        paymentIntentId = data.payment_intent_id;
-        paymentAmount = data.amount;
-        showPaymentForm = true;
-        console.log('Payment intent created successfully:', paymentIntentId);
-      } else {
-        throw new Error(data.message || 'Failed to get payment intent');
-      }
-    } catch (error) {
-      console.error('Payment intent error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while preparing payment';
-      alert(`Failed to prepare payment: ${errorMessage}\n\nPlease try again or contact support.`);
-    } finally {
-      isLoadingPaymentIntent = false;
-    }
-  };
-
-  const handlePurchase = async () => {
-    if (!canPurchase) return;
-    
-    // If payment form is already showing, do nothing (user should complete payment via form)
-    if (showPaymentForm) {
-      // Scroll to payment form
-      const paymentContainer = document.querySelector('.stripe-payment-container');
-      if (paymentContainer) {
-        paymentContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
-    }
-    
-    // Otherwise create payment intent and show payment form
-    await createPaymentIntent();
-  };
-
-  const handlePaymentSuccess = (paymentIntentId: string) => {
-    console.log('Payment succeeded:', paymentIntentId);
-    // Navigate to success page
-    goto(`/gift/purchase?payment_intent=${paymentIntentId}`);
-  };
-
-  const handlePaymentError = (error: string) => {
-    console.error('Payment error:', error);
-    alert(`Payment failed: ${error}\n\nPlease try again or contact support.`);
+  const handlePurchase = () => {
+    // Navigate to purchase page
+    goto("/gift/purchase");
   };
 
   const handleManageOnStripe = async () => {
@@ -253,7 +166,7 @@
         error,
         giftState,
         userId,
-        API_BASE_URL: env.API_BASE_URL.replace('/api', '')
+        API_BASE_URL: env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000'
       });
       alert(`Failed to start payment: ${errorMessage}\n\nPlease check the browser console for more details.`);
     } finally {
@@ -407,66 +320,120 @@
       </div>
       <div class="frame-1410104138">
         <div class="frame-1410104132_01">
-          <div class="frame-1410104137">
-            <div>
-              <span class="paymentinformation_span">Payment Information</span>
+                   <div class="frame-1410104137">
+             <div>
+               <span class="paymentinformation_span">Payment Information</span>
+             </div>
+             <div 
+               class="button desktop-stripe-button"
+               role="button"
+               tabindex="0"
+               on:click={handleManageOnStripe}
+               on:keydown={(e) => e.key === "Enter" && handleManageOnStripe()}
+             >
+               <img src={arrowsquareout} alt="arrowsquareout" />
+               <div class="manage-on-stripe">
+                 <span class="manageonstripe_span">
+                   {#if isLoadingStripe}
+                     Loading...
+                   {:else}
+                     Manage on Stripe
+                   {/if}
+                 </span>
+               </div>
+             </div>
+           </div>
+           <div 
+             class="mobile-stripe-button"
+             role="button"
+             tabindex="0"
+             on:click={handleManageOnStripe}
+             on:keydown={(e) => e.key === "Enter" && handleManageOnStripe()}
+           >
+             <img src={arrowsquareout} alt="arrowsquareout" />
+             <div class="manage-on-stripe">
+               <span class="manageonstripe_span">
+                 {#if isLoadingStripe}
+                   Loading...
+                 {:else}
+                   Manage on Stripe
+                 {/if}
+               </span>
+             </div>
+           </div>
+          <div class="stroke"></div>
+          <div class="form">
+            <div class="card-number">
+              <span class="cardnumber_span">Card Number</span>
             </div>
-            <div 
-              class="button desktop-stripe-button"
-              role="button"
-              tabindex="0"
-              on:click={handleManageOnStripe}
-              on:keydown={(e) => e.key === "Enter" && handleManageOnStripe()}
-            >
-              <img src={arrowsquareout} alt="arrowsquareout" />
-              <div class="manage-on-stripe">
-                <span class="manageonstripe_span">
-                  {#if isLoadingStripe}
-                    Loading...
-                  {:else}
-                    Manage on Stripe
-                  {/if}
-                </span>
+            <input
+              type="text"
+              bind:value={cardNumber}
+              placeholder="•••• •••• •••• 4242"
+              class="input-placeholder input-field"
+              maxlength="19"
+              on:input={(e) => {
+                let value = e.currentTarget.value.replace(/\s/g, '').replace(/\D/g, '');
+                let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+                cardNumber = formatted;
+              }}
+            />
+          </div>
+          <div class="frame-1410104133">
+            <div class="form_01">
+              <div class="expiry-date">
+                <span class="expirydate_span">Expiry Date</span>
+              </div>
+              <input
+                type="text"
+                bind:value={expiryDate}
+                placeholder="12/28"
+                class="input-placeholder_01 input-field"
+                maxlength="5"
+                on:input={(e) => {
+                  let value = e.currentTarget.value.replace(/\D/g, '');
+                  if (value.length >= 2) {
+                    value = value.slice(0, 2) + '/' + value.slice(2, 4);
+                  }
+                  expiryDate = value;
+                }}
+              />
+            </div>
+            <div class="form_02">
+              <div class="cvc"><span class="cvc_span">CVC</span></div>
+              <input
+                type="text"
+                bind:value={cvc}
+                placeholder="•••"
+                class="input-placeholder_02 input-field"
+                maxlength="4"
+                on:input={(e) => {
+                  cvc = e.currentTarget.value.replace(/\D/g, '');
+                }}
+              />
+            </div>
+          </div>
+          <div class="form_03">
+            <div class="billing-name">
+              <span class="billingname_span">Billing Name</span>
+            </div>
+            <input
+              type="text"
+              bind:value={billingName}
+              placeholder="John Doe"
+              class="input-placeholder_03 input-field"
+            />
+          </div>
+          <div class="frame-1410104035">
+            <div class="sealcheck">
+              <img src={sealcheck} alt="sealcheck" />
+            </div>
+            <div class="frame-1410104050">
+              <div class="secured-by-stripe">
+                <span class="securedbystripe_span">Secured by Stripe</span>
               </div>
             </div>
           </div>
-          <div 
-            class="mobile-stripe-button"
-            role="button"
-            tabindex="0"
-            on:click={handleManageOnStripe}
-            on:keydown={(e) => e.key === "Enter" && handleManageOnStripe()}
-          >
-            <img src={arrowsquareout} alt="arrowsquareout" />
-            <div class="manage-on-stripe">
-              <span class="manageonstripe_span">
-                {#if isLoadingStripe}
-                  Loading...
-                {:else}
-                  Manage on Stripe
-                {/if}
-              </span>
-            </div>
-          </div>
-          <div class="stroke"></div>
-          
-          <!-- Stripe Elements Payment Form -->
-          {#if showPaymentForm && clientSecret}
-            <div class="stripe-payment-container">
-              <StripePaymentElement
-                {clientSecret}
-                buttonText="Complete Payment"
-                amount={paymentAmount}
-                onSuccess={handlePaymentSuccess}
-                onError={handlePaymentError}
-              />
-            </div>
-          {:else if isLoadingPaymentIntent}
-            <div class="loading-payment-intent">
-              <div class="spinner"></div>
-              <p>Preparing payment form...</p>
-            </div>
-          {/if}
         </div>
         <div class="frame-1410104135" role="button" tabindex="0" on:click={() => agreeToTerms = !agreeToTerms} on:keydown={(e) => e.key === "Enter" && (agreeToTerms = !agreeToTerms)}>
           <input
@@ -513,22 +480,14 @@
       <div class="frame-1410103991">
         <div 
           class="button_01"
-          class:disabled={!canPurchase || isLoadingPaymentIntent}
+          class:disabled={!canPurchase}
           role="button"
           tabindex={canPurchase ? 0 : -1}
-          on:click={canPurchase && !showPaymentForm ? handlePurchase : undefined}
-          on:keydown={(e) => canPurchase && !showPaymentForm && e.key === "Enter" && handlePurchase()}
+          on:click={canPurchase ? handlePurchase : undefined}
+          on:keydown={(e) => canPurchase && e.key === "Enter" && handlePurchase()}
         >
           <div class="purchase-gift-story">
-            <span class="purchasegiftstory_span">
-              {#if isLoadingPaymentIntent}
-                Preparing Payment...
-              {:else if showPaymentForm}
-                Payment Form Ready
-              {:else}
-                Purchase Gift Story
-              {/if}
-            </span>
+            <span class="purchasegiftstory_span">Purchase Gift Story</span>
           </div>
         </div>
       </div>
@@ -563,40 +522,6 @@
 </div>
 
 <style>
-  /* Stripe Payment Container */
-  .stripe-payment-container {
-    margin-top: 16px;
-  }
-
-  .loading-payment-intent {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px;
-    gap: 12px;
-  }
-
-  .loading-payment-intent .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #438bff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  .loading-payment-intent p {
-    color: #666d80;
-    font-size: 14px;
-    font-family: Nunito, sans-serif;
-  }
-
   .logo-img {
     background-image: url("../../../assets/logo.png");
     background-size: contain;
