@@ -2,8 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { browser } from '$app/environment';
-  import { getGiftsReceivedByUser, markGiftAsChecked, type Gift } from '../lib/database/gifts';
-  import { user } from '../lib/stores/auth';
+  import { getGiftsReceivedByUser, markGiftAsChecked, checkGiftNotificationAndAddCredit, type Gift } from '../lib/database/gifts';
+  import { user, session } from '../lib/stores/auth';
   import { setGiftNotifications, removeGiftNotification, unreadCount, addGiftNotification } from '../lib/stores/giftNotifications';
   import { supabase } from '../lib/supabase';
   import giftIcon from '../assets/Gift.svg';
@@ -118,7 +118,7 @@
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  // Handle notification item click
+  // Handle notification item click: mark as checked, add 1 credit to recipient (to_user_id), then open gift page
   const handleNotificationClick = async (notification: Gift) => {
     if (!notification.id) {
       console.error('Notification item has no ID');
@@ -126,39 +126,43 @@
     }
 
     try {
-      // Mark gift as checked in database
-      console.log('Marking gift as checked:', notification.id);
+      const accessToken = $session?.access_token;
+      // Prefer backend API so recipient gets +1 credit when checking the notification
+      if (accessToken) {
+        const apiResult = await checkGiftNotificationAndAddCredit(notification.id, accessToken);
+        if (apiResult.success) {
+          if (apiResult.credit_added) {
+            console.log('Gift checked and 1 credit added to recipient');
+          }
+          notifications = notifications.filter(n => n.id !== notification.id);
+          removeGiftNotification(notification.id);
+          showDropdown = false;
+          const giftUrl = `/gift/recipient/gift1?giftId=${notification.id}`;
+          if (browser) {
+            window.open(giftUrl, '_blank', 'noopener,noreferrer');
+          }
+          return;
+        }
+      }
+      // Fallback: mark as checked via Supabase only (no credit added)
       const result = await markGiftAsChecked(notification.id);
-      
       if (result.success) {
         console.log('Successfully marked gift as checked');
-        // Remove from local list immediately for better UX
-        notifications = notifications.filter(n => n.id !== notification.id);
-        // Update store
-        removeGiftNotification(notification.id);
       } else {
         console.error('Failed to mark gift as checked:', result.error);
-        // Still remove from list even if update fails
-        notifications = notifications.filter(n => n.id !== notification.id);
-        removeGiftNotification(notification.id);
       }
-      
-      // Close dropdown
+      notifications = notifications.filter(n => n.id !== notification.id);
+      removeGiftNotification(notification.id);
       showDropdown = false;
-      
-      // Open gift detail page in a new tab
       const giftUrl = `/gift/recipient/gift1?giftId=${notification.id}`;
       if (browser) {
         window.open(giftUrl, '_blank', 'noopener,noreferrer');
       }
     } catch (err) {
       console.error('Error handling notification click:', err);
-      // Remove from list even if there's an error
       notifications = notifications.filter(n => n.id !== notification.id);
       removeGiftNotification(notification.id);
       showDropdown = false;
-      
-      // Still open in new tab even if marking as checked fails
       const giftUrl = `/gift/recipient/gift1?giftId=${notification.id}`;
       if (browser) {
         window.open(giftUrl, '_blank', 'noopener,noreferrer');

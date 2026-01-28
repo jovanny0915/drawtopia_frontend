@@ -170,7 +170,7 @@
 
   const handleBack = () => {
     // Navigate back to step 3
-    goto("/gift/sendlink/7");
+    goto("/gift/sendlink/2");
   };
 
   const handlePurchase = async () => {

@@ -4,6 +4,7 @@
 
 import { getCurrentUser, checkUserExists } from '$lib/auth';
 import { supabase } from '../supabase';
+import { env } from '../env';
 
 export interface Gift {
   id?: string;
@@ -127,13 +128,39 @@ export async function createGift(gift: Gift): Promise<DatabaseResult> {
                         user.user_metadata?.name || 
                         user.email?.split('@')[0] || 
                         'Someone special';
-      
+
+      // Determine scenario and optional delivery date/time for email template
+      let scenario: 'giver_creating' | 'another_adult_creating' | 'scheduled_delivery' | undefined;
+      let deliveryDate: string | undefined;
+      let deliveryTime: string | undefined;
+      if (typeof window !== 'undefined') {
+        const giftMode = sessionStorage.getItem('gift_mode');
+        if (giftMode === 'link') {
+          scenario = 'another_adult_creating';
+        } else if (gift.delivery_time) {
+          const delivery = new Date(gift.delivery_time);
+          const now = new Date();
+          if (delivery.getTime() > now.getTime() + 60 * 1000) {
+            scenario = 'scheduled_delivery';
+            deliveryDate = delivery.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+            deliveryTime = delivery.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+          }
+        }
+      }
+      if (!scenario) scenario = 'giver_creating';
+
       const emailResult = await queueGiftNotificationEmail(
         recipientEmail,
         gift.child_name,
         giverName,
         gift.occasion,
-        gift.special_msg || ''
+        gift.special_msg || '',
+        {
+          giftOrderId: data?.id,
+          scenario,
+          deliveryDate,
+          deliveryTime,
+        }
       );
       
       if (emailResult.success) {
@@ -308,6 +335,55 @@ export async function getGiftsReceivedByUser(): Promise<DatabaseResult> {
     return {
       success: false,
       error: 'An unexpected error occurred while fetching received gifts'
+    };
+  }
+}
+
+/**
+ * Check gift notification and add 1 credit to the recipient (to_user_id).
+ * Calls backend API which marks the gift as checked and adds 1 credit to the current user (recipient).
+ * @param giftId - The gift ID
+ * @param accessToken - Supabase session access token for auth
+ * @returns Promise with operation result
+ */
+export async function checkGiftNotificationAndAddCredit(
+  giftId: string,
+  accessToken: string
+): Promise<DatabaseResult & { credit_added?: boolean; remaining_credits?: number }> {
+  try {
+    if (!giftId || !accessToken) {
+      return {
+        success: false,
+        error: 'Gift ID and access token are required'
+      };
+    }
+    const API_BASE_URL = (env.API_BASE_URL || '').replace('/api', '') || 'http://localhost:8000';
+    const response = await fetch(`${API_BASE_URL}/api/gifts/check-notification-and-add-credit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ gift_id: giftId })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.detail || data.message || `Request failed: ${response.status}`
+      };
+    }
+    return {
+      success: data.success !== false,
+      data: data,
+      credit_added: data.credit_added,
+      remaining_credits: data.remaining_credits
+    };
+  } catch (err) {
+    console.error('Error in checkGiftNotificationAndAddCredit:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to check notification and add credit'
     };
   }
 }

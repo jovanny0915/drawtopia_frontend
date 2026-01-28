@@ -60,14 +60,32 @@ export async function queueParentalConsentEmail(
   }
 }
 
+/** Scenario for gift notification email */
+export type GiftNotificationScenario = 'giver_creating' | 'another_adult_creating' | 'scheduled_delivery';
+
+export interface GiftNotificationEmailOptions {
+  /** Gift order ID for "Track your gift" link */
+  giftOrderId?: string;
+  /** Scenario: giver_creating | another_adult_creating | scheduled_delivery */
+  scenario?: GiftNotificationScenario;
+  /** Name of adult creating character (Scenario 2) */
+  designatedAdultName?: string;
+  /** Scheduled delivery date display (e.g. "Jan 28, 2026") */
+  deliveryDate?: string;
+  /** Scheduled delivery time display (e.g. "3:00 PM") */
+  deliveryTime?: string;
+}
+
 /**
  * Send gift notification email
- * Note: Scheduled delivery is no longer supported (emails sent immediately)
- * @param recipientEmail - Recipient's email address
+ * Trigger: Gift order created and payment processed.
+ * Subject: "You've been sent a gift on Drawtopia! 🎁✨"
+ * @param recipientEmail - Recipient's email address (or parent email if child)
  * @param recipientName - Recipient's name
  * @param giverName - Gift giver's name
- * @param occasion - Occasion (Birthday, etc.)
+ * @param occasion - Occasion (Birthday, First Day of School, etc.)
  * @param giftMessage - Personal message from giver
+ * @param options - Optional: giftOrderId, scenario, designatedAdultName, deliveryDate, deliveryTime
  * @returns Promise with result
  */
 export async function queueGiftNotificationEmail(
@@ -75,21 +93,29 @@ export async function queueGiftNotificationEmail(
   recipientName: string,
   giverName: string,
   occasion: string,
-  giftMessage: string = ''
+  giftMessage: string = '',
+  options: GiftNotificationEmailOptions = {}
 ): Promise<EmailResult> {
   try {
+    const body: Record<string, string> = {
+      recipient_email: recipientEmail,
+      recipient_name: recipientName,
+      giver_name: giverName,
+      occasion: occasion,
+      gift_message: giftMessage,
+    };
+    if (options.giftOrderId) body.gift_order_id = options.giftOrderId;
+    if (options.scenario) body.scenario = options.scenario;
+    if (options.designatedAdultName) body.designated_adult_name = options.designatedAdultName;
+    if (options.deliveryDate) body.delivery_date = options.deliveryDate;
+    if (options.deliveryTime) body.delivery_time = options.deliveryTime;
+
     const response = await fetch(`${BACKEND_URL}/api/emails/gift-notification`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        recipient_email: recipientEmail,
-        recipient_name: recipientName,
-        giver_name: giverName,
-        occasion: occasion,
-        gift_message: giftMessage,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
