@@ -241,8 +241,8 @@ export async function getGiftsForUser(): Promise<DatabaseResult> {
 }
 
 /**
- * Get gifts received by current user (gifts where user is the recipient)
- * Only returns unchecked gifts (checked = false or null) where delivery_time has passed
+ * Get gifts received by current user (matched by delivery_email only, not to_user_id).
+ * Only returns unchecked gifts (checked = false or null) where delivery_time has passed.
  * @returns Promise with gifts data
  */
 export async function getGiftsReceivedByUser(): Promise<DatabaseResult> {
@@ -255,18 +255,21 @@ export async function getGiftsReceivedByUser(): Promise<DatabaseResult> {
       };
     }
 
-    // Get user email for matching
+    // Get user email for matching (fetch by delivery_email only, not to_user_id)
     const userEmail = user.email?.toLowerCase().trim();
+    if (!userEmail) {
+      return {
+        success: true,
+        data: []
+      };
+    }
 
-    // Query gifts where user is recipient (by user_id or email) and not checked
-    // Build the query with proper filtering
-    let query = supabase
+    // Query gifts where delivery_email matches current user's email
+    const { data, error } = await supabase
       .from('gifts')
       .select('*')
-      .or(`to_user_id.eq.${user.id},delivery_email.eq.${userEmail}`)
+      .eq('delivery_email', userEmail)
       .order('created_at', { ascending: false });
-    
-    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching received gifts:', error);

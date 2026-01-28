@@ -34,13 +34,14 @@
         // Schedule any gifts that are scheduled for future delivery
         // We need to check all unchecked gifts (including future ones) to set up timers
         const currentUser = get(user);
-        if (currentUser?.id && currentUser?.email) {
-          // Fetch all unchecked gifts for this user (including future scheduled ones)
+        const userEmailForSchedule = currentUser?.email?.toLowerCase().trim();
+        if (userEmailForSchedule) {
+          // Fetch all unchecked gifts for this user by delivery_email (including future scheduled ones)
           // to set up timers for scheduled gifts
           const { data: allGifts, error: allGiftsError } = await supabase
             .from('gifts')
             .select('*')
-            .or(`to_user_id.eq.${currentUser.id},delivery_email.eq.${currentUser.email?.toLowerCase().trim()}`)
+            .eq('delivery_email', userEmailForSchedule)
             .or('checked.is.null,checked.eq.false')
             .order('delivery_time', { ascending: true });
           
@@ -165,11 +166,11 @@
     }
   };
 
-  // Helper function to check if a gift is for the current user
-  const isGiftForUser = (gift: Gift, userId: string, userEmail?: string): boolean => {
+  // Helper function to check if a gift is for the current user (by delivery_email only)
+  const isGiftForUser = (gift: Gift, _userId: string, userEmail?: string): boolean => {
     return (
-      (gift.to_user_id !== undefined && gift.to_user_id === userId) ||
-      (userEmail !== undefined && gift.delivery_email?.toLowerCase().trim() === userEmail.toLowerCase().trim())
+      userEmail !== undefined &&
+      gift.delivery_email?.toLowerCase().trim() === userEmail.toLowerCase().trim()
     );
   };
 
@@ -262,8 +263,7 @@
     console.log('Setting up real-time subscription for user:', userId, 'email:', userEmail);
 
     // Create a channel for gift notifications
-    // We subscribe to all INSERT/UPDATE events and filter in the callback
-    // This allows us to match by both to_user_id and delivery_email
+    // We subscribe to all INSERT/UPDATE events and filter in the callback by delivery_email
     realtimeChannel = supabase
       .channel(`gift-notifications:${userId}`)
       .on(
@@ -279,10 +279,7 @@
           
           // Check if gift is for this user
           if (!isGiftForUser(newGift, userId, userEmail)) {
-            console.log('Gift not for this user:', {
-              to_user_id: newGift.to_user_id,
-              delivery_email: newGift.delivery_email
-            });
+            console.log('Gift not for this user (delivery_email):', newGift.delivery_email);
             return;
           }
 
