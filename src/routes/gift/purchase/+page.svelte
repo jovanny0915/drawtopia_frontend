@@ -335,42 +335,6 @@
           <div><span class="pending_span">Pending</span></div>
         </div>
       </div>
-      <div class="frame-1410104038">
-        <div class="track-your-gift">
-          <span class="trackyourgift_span">Track Your Gift</span>
-        </div>
-        <div class="frame-1410104126_01">
-          <div class="frame-1410104143_01">
-            <div class="share-this-link-to-track-the-story-creation-progress">
-              <span class="sharethislinktotrackthestorycreationprogress_span"
-                >Share this link to track the story creation progress</span
-              >
-            </div>
-            <div class="frame-1410104148">
-              <div class="frame-1410104146">
-                <div>
-                  <span class="httpsdrawtopiacomgift_24125_span"
-                    >https:drawtopia.com/gift_24125</span
-                  >
-                </div>
-              </div>
-              <div class="frame-1410104147">
-                <div class="copy_01">
-                  <img src={copy} alt="copy" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="notification">
-            <div class="envelope">
-              <img src={envelope} alt="envelope" />
-            </div>
-            <div>
-              <span class="emailtrackinglink_span">Email Tracking Link</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
     <div class="frame-1410104113">
       <div class="frame-1410103991">
