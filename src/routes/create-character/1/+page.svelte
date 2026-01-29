@@ -884,7 +884,8 @@
             </div>
           {:else if childProfiles.length === 0}
             <div class="child-profiles-empty">
-              <span class="child-profiles-empty-text">No children yet. Add a child from your dashboard to get started.</span>
+              <span class="child-profiles-empty-text">No Child Profiles</span>
+              <a href="/create-child-profile" class="child-profiles-add-link">Add new child</a>
             </div>
           {:else}
             <ChildrenSelect
@@ -2084,6 +2085,12 @@
     width: 100%;
   }
 
+  .child-profiles-empty {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .child-profiles-loading-text {
     color: #666d80;
     font-size: 15px;
@@ -2103,6 +2110,20 @@
     font-size: 15px;
     font-family: Nunito;
     font-weight: 400;
+  }
+
+  .child-profiles-add-link {
+    color: #438bff;
+    font-size: 15px;
+    font-family: Quicksand;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .child-profiles-add-link:hover {
+    color: #2563eb;
+    text-decoration: underline;
   }
 
   /* Information Character styles */
