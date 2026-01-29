@@ -151,8 +151,7 @@
 
   function handleViewGift(event: CustomEvent) {
     const { giftId } = event.detail;
-    console.log(`Viewing gift: ${giftId}`);
-    // TODO: Navigate to gift view page
+    if (giftId) goto(`/gift/recipient/gift2?giftId=${giftId}`);
   }
 
   function handleViewBook(event: CustomEvent) {

@@ -199,6 +199,19 @@
               const deductData = await deductRes.json();
               if (deductData.success) console.log('✅ Link gift: 1 credit deducted from sender');
             }
+            // Add 1 credit to recipient (to_user_id) for link gift
+            const addRecipientRes = await fetch(`${API_BASE_URL}/api/gifts/add-recipient-credit-on-send`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({ gift_id: result.data.id })
+            });
+            if (addRecipientRes.ok) {
+              const addData = await addRecipientRes.json();
+              if (addData.success) console.log('✅ Link gift: 1 credit added to recipient');
+            }
           }
         }
       } else {

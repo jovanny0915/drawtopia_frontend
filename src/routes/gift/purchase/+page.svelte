@@ -140,7 +140,7 @@
         giftCreation.setGiftId(result.data.id);
         console.log('✅ Gift saved successfully to Supabase after payment:', result.data);
 
-        // Link mode: deduct 1 credit from sender (current user) after successful purchase
+        // Link mode: deduct 1 credit from sender and add 1 credit to recipient (to_user_id) when sending gift notification
         const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
         if (giftMode === 'link') {
           const accessToken = $session?.access_token;
@@ -163,6 +163,21 @@
               }
             } else {
               console.warn('Link gift: failed to deduct sender credit', await deductRes.json().catch(() => ({})));
+            }
+            // Add 1 credit to recipient (to_user_id) for link gift
+            const addRecipientRes = await fetch(`${API_BASE_URL}/api/gifts/add-recipient-credit-on-send`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({ gift_id: result.data.id })
+            });
+            if (addRecipientRes.ok) {
+              const addData = await addRecipientRes.json();
+              if (addData.success) console.log('✅ Link gift: 1 credit added to recipient');
+            } else {
+              console.warn('Link gift: failed to add recipient credit', await addRecipientRes.json().catch(() => ({})));
             }
           }
         }

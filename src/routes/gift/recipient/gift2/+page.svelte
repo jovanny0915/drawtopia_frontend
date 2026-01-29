@@ -9,6 +9,7 @@
 
     import { giftCreation } from "../../../../lib/stores/giftCreation";
     import { getGiftById, type Gift } from "../../../../lib/database/gifts";
+    import { supabase } from "../../../../lib/supabase";
     import {
         user,
         authLoading,
@@ -34,43 +35,41 @@
     $: giftId = $page.url.searchParams.get('giftId');
 
     // Load gift data from database if giftId is provided
-    onMount(async () => {
-        // First try to load from URL parameter (from notification click)
+    onMount(() => {
         if (giftId) {
-            loadingGift = true;
-            try {
-                const result = await getGiftById(giftId);
-                if (result.success && result.data) {
-                    giftData = result.data as Gift;
-                    // Populate fields from gift data
-                    recipientName = giftData.child_name || "Emma";
-                    recipientAge = giftData.age_group ? getAgeFromRange(giftData.age_group) : "7";
-                    occasion = giftData.occasion || "Birthday";
-                    giftMessage = giftData.special_msg || "";
-                    
-                    // TODO: Fetch sender's name from user profile using giftData.from_user_id
-                    // For now, use relationship or default
-                    gifterName = giftData.relationship || "Someone";
+            (async () => {
+                loadingGift = true;
+                try {
+                    const result = await getGiftById(giftId);
+                    if (result.success && result.data) {
+                        giftData = result.data as Gift;
+                        recipientName = giftData.child_name || "Emma";
+                        recipientAge = giftData.age_group ? getAgeFromRange(giftData.age_group) : "7";
+                        occasion = giftData.occasion || "Birthday";
+                        giftMessage = giftData.special_msg || "";
+                        if (giftData.from_user_id) {
+                            const name = await fetchGiverName(giftData.from_user_id);
+                            gifterName = name || capitalizeFirst((giftData.relationship || "Someone").trim());
+                        } else {
+                            gifterName = capitalizeFirst((giftData.relationship || "Someone").trim());
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error loading gift:', err);
+                } finally {
+                    loadingGift = false;
                 }
-            } catch (err) {
-                console.error('Error loading gift:', err);
-            } finally {
-                loadingGift = false;
-            }
-        } else {
-            // Fallback to store if no giftId
-            const unsubscribe = giftCreation.subscribe((state) => {
-                giftState = state;
-                recipientName = state.childName || "Emma";
-                recipientAge = state.ageGroup
-                    ? getAgeFromRange(state.ageGroup)
-                    : "7";
-                occasion = state.occasion || "Birthday";
-                giftMessage = state.specialMsg || "";
-            });
-
-            return unsubscribe;
+            })();
+            return undefined;
         }
+        const unsubscribe = giftCreation.subscribe((state) => {
+            giftState = state;
+            recipientName = state.childName || "Emma";
+            recipientAge = state.ageGroup ? getAgeFromRange(state.ageGroup) : "7";
+            occasion = state.occasion || "Birthday";
+            giftMessage = state.specialMsg || "";
+        });
+        return unsubscribe;
     });
 
     // Helper to convert age range to a single age for display
@@ -86,10 +85,47 @@
         return ageRange.split("-")[0] || "7";
     }
 
+    // Capitalize first character only (e.g. for single word like relationship)
+    function capitalizeFirst(s: string): string {
+        return (s && s.length > 0) ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+    }
+    // Capitalize first character of first name and last name
+    function capitalizeFirstAndLastName(firstName: string, lastName: string): string {
+        const first = capitalizeFirst((firstName || "").trim());
+        const last = capitalizeFirst((lastName || "").trim());
+        return [first, last].filter(Boolean).join(" ") || "Someone";
+    }
+
+    // Fetch giver display name from users table by from_user_id
+    async function fetchGiverName(fromUserId: string): Promise<string> {
+        const { data, error } = await supabase
+            .from("users")
+            .select("first_name, last_name, email")
+            .eq("id", fromUserId)
+            .single();
+        if (error || !data) return "";
+        const first = (data.first_name ?? "").toString().trim();
+        const last = (data.last_name ?? "").toString().trim();
+        if (first || last) return capitalizeFirstAndLastName(first, last);
+        const email = (data.email ?? "").toString().trim();
+        if (email) {
+            const local = email.split("@")[0] || "";
+            return local ? local.charAt(0).toUpperCase() + local.slice(1).toLowerCase() : "";
+        }
+        return "";
+    }
+
+    // gift_type "link" = recipient creates the story; show "Start creating". Otherwise (e.g. "story") = story exists; show "View the gift story"
+    $: isLinkGift = (giftData?.gift_type ?? "link").toString().toLowerCase() === "link";
+
     const handleStartCreating = () => {
-        // Navigate to gift creation flow
-        // TODO: Update with actual creation flow route
         goto("/create-character/1");
+    };
+
+    const handleViewGiftStory = () => {
+        const sid = giftData?.story_id;
+        if (sid) goto(`/preview/default?storyId=${sid}`);
+        else console.warn("No story_id for this gift");
     };
 </script>
 
@@ -110,7 +146,7 @@
             <div class="card-inner">
                 <div class="card-content">
                     <div class="card-subtitle">
-                        [Gift giver name] sent you a magical gift!
+                        {gifterName} sent you a magical gift!
                     </div>
                     <div class="card-message">
                         "Hi! I'd love to gift Emma a personalized storybook
@@ -137,20 +173,37 @@
 
                 <!-- Call to Action -->
                 <div class="call-to-action">
-                    <button class="start-button" on:click={handleStartCreating}>
-                        <svg
-                            class="heart-icon"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path
-                                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                                fill="white"
-                            />
-                        </svg>
-                        Start Creating The Gift
-                    </button>
+                    {#if isLinkGift}
+                        <button class="start-button" on:click={handleStartCreating}>
+                            <svg
+                                class="heart-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path
+                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                                    fill="white"
+                                />
+                            </svg>
+                            Start Creating The Gift
+                        </button>
+                    {:else}
+                        <button class="start-button" on:click={handleViewGiftStory}>
+                            <svg
+                                class="heart-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <path
+                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                                    fill="white"
+                                />
+                            </svg>
+                            View The Gift Story
+                        </button>
+                    {/if}
 
                     <!-- Expiration Notice -->
                     <div class="expiration-notice">
