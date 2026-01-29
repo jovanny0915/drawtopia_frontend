@@ -581,7 +581,9 @@
             // Get character_id from sessionStorage
             const characterIdStr = browser ? sessionStorage.getItem('characterId') : null;
             const characterId = characterIdStr ? parseInt(characterIdStr) : undefined;
-            
+            // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
+            const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
+            const isGiftStory = giftMode === 'create' || giftMode === 'generation';
             // Prepare story data
             const storyData = {
                 user_id: $user?.id,
@@ -603,7 +605,8 @@
                 dedication_text: dedicationText || undefined,
                 dedication_image: dedicationImage ? dedicationImage.split('?')[0] : undefined,
                 status: 'completed' as const,
-                story_type: 'search' as const
+                story_type: 'search' as const,
+                purchased: isGiftStory
             };
             
             console.log('Saving interactive story to database:', storyData);
@@ -778,6 +781,9 @@
             const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
             const dedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
 
+            // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
+            const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
+            const isGiftStory = giftMode === 'create' || giftMode === 'generation';
             // Prepare story data
             const storyData = {
                 user_id: $user?.id,
@@ -799,7 +805,8 @@
                 audio_urls: audioUrls && audioUrls.length > 0 ? audioUrls.map(url => url ? url.split('?')[0] : null) : [],
                 dedication_text: dedicationText || undefined,
                 dedication_image: dedicationImage ? dedicationImage.split('?')[0] : undefined,
-                status: 'completed' as const
+                status: 'completed' as const,
+                purchased: isGiftStory
             };
 
             console.log('Saving story to database:', storyData);

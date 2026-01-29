@@ -119,6 +119,7 @@
     $: isLinkGift = (giftData?.gift_type ?? "link").toString().toLowerCase() === "link";
 
     const handleStartCreating = () => {
+        if (browser) sessionStorage.setItem('gift_mode', 'generation');
         goto("/create-character/1");
     };
 

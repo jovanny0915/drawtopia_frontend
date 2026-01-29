@@ -180,10 +180,12 @@
         alert("An error occurred while loading the story");
       }
     } else if (giftType === "link") {
-      // Handle link gift: navigate to character creation
+      // Handle link gift: navigate to character creation with gift_mode so story is marked as purchased
+      if (browser) sessionStorage.setItem('gift_mode', 'create');
       goto("/create-character/1");
     } else {
       // Default behavior (fallback)
+      if (browser) sessionStorage.setItem('gift_mode', 'create');
       goto("/create-character/1");
     }
   };

@@ -61,6 +61,9 @@
     label: string;
     avatarUrl?: string;
   }> = [];
+  let loadingChildProfiles = false;
+  let childProfilesError = "";
+  let lastLoadedChildProfilesForUserId: string | null = null;
   let characterName = "";
   let selectedCharacterType = "person";
   let selectedSpecialAbility = "";
@@ -81,6 +84,47 @@
   // Reactive statement to keep local state in sync with store
   $: if ($storyCreation.selectedChildProfileName) {
     selectedChildProfileName = $storyCreation.selectedChildProfileName;
+  }
+
+  // Load child profiles for the current user (used from onMount and reactive block)
+  async function loadChildProfilesForUser(userId: string) {
+    loadingChildProfiles = true;
+    childProfilesError = "";
+    try {
+      const result = await getChildProfiles(userId);
+      if (result.success && result.data) {
+        childProfiles = result.data.map((profile: any) => ({
+          value: profile.id.toString(),
+          label: profile.first_name,
+          avatarUrl: profile.avatar_url,
+        }));
+        lastLoadedChildProfilesForUserId = userId;
+        // Get child profile ID from sessionStorage (set from dashboard or gift flow)
+        const childProfileId = browser ? sessionStorage.getItem("selectedChildProfileId") : null;
+        if (childProfileId && childProfiles.length > 0) {
+          const selectedChild = childProfiles.find((c) => c.value === childProfileId);
+          if (selectedChild) {
+            selectedChildProfileId = childProfileId;
+            selectedChildProfileName = selectedChild.label;
+            storyCreation.setSelectedChild(childProfileId, selectedChild.label);
+          }
+        }
+      } else {
+        childProfiles = [];
+        childProfilesError = result.error || "Failed to load children";
+      }
+    } catch (err) {
+      console.error("Error loading child profiles:", err);
+      childProfiles = [];
+      childProfilesError = "Failed to load children";
+    } finally {
+      loadingChildProfiles = false;
+    }
+  }
+
+  // Reactive: when current user becomes available (or changes), fetch child profiles
+  $: if (browser && $user?.id && !loadingChildProfiles && lastLoadedChildProfilesForUserId !== $user.id) {
+    loadChildProfilesForUser($user.id);
   }
 
   // Check for selected child profile and fetch child profiles
@@ -110,32 +154,20 @@
         userCredit = 0;
         isCreditLoaded = true;
       }
-      
+
       // Get child profile ID from sessionStorage (set from dashboard)
       const childProfileId = sessionStorage.getItem("selectedChildProfileId");
 
-      // Fetch child profiles for the dropdown
+      // Fetch child profiles for the dropdown when user is available
       if ($user?.id) {
-        const result = await getChildProfiles($user.id);
-        if (result.success && result.data) {
-          childProfiles = result.data.map((profile: any) => ({
-            value: profile.id.toString(),
-            label: profile.first_name,
-            avatarUrl: profile.avatar_url,
-          }));
-          
-          // Set default selected child if available from sessionStorage
-          if (childProfileId && childProfiles.length > 0) {
-            const selectedChild = childProfiles.find(
-              (c) => c.value === childProfileId,
-            );
-            if (selectedChild) {
-              selectedChildProfileId = childProfileId;
-              selectedChildProfileName = selectedChild.label;
-              
-              // Update the story creation store with the selected child
-              storyCreation.setSelectedChild(childProfileId, selectedChild.label);
-            }
+        await loadChildProfilesForUser($user.id);
+        // If we already had a selectedChildProfileId from session but loadChildProfilesForUser didn't find it (e.g. different list), re-apply from session
+        if (childProfileId && childProfiles.length > 0 && !selectedChildProfileId) {
+          const selectedChild = childProfiles.find((c) => c.value === childProfileId);
+          if (selectedChild) {
+            selectedChildProfileId = childProfileId;
+            selectedChildProfileName = selectedChild.label;
+            storyCreation.setSelectedChild(childProfileId, selectedChild.label);
           }
         }
       }
@@ -364,7 +396,8 @@
       selectedChildProfileName = selectedChild.label;
       if (browser) {
         storyCreation.setSelectedChild(target.value, selectedChild.label);
-        // Store child name to session storage
+        sessionStorage.setItem('selectedChildProfileId', target.value);
+        sessionStorage.setItem('selectedChildProfileName', selectedChild.label);
         sessionStorage.setItem('selectedChildName', selectedChild.label);
       }
     }
@@ -841,13 +874,27 @@
           <div class="list-of-children">
             <span class="listofchildren_span">List of Children</span>
           </div>
-          <ChildrenSelect
-            options={childProfiles}
-            selectedOption={selectedChildProfileId}
-            onChange={handleChildProfileChange}
-            placeholder="Select Your Children"
-            id="childProfileSelect"
-          />
+          {#if loadingChildProfiles}
+            <div class="child-profiles-loading">
+              <span class="child-profiles-loading-text">Loading children...</span>
+            </div>
+          {:else if childProfilesError}
+            <div class="child-profiles-error">
+              <span class="child-profiles-error-text">{childProfilesError}</span>
+            </div>
+          {:else if childProfiles.length === 0}
+            <div class="child-profiles-empty">
+              <span class="child-profiles-empty-text">No children yet. Add a child from your dashboard to get started.</span>
+            </div>
+          {:else}
+            <ChildrenSelect
+              options={childProfiles}
+              selectedOption={selectedChildProfileId}
+              onChange={handleChildProfileChange}
+              placeholder="Select Your Children"
+              id="childProfileSelect"
+            />
+          {/if}
         </div>
 
         <!-- Information Character Card -->
@@ -2025,6 +2072,37 @@
 
   .list-of-children {
     align-self: stretch;
+  }
+
+  .child-profiles-loading,
+  .child-profiles-error,
+  .child-profiles-empty {
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid #e6ebf3;
+    background: #f8fafb;
+    width: 100%;
+  }
+
+  .child-profiles-loading-text {
+    color: #666d80;
+    font-size: 15px;
+    font-family: Nunito;
+    font-weight: 400;
+  }
+
+  .child-profiles-error-text {
+    color: #DF1C41;
+    font-size: 15px;
+    font-family: Nunito;
+    font-weight: 500;
+  }
+
+  .child-profiles-empty-text {
+    color: #666d80;
+    font-size: 15px;
+    font-family: Nunito;
+    font-weight: 400;
   }
 
   /* Information Character styles */
