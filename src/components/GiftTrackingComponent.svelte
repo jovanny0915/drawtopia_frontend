@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { get } from "svelte/store";
   import basket from "../assets/Basket.svg";
   import { goto } from "$app/navigation";
   import { user } from "../lib/stores/auth";
-  import { getGiftsForUser, type Gift } from "../lib/database/gifts";
+  import { getGiftsForCurrentUser, type Gift } from "../lib/database/gifts";
+  import { supabase } from "../lib/supabase";
   import GiftCard from "./GiftCard.svelte";
 
   interface GiftData {
@@ -22,6 +24,9 @@
     delivery_time?: string;
     age?: number;
     notification_sent?: boolean;
+    /** When true, card shows "From" with sender email instead of "Send to" */
+    isReceivedByMe?: boolean;
+    from_email?: string;
   }
 
   // Internal state for gifts and loading
@@ -39,25 +44,63 @@
     giftsError = "";
     
     try {
-      const result = await getGiftsForUser();
+      const result = await getGiftsForCurrentUser();
       
       if (result.success && result.data) {
-        // Transform the data to match the GiftTrackingComponent interface
-        gifts = result.data.map((gift: Gift) => ({
-          id: gift.id,
-          childName: gift.child_name,
-          ageGroup: gift.age_group,
-          status: gift.status,
-          giftFrom: gift.relationship,
-          occasion: gift.occasion,
-          expectedDelivery: gift.delivery_time
-            ? new Date(gift.delivery_time).toLocaleDateString("en-GB")
-            : "Unknown",
-          createdAt: gift.created_at ? new Date(gift.created_at) : new Date(),
-          notification_sent: gift.notification_sent,
-          send_to: gift.delivery_email,
-          created_at: gift.created_at
-        }));
+        const currentUserId = get(user)?.id;
+        const rawGifts = result.data as Gift[];
+
+        // For gifts received by me (to_user_id === current user), fetch sender emails from users table
+        const receivedGiftSenderIds = rawGifts
+          .filter((g: Gift) => g.to_user_id && currentUserId && String(g.to_user_id) === String(currentUserId) && g.from_user_id)
+          .map((g: Gift) => g.from_user_id!)
+          .filter((id, i, arr) => arr.indexOf(id) === i);
+        let senderIdToEmail: Record<string, string> = {};
+        if (receivedGiftSenderIds.length > 0) {
+          const { data: usersData } = await supabase
+            .from('users')
+            .select('id, email')
+            .in('id', receivedGiftSenderIds);
+          if (usersData) {
+            usersData.forEach((u: { id: string; email?: string }) => {
+              if (u.email) senderIdToEmail[u.id] = u.email;
+            });
+          }
+        }
+
+        // Transform the data to match the GiftTrackingComponent interface (only include gifts with id)
+        gifts = rawGifts
+          .filter((g: Gift) => g.id)
+          .map((gift: Gift) => {
+          const isReceivedByMe = !!(gift.to_user_id && currentUserId && String(gift.to_user_id) === String(currentUserId));
+          let sendToDisplay: string;
+          let from_email: string | undefined;
+          if (isReceivedByMe) {
+            from_email = gift.from_user_id ? (senderIdToEmail[gift.from_user_id] || (gift as any).from_user_email) : undefined;
+            sendToDisplay = ""; // not used when isReceivedByMe
+          } else if (gift.from_user_id && currentUserId && String(gift.from_user_id) === String(currentUserId)) {
+            sendToDisplay = gift.delivery_email || "Unknown";
+          } else {
+            sendToDisplay = gift.delivery_email || "Unknown";
+          }
+          return {
+            id: gift.id!,
+            childName: gift.child_name,
+            ageGroup: gift.age_group,
+            status: gift.status,
+            giftFrom: gift.relationship,
+            occasion: gift.occasion,
+            expectedDelivery: gift.delivery_time
+              ? new Date(gift.delivery_time).toLocaleDateString("en-GB")
+              : "Unknown",
+            createdAt: gift.created_at ? new Date(gift.created_at) : new Date(),
+            notification_sent: gift.notification_sent,
+            send_to: sendToDisplay,
+            created_at: gift.created_at,
+            isReceivedByMe,
+            from_email: from_email || (gift as any).from_user_email
+          };
+        });
         console.log('[GiftTrackingComponent] Successfully fetched', gifts.length, 'gifts');
       } else {
         giftsError = result.error || "Failed to fetch gifts";

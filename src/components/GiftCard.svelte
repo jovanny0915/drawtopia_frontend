@@ -11,6 +11,10 @@
   
   // Helper functions to safely get gift data with fallbacks
   $: sendTo = gift?.send_to || "Unknown";
+  $: isReceivedByMe = gift?.isReceivedByMe === true;
+  $: fromEmail = gift?.from_email || "";
+  $: showFrom = isReceivedByMe;
+  $: fromDisplay = (isReceivedByMe && fromEmail) ? fromEmail : (isReceivedByMe ? "Unknown" : "");
   $: sentDate = gift?.created_at ? new Date(gift.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Unknown";
   $: deliveryDate = gift?.expectedDelivery || "Unknown";
   $: age = gift?.age || (gift?.ageGroup ? (() => {
@@ -61,8 +65,13 @@
       <div class="frame-1410104158">
         <div class="frame-1410104124">
           <div>
-            <span class="sendtoparentemailcom_span_01">Send To : </span>
-            <span class="sendtoparentemailcom_span_02">{sendTo}</span>
+            {#if showFrom}
+              <span class="sendtoparentemailcom_span_01">From : </span>
+              <span class="sendtoparentemailcom_span_02">{fromDisplay}</span>
+            {:else}
+              <span class="sendtoparentemailcom_span_01">Send To : </span>
+              <span class="sendtoparentemailcom_span_02">{sendTo}</span>
+            {/if}
           </div>
         </div>
         <div class="frame-1410104126">

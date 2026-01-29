@@ -266,6 +266,48 @@ export async function getGiftsForUser(): Promise<DatabaseResult> {
 }
 
 /**
+ * Get all gifts where current user is sender (from_user_id) OR recipient (to_user_id).
+ * Used by Gift Tracking to show both sent and received gifts.
+ * @returns Promise with gifts data
+ */
+export async function getGiftsForCurrentUser(): Promise<DatabaseResult> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return {
+        success: false,
+        error: 'User not authenticated'
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('gifts')
+      .select('*')
+      .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id},user_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching gifts for current user:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      data: data || []
+    };
+  } catch (error) {
+    console.error('Unexpected error fetching gifts for current user:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred while fetching gifts'
+    };
+  }
+}
+
+/**
  * Get gifts received by current user (matched by delivery_email only, not to_user_id).
  * Only returns unchecked gifts (checked = false or null) where delivery_time has passed.
  * @returns Promise with gifts data
