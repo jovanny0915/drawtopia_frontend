@@ -8,7 +8,7 @@
   import { createGift } from "../../../lib/database/gifts";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
-  import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
+  import { user, authLoading, isAuthenticated, session } from "../../../lib/stores/auth";
   import { browser } from "$app/environment";
   import { page } from "$app/stores";
   import { env } from "../../../lib/env";
@@ -132,13 +132,40 @@
       // Convert gift state to gift object
       const giftData = giftCreation.toGiftObject(giftState);
       
-      // Save gift to Supabase database
+      // Save gift to Supabase database (also queues gift notification email)
       const result = await createGift(giftData);
       
       if (result.success) {
         // Store the gift ID
         giftCreation.setGiftId(result.data.id);
         console.log('✅ Gift saved successfully to Supabase after payment:', result.data);
+
+        // Link mode: deduct 1 credit from sender (current user) after successful purchase
+        const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
+        if (giftMode === 'link') {
+          const accessToken = $session?.access_token;
+          if (accessToken) {
+            const API_BASE_URL = (env.API_BASE_URL || '').replace('/api', '') || 'http://localhost:8000';
+            const deductRes = await fetch(`${API_BASE_URL}/api/users/deduct-credit`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({ amount: 1 })
+            });
+            if (deductRes.ok) {
+              const deductData = await deductRes.json();
+              if (deductData.success) {
+                console.log('✅ Link gift: 1 credit deducted from sender');
+              } else {
+                console.warn('Link gift: deduct credit returned not success:', deductData.message);
+              }
+            } else {
+              console.warn('Link gift: failed to deduct sender credit', await deductRes.json().catch(() => ({})));
+            }
+          }
+        }
       } else {
         console.error('❌ Failed to save gift:', result.error);
         alert('Payment successful but failed to save gift. Please contact support.');

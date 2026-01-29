@@ -861,94 +861,6 @@
     background: #d9d9d9;
   }
 
-  .cardnumber_span {
-    color: #141414;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  .card-number {
-    align-self: stretch;
-  }
-
-  .f242_span {
-    color: #141414;
-    font-size: 16px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  .expirydate_span {
-    color: #141414;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  .expiry-date {
-    align-self: stretch;
-  }
-
-  .f228_span {
-    color: #141414;
-    font-size: 16px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  .cvc_span {
-    color: #141414;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  .cvc {
-    align-self: stretch;
-  }
-
-  .fspan {
-    color: #141414;
-    font-size: 16px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  .billingname_span {
-    color: #141414;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  .billing-name {
-    align-self: stretch;
-  }
-
-  .johndoe_span {
-    color: #141414;
-    font-size: 16px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
   .securedbystripe_span {
     color: #40c4aa;
     font-size: 16px;
@@ -1133,158 +1045,6 @@
     display: inline-flex;
   }
 
-  .input-placeholder {
-    align-self: stretch;
-    height: 50px;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    background: white;
-    overflow: hidden;
-    border-radius: 12px;
-    outline: 1px #dcdcdc solid;
-    outline-offset: -1px;
-    transition: all 0.2s ease;
-    border: none;
-    font-family: Nunito;
-    font-size: 16px;
-    color: #141414;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .input-placeholder:hover {
-    outline: 1px #438bff solid;
-    box-shadow: 0 0 0 2px rgba(67, 139, 255, 0.1);
-  }
-
-  .input-placeholder:focus {
-    outline: 2px solid #438bff;
-    outline-offset: -2px;
-    box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
-    transform: translateY(-1px);
-  }
-
-  .input-placeholder::placeholder {
-    color: #141414;
-    opacity: 0.6;
-  }
-
-  .input-placeholder_01 {
-    align-self: stretch;
-    height: 50px;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    background: white;
-    overflow: hidden;
-    border-radius: 12px;
-    outline: 1px #dcdcdc solid;
-    outline-offset: -1px;
-    transition: all 0.2s ease;
-    border: none;
-    font-family: Nunito;
-    font-size: 16px;
-    color: #141414;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .input-placeholder_01:hover {
-    outline: 1px #438bff solid;
-    box-shadow: 0 0 0 2px rgba(67, 139, 255, 0.1);
-  }
-
-  .input-placeholder_01:focus {
-    outline: 2px solid #438bff;
-    outline-offset: -2px;
-    box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
-    transform: translateY(-1px);
-  }
-
-  .input-placeholder_01::placeholder {
-    color: #141414;
-    opacity: 0.6;
-  }
-
-  .input-placeholder_02 {
-    align-self: stretch;
-    height: 50px;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    background: white;
-    overflow: hidden;
-    border-radius: 12px;
-    outline: 1px #dcdcdc solid;
-    outline-offset: -1px;
-    transition: all 0.2s ease;
-    border: none;
-    font-family: Nunito;
-    font-size: 16px;
-    color: #141414;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .input-placeholder_02:hover {
-    outline: 1px #438bff solid;
-    box-shadow: 0 0 0 2px rgba(67, 139, 255, 0.1);
-  }
-
-  .input-placeholder_02:focus {
-    outline: 2px solid #438bff;
-    outline-offset: -2px;
-    box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
-    transform: translateY(-1px);
-  }
-
-  .input-placeholder_02::placeholder {
-    color: #141414;
-    opacity: 0.6;
-  }
-
-  .input-placeholder_03 {
-    align-self: stretch;
-    height: 50px;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    background: white;
-    overflow: hidden;
-    border-radius: 12px;
-    outline: 1px #dcdcdc solid;
-    outline-offset: -1px;
-    transition: all 0.2s ease;
-    border: none;
-    font-family: Nunito;
-    font-size: 16px;
-    color: #141414;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .input-placeholder_03:hover {
-    outline: 1px #438bff solid;
-    box-shadow: 0 0 0 2px rgba(67, 139, 255, 0.1);
-  }
-
-  .input-placeholder_03:focus {
-    outline: 2px solid #438bff;
-    outline-offset: -2px;
-    box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
-    transform: translateY(-1px);
-  }
-
-  .input-placeholder_03::placeholder {
-    color: #141414;
-    opacity: 0.6;
-  }
-
   .payment-element-container {
     align-self: stretch;
     padding: 12px;
@@ -1463,42 +1223,6 @@
     display: inline-flex;
   }
 
-  .form {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 4px;
-    display: flex;
-  }
-
-  .form_01 {
-    flex: 1 1 0;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 4px;
-    display: inline-flex;
-  }
-
-  .form_02 {
-    flex: 1 1 0;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 4px;
-    display: inline-flex;
-  }
-
-  .form_03 {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 4px;
-    display: flex;
-  }
-
   .frame-1410103991 {
     align-self: stretch;
     flex-direction: column;
@@ -1663,14 +1387,6 @@
     align-items: flex-start;
     gap: 12px;
     display: flex;
-  }
-
-  .frame-1410104133 {
-    align-self: stretch;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: inline-flex;
   }
 
   .frame-1410104137 {
@@ -1941,32 +1657,6 @@
        gap: 8px;
      }
 
-     .frame-1410104133 {
-       flex-direction: column;
-       gap: 12px;
-     }
-
-     .form_01,
-     .form_02 {
-       width: 100%;
-     }
-
-     .input-placeholder,
-     .input-placeholder_01,
-     .input-placeholder_02,
-     .input-placeholder_03 {
-       height: 45px;
-       padding: 8px;
-     }
-
-     .input-placeholder:focus,
-     .input-placeholder_01:focus,
-     .input-placeholder_02:focus,
-     .input-placeholder_03:focus {
-       transform: translateY(-2px);
-       box-shadow: 0 0 0 2px rgba(67, 139, 255, 0.15);
-     }
-
      .button_01,
      .button_02 {
        width: 100%;
@@ -2017,22 +1707,6 @@
      .f99_span {
        font-size: 18px;
        line-height: 25.2px;
-     }
-
-     .cardnumber_span,
-     .expirydate_span,
-     .cvc_span,
-     .billingname_span {
-       font-size: 14px;
-       line-height: 19.6px;
-     }
-
-     .f242_span,
-     .f228_span,
-     .fspan,
-     .johndoe_span {
-       font-size: 14px;
-       line-height: 19.6px;
      }
 
      .includegiftreceipt_span {

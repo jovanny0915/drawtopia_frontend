@@ -81,11 +81,9 @@ export async function createGift(gift: Gift): Promise<DatabaseResult> {
           storyId = currentStoryId;
         }
       } else if (giftMode === 'link') {
-        // For link mode: only set gift_type (story_id should not be set)
-        // If gift_type is not already provided, we'll leave it undefined
-        // The caller should provide the appropriate gift_type for link mode
-        giftType = gift.gift_type; // Use provided gift_type or leave undefined
-        storyId = undefined; // Explicitly don't set story_id for link mode
+        // For link mode: set gift_type to "link" so recipient gets +1 credit when they check the notification
+        giftType = gift.gift_type || 'link';
+        storyId = undefined; // No story_id for link mode
       }
     }
 
