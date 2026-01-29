@@ -1,8 +1,9 @@
 <script lang="ts">
   import { giftCreation } from "../../../lib/stores/giftCreation";
+  import { createGift } from "../../../lib/database/gifts";
   import { goto } from "$app/navigation";
   import { onMount, onDestroy } from "svelte";
-  import { user, authLoading, isAuthenticated } from "../../../lib/stores/auth";
+  import { user, authLoading, isAuthenticated, session } from "../../../lib/stores/auth";
   import { browser } from "$app/environment";
   import { env } from "../../../lib/env";
   import { loadStripe } from "@stripe/stripe-js";
@@ -173,6 +174,46 @@
     goto("/gift/sendlink/2");
   };
 
+  // Save gift to Supabase after successful payment (Stripe Elements flow – no redirect, so we save here)
+  async function saveGiftAfterPayment() {
+    try {
+      const giftData = giftCreation.toGiftObject(giftState);
+      const result = await createGift(giftData);
+      if (result.success && result.data?.id) {
+        giftCreation.setGiftId(result.data.id);
+        console.log('✅ Gift saved to Supabase after Stripe Elements payment:', result.data.id);
+        const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
+        if (giftMode === 'link') {
+          const accessToken = $session?.access_token;
+          if (accessToken) {
+            const API_BASE_URL = (env.API_BASE_URL || '').replace('/api', '') || 'http://localhost:8000';
+            const deductRes = await fetch(`${API_BASE_URL}/api/users/deduct-credit`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({ amount: 1 })
+            });
+            if (deductRes.ok) {
+              const deductData = await deductRes.json();
+              if (deductData.success) console.log('✅ Link gift: 1 credit deducted from sender');
+            }
+          }
+        }
+      } else {
+        console.error('❌ Failed to save gift:', result.error);
+        alert('Payment successful but failed to save gift. Please contact support.');
+        return;
+      }
+    } catch (err) {
+      console.error('❌ Error saving gift after payment:', err);
+      alert('Payment successful but an error occurred while saving the gift. Please contact support.');
+      return;
+    }
+    goto("/gift/purchase");
+  }
+
   const handlePurchase = async () => {
     if (!stripe || !elements || isLoadingPayment) return;
     
@@ -191,12 +232,14 @@
         alert(error.message);
         isLoadingPayment = false;
       } else {
-        // Payment succeeded, navigate to success page
-        goto("/gift/purchase");
+        // Payment succeeded: store gift in Supabase (same as Stripe Checkout flow) then go to success page
+        await saveGiftAfterPayment();
       }
     } catch (error) {
       console.error('Payment error:', error);
       alert('An error occurred during payment. Please try again.');
+      isLoadingPayment = false;
+    } finally {
       isLoadingPayment = false;
     }
   };
