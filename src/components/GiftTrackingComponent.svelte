@@ -5,6 +5,7 @@
   import { goto } from "$app/navigation";
   import { user } from "../lib/stores/auth";
   import { getGiftsForCurrentUser, type Gift } from "../lib/database/gifts";
+  import { getStoryById } from "../lib/database/stories";
   import { supabase } from "../lib/supabase";
   import GiftCard from "./GiftCard.svelte";
 
@@ -24,6 +25,8 @@
     delivery_time?: string;
     age?: number;
     notification_sent?: boolean;
+    /** When set, card shows "Book created" status */
+    story_id?: string | null;
     /** When true, card shows "From" with sender email instead of "Send to" */
     isReceivedByMe?: boolean;
     from_email?: string;
@@ -95,6 +98,7 @@
               : "Unknown",
             createdAt: gift.created_at ? new Date(gift.created_at) : new Date(),
             notification_sent: gift.notification_sent,
+            story_id: gift.story_id ?? null,
             send_to: sendToDisplay,
             created_at: gift.created_at,
             isReceivedByMe,
@@ -154,10 +158,21 @@
     if (giftId) goto(`/gift/recipient/gift2?giftId=${giftId}`);
   }
 
-  function handleViewBook(event: CustomEvent) {
-    const { giftId } = event.detail;
-    console.log(`Viewing book for gift: ${giftId}`);
-    // TODO: Navigate to book view page for completed gift
+  async function handleViewBook(event: CustomEvent) {
+    const { giftId, storyId } = event.detail;
+    const sid = storyId ?? gifts.find((g) => g.id === giftId)?.story_id;
+    if (!sid) {
+      console.warn("[GiftTrackingComponent] View book: no story_id for gift", giftId);
+      return;
+    }
+    const res = await getStoryById(sid);
+    const story = res?.data != null ? (Array.isArray(res.data) ? res.data[0] : res.data) : null;
+    const storyType = (story?.story_type ?? "story").toLowerCase();
+    if (storyType === "search") {
+      goto(`/intersearch/1?storyId=${sid}`);
+    } else {
+      goto(`/preview/default?storyId=${sid}`);
+    }
   }
 
   function handleSendThankYou(event: CustomEvent) {

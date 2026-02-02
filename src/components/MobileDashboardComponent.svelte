@@ -11,6 +11,7 @@
   import {
     getAllCharacters,
     getAllStoriesForParent,
+    getStoryById,
     deleteCharacter,
     type Story,
   } from "../lib/database/stories";
@@ -396,7 +397,8 @@
             ? new Date(gift.delivery_time).toLocaleDateString("en-GB")
             : "Unknown",
           created_at: gift.created_at ? new Date(gift.created_at) : new Date(),
-          notification_sent: gift.notification_sent
+          notification_sent: gift.notification_sent,
+          story_id: gift.story_id ?? null
         }));
       } else {
         giftsError = result.error || "Failed to fetch gifts";
@@ -542,10 +544,21 @@
     if (giftId) goto(`/gift/recipient/gift2?giftId=${giftId}`);
   };
 
-  const handleViewBook = (event: CustomEvent) => {
-    const { giftId } = event.detail;
-    // TODO: Navigate to book view page for completed gift
-    console.log(`Viewing book for gift: ${giftId}`);
+  const handleViewBook = async (event: CustomEvent) => {
+    const { giftId, storyId } = event.detail;
+    const sid = storyId ?? gifts.find((g: any) => g.id === giftId)?.story_id;
+    if (!sid) {
+      console.warn("[MobileDashboard] View book: no story_id for gift", giftId);
+      return;
+    }
+    const res = await getStoryById(sid);
+    const story = res?.data != null ? (Array.isArray(res.data) ? res.data[0] : res.data) : null;
+    const storyType = (story?.story_type ?? "story").toLowerCase();
+    if (storyType === "search") {
+      goto(`/intersearch/1?storyId=${sid}`);
+    } else {
+      goto(`/preview/default?storyId=${sid}`);
+    }
   };
 
   const handleSendThankYou = (event: CustomEvent) => {

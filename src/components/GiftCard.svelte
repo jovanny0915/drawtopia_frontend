@@ -27,6 +27,9 @@
     return parseInt(gift.ageGroup.split("-")[0]) || 7;
   })() : 7);
 
+  /** True when gift has a story (book created); drives "Book created" status and actions */
+  $: isBookCreated = !!(gift?.story_id != null && gift.story_id !== "");
+
   // Handle button clicks
   function handleResendLink() {
     dispatch('resendLink', { giftId: gift.id });
@@ -37,7 +40,7 @@
   }
 
   function handleViewBook() {
-    dispatch('viewBook', { giftId: gift.id });
+    dispatch('viewBook', { giftId: gift.id, storyId: gift.story_id ?? null });
   }
 
   function handleSendThankYou() {
@@ -83,10 +86,10 @@
       </div>
     </div>
 
-    <div class="frame-1410103869" class:completed={gift.story_id !== null}>
+    <div class="frame-1410103869" class:completed={isBookCreated}>
       <div class="sub-menu">
         <div class="frame-2147227625">
-          {#if gift.story_id === null}
+          {#if !isBookCreated}
             <div class="archive">
               <img src={archive} alt="Archive" />
             </div>
@@ -115,7 +118,7 @@
 
   <div class="frame-1410104159">
     <div class="frame-1410104157">
-      {#if gift.notification_sent === false}
+      {#if !isBookCreated}
         <div 
           class="button"
           on:click={handleResendLink}
