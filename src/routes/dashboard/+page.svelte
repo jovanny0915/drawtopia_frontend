@@ -1536,17 +1536,6 @@
     outline-offset: -1px;
   }
 
-  .ellipse-1415 {
-    width: 248px;
-    height: 114px;
-    left: -6px;
-    top: 15px;
-    position: absolute;
-    background: radial-gradient(ellipse 42.11% 42.11% at 50.00% 52.94%, white 0%, rgba(255, 255, 255, 0) 100%);
-    border-radius: 9999px;
-    pointer-events: none;
-  }
-
   .sidebarpenaksir-kasir {
     width: 100%;
     height: 91px;
@@ -1817,20 +1806,6 @@
     .mobile-menu-overlay {
       display: none;
     }
-  }
-
-  .ellipse-1415 {
-    width: 248px;
-    height: 114px;
-    left: -49px;
-    top: 20px;
-    position: absolute;
-    background: radial-gradient(
-      ellipse 42.11% 42.11% at 50% 52.94%,
-      white 0%,
-      rgba(255, 255, 255, 0) 100%
-    );
-    border-radius: 9999px;
   }
 
   .caretdown {

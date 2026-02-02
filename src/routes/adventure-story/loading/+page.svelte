@@ -8,6 +8,7 @@
     import { supabase } from '../../../lib/supabase';
     import type { ChildProfile } from '../../../lib/database/childProfiles';
     import { createStory } from '../../../lib/database/stories';
+    import { updateGift } from '../../../lib/database/gifts';
     import { user } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
     import { buildStoryTextPrompt, buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt } from '../../../lib/promptBuilder';
@@ -624,7 +625,25 @@
                         ...state,
                         storyId: storyId
                     }));
-                    
+
+                    // If gift_mode is 'generation', update the gifts table with the new story_id
+                    const giftMode = sessionStorage.getItem('gift_mode');
+                    if (giftMode === 'generation') {
+                        const giftId = sessionStorage.getItem('gift_id');
+                        if (giftId) {
+                            const updateResult = await updateGift(giftId, {
+                                story_id: storyId,
+                                gift_type: 'story',
+                                status: 'completed'
+                            });
+                            if (updateResult.success) {
+                                console.log('Gift updated with story_id:', storyId);
+                            } else {
+                                console.warn('Failed to update gift with story_id:', updateResult.error);
+                            }
+                        }
+                    }
+
                     // Send book completion email after successful story save
                     await sendBookCompletionEmailAfterSave(
                         storyId,
@@ -825,7 +844,27 @@
                         ...state,
                         storyId: storyId
                     }));
-                    
+
+                    // If gift_mode is 'generation', update the gifts table with the new story_id
+                    const giftMode = sessionStorage.getItem('gift_mode');
+                    if (giftMode === 'generation') {
+                        const giftId = sessionStorage.getItem('gift_id');
+                        if (giftId) {
+                            const updateResult = await updateGift(giftId, {
+                                story_id: storyId,
+                                gift_type: 'story',
+                                status: 'completed'
+                            });
+                            if (updateResult.success) {
+                                console.log('Gift updated with story_id:', storyId);
+                            } else {
+                                console.warn('Failed to update gift with story_id:', updateResult.error);
+                            }
+                        } else {
+                            console.warn('gift_mode is generation but gift_id not found in sessionStorage');
+                        }
+                    }
+
                     // Send book completion email after successful story save (adventure-story format)
                     await sendBookCompletionEmailAfterSave(
                         storyId,
@@ -988,236 +1027,131 @@
                 dedication_scene_prompt: dedicationScenePrompt || undefined
             };
             
-            // Update progress: Starting story generation (5%)
-            storyTextProgress = 5;
+            // Progress: storyTextProgress 0–20% (step 1), sceneImageProgress 0–80% (steps 2–4). Total 100%.
+            storyTextProgress = 2;
 
-            
-            // Send request to generate-story endpoint
             const storyGenerationEndpoint = 'https://image-edit-five.vercel.app';
-            const response = await fetch(`${storyGenerationEndpoint}/generate-story/`, {
+            const headers = { 'Content-Type': 'application/json' };
+
+            // ——— Step 1: Generate story text ———
+            const textResponse = await fetch(`${storyGenerationEndpoint}/story/generate-text`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify(requestBody)
             });
-
-            
-            if (!response.ok) {
-                throw new Error(`Failed to generate story: ${response.status} ${response.statusText}`);
+            if (!textResponse.ok) {
+                throw new Error(`Failed to generate story text: ${textResponse.status} ${textResponse.statusText}`);
             }
-            
-            // Update progress: Story generation in progress (25%)
-            storyTextProgress = 25;
-            
-            const result = await response.json();
-            console.log('result =========================> ', result);
-            
-            // Update progress: Story text received (50%)
-            storyTextProgress = 50;
-            
-            // Extract story pages with text and scene images
-            // Expected format: { pages: [{ text: "...", scene: "https://..." }, ...] }
-            let storyPages: Array<{ pageNumber: number; text: string; scene?: string }> = [];
-            let sceneImages: string[] = [];
-            
-            if (result.pages && Array.isArray(result.pages)) {
-                // Primary format: pages array with text and scene properties
-                storyPages = result.pages.slice(0, 5).map((page: any, index: number) => {
-                    if (typeof page === 'string') {
-                        // Handle string-only format (legacy)
-                        return { pageNumber: index + 1, text: page };
-                    } else if (page.text) {
-                        // Handle object format with text and scene
-                        return { 
-                            pageNumber: page.pageNumber || index + 1, 
-                            text: page.text,
-                            scene: page.scene || page.imageUrl || page.image || page.sceneUrl
-                        };
-                    } else {
-                        return { pageNumber: index + 1, text: String(page) };
-                    }
-                });
-                
-                // Extract scene images from pages array (scene property)
-                sceneImages = storyPages
-                    .map(page => page.scene)
-                    .filter((url): url is string => !!url);
-            } else if (result.storyPages && Array.isArray(result.storyPages)) {
-                // Alternative format: storyPages
-                storyPages = result.storyPages.slice(0, 5).map((page: any, index: number) => {
-                    if (typeof page === 'string') {
-                        return { pageNumber: index + 1, text: page };
-                    } else if (page.text) {
-                        return { 
-                            pageNumber: page.pageNumber || index + 1, 
-                            text: page.text,
-                            scene: page.scene || page.imageUrl || page.image || page.sceneUrl
-                        };
-                    } else {
-                        return { pageNumber: index + 1, text: String(page) };
-                    }
-                });
-                sceneImages = storyPages
-                    .map(page => page.scene)
-                    .filter((url): url is string => !!url);
-            } else if (result.story && Array.isArray(result.story)) {
-                // Alternative format: story array
-                storyPages = result.story.slice(0, 5).map((page: any, index: number) => {
-                    if (typeof page === 'string') {
-                        return { pageNumber: index + 1, text: page };
-                    } else if (page.text) {
-                        return { 
-                            pageNumber: page.pageNumber || index + 1, 
-                            text: page.text,
-                            scene: page.scene || page.imageUrl || page.image || page.sceneUrl
-                        };
-                    } else {
-                        return { pageNumber: index + 1, text: String(page) };
-                    }
-                });
-                sceneImages = storyPages
-                    .map(page => page.scene)
-                    .filter((url): url is string => !!url);
-            } else if (Array.isArray(result)) {
-                // Direct array format
-                storyPages = result.slice(0, 5).map((page: any, index: number) => {
-                    if (typeof page === 'string') {
-                        return { pageNumber: index + 1, text: page };
-                    } else if (page.text) {
-                        return { 
-                            pageNumber: page.pageNumber || index + 1, 
-                            text: page.text,
-                            scene: page.scene || page.imageUrl || page.image || page.sceneUrl
-                        };
-                    } else {
-                        return { pageNumber: index + 1, text: String(page) };
-                    }
-                });
-                sceneImages = storyPages
-                    .map(page => page.scene)
-                    .filter((url): url is string => !!url);
+            const textResult = await textResponse.json();
+            const storyPageTexts: string[] = textResult.pages || [];
+            storyTextProgress = 20; // 20% after story text
+
+            if (storyPageTexts.length === 0) {
+                throw new Error('No story pages generated');
+            }
+
+            // ——— Step 2: Generate audio with story text ———
+            sceneImageProgress = 5;
+            let audioUrls: (string | null)[] = [];
+            const audioResponse = await fetch(`${storyGenerationEndpoint}/story/generate-audio`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ pages: storyPageTexts, age_group: ageGroup })
+            });
+            if (audioResponse.ok) {
+                const audioResult = await audioResponse.json();
+                audioUrls = audioResult.audio_urls || [];
+                console.log('Audio URLs from generate-story-audio:', audioUrls);
             } else {
-                // Fallback: try to extract from other response formats
-                console.warn('Unexpected response structure:', result);
-                for (let i = 1; i <= 5; i++) {
-                    const pageData = result[`page${i}`] || result[`page_${i}`] || result[i];
-                    if (pageData) {
-                        if (typeof pageData === 'string') {
-                            storyPages.push({ pageNumber: i, text: String(pageData) });
-                        } else if (pageData.text) {
-                            storyPages.push({ 
-                                pageNumber: i, 
-                                text: pageData.text,
-                                scene: pageData.scene || pageData.imageUrl || pageData.image || pageData.sceneUrl
-                            });
-                        } else {
-                            storyPages.push({ pageNumber: i, text: String(pageData) });
+                console.warn('Failed to generate audio:', audioResponse.status);
+            }
+            sceneImageProgress = 20; // 20% after audio (total 40%)
+
+            // ——— Step 3: Generate story scenes via /edit-image with story text and character/story characteristics ———
+            const sceneImages: string[] = [];
+            const totalSceneSteps = 5;
+            for (let i = 0; i < Math.min(5, storyPageTexts.length); i++) {
+                const pageNum = i + 1;
+                const pageText = storyPageTexts[i];
+                const scenePrompt = buildStoryScenePrompt({
+                    characterName,
+                    characterType: characterType === 'magical_creature' ? 'magical_creature' : characterType,
+                    specialAbility,
+                    characterStyle: characterStyle as '3d' | 'cartoon' | 'anime',
+                    storyWorld,
+                    adventureType,
+                    ageGroup,
+                    storyTitle,
+                    pageNumber: pageNum,
+                    pageText,
+                    characterImageUrl: selectedCharacterEnhancedImage || undefined
+                });
+                const editRes = await fetch(`${storyGenerationEndpoint}/edit-image/`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ image_url: selectedCharacterEnhancedImage, prompt: scenePrompt })
+                });
+                if (editRes.ok) {
+                    const editResult = await editRes.json();
+                    const sceneUrl = editResult?.storage_info?.url;
+                    if (sceneUrl) {
+                        sceneImages.push(sceneUrl.split('?')[0]);
+                    }
+                }
+                // ~12% per scene: 20 → 32 → 44 → 56 → 68 → 75
+                sceneImageProgress = 20 + Math.round(((i + 1) / totalSceneSteps) * 55);
+            }
+            sceneImageProgress = 75; // 75% after all scenes (95% total); remaining 5% for save
+
+            // Optional: dedication image via edit-image
+            let dedicationImageUrl: string | null = null;
+            if (dedicationText && dedicationScenePrompt) {
+                const dedEditRes = await fetch(`${storyGenerationEndpoint}/edit-image/`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ image_url: selectedCharacterEnhancedImage, prompt: dedicationScenePrompt })
+                });
+                if (dedEditRes.ok) {
+                    const dedEditResult = await dedEditRes.json();
+                    const dedUrl = dedEditResult?.storage_info?.url;
+                    if (dedUrl) {
+                        const cleanDedUrl = dedUrl.split('?')[0];
+                        dedicationImageUrl = cleanDedUrl;
+                        if (browser) {
+                            sessionStorage.setItem('dedication_image', cleanDedUrl);
                         }
                     }
                 }
-                sceneImages = storyPages
-                    .map(page => page.scene)
-                    .filter((url): url is string => !!url);
             }
-            
-            // Also check for separate scene arrays (fallback)
-            if (sceneImages.length === 0) {
-                if (result.sceneImages && Array.isArray(result.sceneImages)) {
-                    sceneImages = result.sceneImages.slice(0, 5);
-                } else if (result.scenes && Array.isArray(result.scenes)) {
-                    sceneImages = result.scenes.slice(0, 5).map((scene: any) => 
-                        typeof scene === 'string' ? scene : (scene.url || scene.imageUrl || scene.image || scene.scene)
-                    );
-                } else if (result.images && Array.isArray(result.images)) {
-                    sceneImages = result.images.slice(0, 5);
-                }
-            }
-            
-            // Ensure scene images are extracted from storyPages if not already extracted
-            // This ensures scenes match the order of pages
-            if (sceneImages.length === 0 && storyPages.length > 0) {
-                sceneImages = storyPages
-                    .map(page => page.scene)
-                    .filter((url): url is string => !!url);
-            }
-            
-            // Save story pages with text and scenes to session storage
+
+            // Build storyPages with text and scene URLs
+            const storyPages: Array<{ pageNumber: number; text: string; scene?: string }> = storyPageTexts.slice(0, 5).map((text: string, index: number) => ({
+                pageNumber: index + 1,
+                text,
+                scene: sceneImages[index] || undefined
+            }));
+
+            let cleanSceneImages: string[] = sceneImages.map(url => url.split('?')[0]);
+
             if (browser && storyPages.length > 0) {
                 sessionStorage.setItem('storyPages', JSON.stringify(storyPages));
-                
-                // Also save individual pages for easier access
                 storyPages.forEach((page, index) => {
                     sessionStorage.setItem(`storyPage${index + 1}`, page.text);
                 });
-                
-                console.log('Story pages saved to session storage:', storyPages.length);
-                console.log('Story pages with scenes:', storyPages.map(p => ({ text: p.text.substring(0, 30) + '...', hasScene: !!p.scene })));
-            }
-            
-            // Scene images should be included in the /generate-story response
-            // Update progress based on number of images received
-            if (sceneImages.length > 0) {
-                const validImages = sceneImages.filter(img => img).length;
-                // Each valid image contributes to progress
-                // Since images come all at once, we can set progress to 50% (complete)
-                sceneImageProgress = 50;
-            } else {
-                // No images received, set to 50% (images complete)
-                sceneImageProgress = 50;
-            }
-            
-            // Save scene images to session storage
-            // Store scenes in the same order as pages (by page number/index)
-            const cleanSceneImages: string[] = [];
-            if (browser && sceneImages.length > 0) {
-                sceneImages.forEach((imageUrl, index) => {
-                    if (imageUrl) {
-                        // Store with multiple key patterns for compatibility
-                        // Clean URL by removing query parameters for consistency
-                        const cleanUrl = imageUrl.split('?')[0];
-                        sessionStorage.setItem(`storyScene_${index + 1}`, cleanUrl);
-                        sessionStorage.setItem(`adventureScene_${index + 1}`, cleanUrl);
-                        cleanSceneImages.push(cleanUrl);
-                    }
-                });
-                
-                // Also store as an array for easier access (with clean URLs)
                 if (cleanSceneImages.length > 0) {
                     sessionStorage.setItem('storyScenes', JSON.stringify(cleanSceneImages));
+                    cleanSceneImages.forEach((url, index) => {
+                        sessionStorage.setItem(`storyScene_${index + 1}`, url);
+                        sessionStorage.setItem(`adventureScene_${index + 1}`, url);
+                    });
                 }
-                
-                console.log('Scene images saved to session storage:', sceneImages.length);
-                console.log('Scene URLs:', sceneImages.map(url => url.split('?')[0]));
-            } else if (browser) {
-                console.warn('No scene images found in response');
             }
-            
-            // Extract audio URLs from result
-            let audioUrls: (string | null)[] = [];
-            if (result.audio_urls && Array.isArray(result.audio_urls)) {
-                audioUrls = result.audio_urls;
-                console.log('Audio URLs extracted from result:', audioUrls);
-            } else {
-                console.log('No audio_urls found in result');
-            }
-            
-            // Extract dedication image URL from result
-            let dedicationImageUrl: string | null = null;
-            if (result.dedication_image_url) {
-                const cleanDedicationUrl = String(result.dedication_image_url).split('?')[0]; // Clean URL
-                dedicationImageUrl = cleanDedicationUrl;
-                if (browser) {
-                    sessionStorage.setItem('dedication_image', cleanDedicationUrl);
-                    console.log('Dedication image URL saved to session storage:', cleanDedicationUrl);
-                }
-            } else {
-                console.log('No dedication_image_url found in result');
-            }
-            
-            // Save story to Supabase database
+
+            // ——— Step 4 & 5: Save story to Supabase (current schema) then mark complete ———
             await saveStoryToDatabase(storyPages, cleanSceneImages, audioUrls);
-            
+
+            storyTextProgress = 20;
+            sceneImageProgress = 80; // 100% total after save
             storyGenerated = true;
         } catch (error) {
             console.error('Error generating story:', error);
@@ -1308,13 +1242,15 @@
         </div>
     </div>
     <div class="arrow">
-        <button type="button" class="button" on:click={() => {goto('/adventure-story/story-preview')}}>
+        <button
+            type="button"
+            class="button"
+            on:click={() => {
+                goto("/adventure-story/story-preview");
+            }}
+        >
             <div class="arrowleft">
-                <img
-                    src={arrowleft}
-                    alt=""
-                    class="img-arrowleft"
-                />
+                <img src={arrowleft} alt="" class="img-arrowleft" />
             </div>
             <div class="back">
                 <span class="back_span">Back</span>
@@ -1331,7 +1267,8 @@
                     >Your preview will be ready in about
                 </span>&nbsp;<span
                     class="yourpreviewwillbereadyinabout47seconds_span_02"
-                    >{timeRemaining} {timeRemaining === 1 ? 'second' : 'seconds'}</span
+                    >{timeRemaining}
+                    {timeRemaining === 1 ? "second" : "seconds"}</span
                 >
             </div>
             <div class="tag">
@@ -1370,10 +1307,14 @@
                         <div class="frame-2147227505">
                             <div class="frame-1410103855">
                                 <div class="bar_05"></div>
-                                <div class="bar_06" style="width: {completionPercent}%"></div>
+                                <div
+                                    class="bar_06"
+                                    style="width: {completionPercent}%"
+                                ></div>
                             </div>
                             <div class="text-25-complete">
-                                <span class="f5complete_span">{Math.round(completionPercent)}% Complete</span
+                                <span class="f5complete_span"
+                                    >{Math.round(completionPercent)}% Complete</span
                                 >
                             </div>
                         </div>
@@ -1381,7 +1322,11 @@
                     <div class="frame-2147227509">
                         <div class="frame-1410104037">
                             <div class="shootingstar">
-                                <img src={shootingstar} alt="Shooting Star" class="img-shootingstar">
+                                <img
+                                    src={shootingstar}
+                                    alt="Shooting Star"
+                                    class="img-shootingstar"
+                                />
                             </div>
                             <div class="frame-2147227506">
                                 <div class="fun-fact">
@@ -1489,7 +1434,6 @@
         font-weight: 600;
         word-wrap: break-word;
     }
-
 
     .magic-wand_12404075-1 {
         width: 60px;
@@ -1607,7 +1551,6 @@
         text-align: center;
     }
 
-
     .content {
         align-self: stretch;
         flex-direction: column;
@@ -1680,7 +1623,6 @@
         gap: 8px;
         display: flex;
     }
-
 
     .frame-2147227507 {
         align-self: stretch;
@@ -1866,7 +1808,7 @@
         font-size: 16px;
         font-family: DM Sans;
         font-weight: 600;
-        line-height: 22.40px;
+        line-height: 22.4px;
         word-wrap: break-word;
     }
 
@@ -1918,9 +1860,9 @@
             padding-right: 24px;
             padding-top: 12px;
             padding-bottom: 12px;
-            box-shadow: 0px 0px 0px 2px #EEF6FF;
+            box-shadow: 0px 0px 0px 2px #eef6ff;
             border-radius: 20px;
-            outline: 1px #DCDCDC solid;
+            outline: 1px #dcdcdc solid;
             outline-offset: -1px;
             justify-content: center;
             align-items: center;
@@ -1942,7 +1884,7 @@
 
         .logo-text-full {
             width: 170.15px;
-            height: 31.80px;
+            height: 31.8px;
         }
 
         .frame-1410103818 {
@@ -1956,7 +1898,7 @@
 
         .creatingyourstory_span {
             font-size: 32px;
-            line-height: 38.40px;
+            line-height: 38.4px;
         }
 
         .creating-your-story {
@@ -1966,7 +1908,7 @@
         .yourpreviewwillbereadyinabout47seconds_span_01,
         .yourpreviewwillbereadyinabout47seconds_span_02 {
             font-size: 16px;
-            line-height: 22.40px;
+            line-height: 22.4px;
         }
 
         .your-preview-will-be-ready-in-about-47-seconds {
@@ -1980,7 +1922,6 @@
         .heading {
             align-items: flex-start;
         }
-
 
         .frame-13 {
             width: 100%;
@@ -2023,7 +1964,7 @@
 
         .f5complete_span {
             font-size: 16px;
-            line-height: 22.40px;
+            line-height: 22.4px;
         }
 
         .frame-2147227509 {
@@ -2043,12 +1984,12 @@
 
         .funfact_span {
             font-size: 18px;
-            line-height: 21.60px;
+            line-height: 21.6px;
         }
 
         .yourcharactersspecialabilitywillhelpsolveabigproblem_span {
             font-size: 14px;
-            line-height: 19.60px;
+            line-height: 19.6px;
         }
 
         .frame-2147227510 {
@@ -2063,7 +2004,7 @@
 
         .tag_01 {
             left: 21px;
-            top: 114.70px;
+            top: 114.7px;
         }
 
         .frame-2147227509_01,
@@ -2088,7 +2029,7 @@
 
         .cancel_span {
             font-size: 16px;
-            line-height: 22.40px;
+            line-height: 22.4px;
         }
     }
 </style>

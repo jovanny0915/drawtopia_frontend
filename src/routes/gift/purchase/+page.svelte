@@ -604,50 +604,6 @@
     word-wrap: break-word;
   }
 
-  .trackyourgift_span {
-    color: black;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  .track-your-gift {
-    align-self: stretch;
-  }
-
-  .sharethislinktotrackthestorycreationprogress_span {
-    color: #666d80;
-    font-size: 14px;
-    font-family: Quicksand;
-    font-weight: 400;
-    line-height: 19.6px;
-    word-wrap: break-word;
-  }
-
-  .share-this-link-to-track-the-story-creation-progress {
-    align-self: stretch;
-  }
-
-  .httpsdrawtopiacomgift_24125_span {
-    color: #141414;
-    font-size: 14px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 19.6px;
-    word-wrap: break-word;
-  }
-
-  .emailtrackinglink_span {
-    color: #141414;
-    font-size: 14px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 19.6px;
-    word-wrap: break-word;
-  }
-
   .finish_span {
     color: white;
     font-size: 18px;
@@ -797,16 +753,6 @@
     display: flex;
   }
 
-  .frame-1410104146 {
-    flex: 1 1 0;
-    padding: 8px;
-    background: #f8fafb;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    display: flex;
-  }
-
   .button {
     align-self: stretch;
     padding-left: 24px;
@@ -924,20 +870,6 @@
     background-color: #e6f3ff;
   }
 
-  .copy_01 {
-    width: 18px;
-    height: 18px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .envelope {
-    width: 20px;
-    height: 20px;
-    position: relative;
-    overflow: hidden;
-  }
-
   .arrowleft {
     width: 24px;
     height: 24px;
@@ -1017,30 +949,6 @@
     display: flex;
   }
 
-  .frame-1410104147 {
-    padding: 8px;
-    background: #f8fafb;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    display: flex;
-  }
-
-  .notification {
-    align-self: stretch;
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    border-radius: 12px;
-    outline: 1px #ededed solid;
-    outline-offset: -1px;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    display: inline-flex;
-  }
-
   .button_01 {
     align-self: stretch;
     padding-left: 24px;
@@ -1109,14 +1017,6 @@
     display: inline-flex;
   }
 
-  .frame-1410104148 {
-    align-self: stretch;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 4px;
-    display: inline-flex;
-  }
-
   .frame-1410104113 {
     align-self: stretch;
     flex-direction: column;
@@ -1135,15 +1035,6 @@
     display: inline-flex;
   }
 
-  .frame-1410104143_01 {
-    width: 620px;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 4px;
-    display: flex;
-  }
-
   .frame-1410104141 {
     align-self: stretch;
     justify-content: flex-start;
@@ -1152,40 +1043,10 @@
     display: inline-flex;
   }
 
-  .frame-1410104126_01 {
-    align-self: stretch;
-    padding: 16px;
-    border-radius: 12px;
-    outline: 1px #ededed solid;
-    outline-offset: -1px;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: flex;
-  }
-
   .frame-1410104126 {
     align-self: stretch;
     padding: 16px;
     border-radius: 12px;
-    outline: 1px #ededed solid;
-    outline-offset: -1px;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: flex;
-  }
-
-  .frame-1410104038 {
-    align-self: stretch;
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-top: 16px;
-    padding-bottom: 16px;
-    background: white;
-    border-radius: 20px;
     outline: 1px #ededed solid;
     outline-offset: -1px;
     flex-direction: column;
@@ -1326,8 +1187,7 @@
       gap: 16px;
     }
 
-    .frame-1410104037,
-    .frame-1410104038 {
+    .frame-1410104037 {
       padding: 16px;
       gap: 16px;
       display: block;
@@ -1362,36 +1222,8 @@
       gap: 16px;
     }
 
-    .frame-1410104143,
-    .frame-1410104143_01 {
+    .frame-1410104143 {
       width: 100%;
-    }
-
-    /* Track your gift section mobile */
-    .frame-1410104126_01 {
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .frame-1410104148 {
-      /* flex-direction: column; */
-      gap: 8px;
-    }
-
-    .frame-1410104146 {
-      width: 100%;
-      padding: 12px;
-    }
-
-    .frame-1410104147 {
-      justify-content: center;
-      align-self: stretch;
-    }
-
-    .notification {
-      width: 100%;
-      justify-content: center;
-      padding: 12px 16px;
     }
 
     /* Status section mobile */
@@ -1440,8 +1272,7 @@
       line-height: 28px;
     }
 
-    .informationtransaction_span,
-    .trackyourgift_span {
+    .informationtransaction_span {
       font-size: 16px;
       line-height: 22.4px;
     }
@@ -1478,21 +1309,6 @@
     .aninvitationemailhasbeensenttoemmamomemailcom_span {
       font-size: 12px;
       line-height: 16.8px;
-    }
-
-    .sharethislinktotrackthestorycreationprogress_span {
-      font-size: 14px;
-      line-height: 19.6px;
-    }
-
-    .httpsdrawtopiacomgift_24125_span {
-      font-size: 12px;
-      line-height: 16.8px;
-    }
-
-    .emailtrackinglink_span {
-      font-size: 14px;
-      line-height: 19.6px;
     }
 
     .pending_span {

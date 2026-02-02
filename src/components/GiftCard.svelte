@@ -83,10 +83,10 @@
       </div>
     </div>
 
-    <div class="frame-1410103869" class:completed={gift.notification_sent === true}>
+    <div class="frame-1410103869" class:completed={gift.story_id !== null}>
       <div class="sub-menu">
         <div class="frame-2147227625">
-          {#if gift.notification_sent === false}
+          {#if gift.story_id === null}
             <div class="archive">
               <img src={archive} alt="Archive" />
             </div>

@@ -452,33 +452,6 @@
     height: 16px;
   }
 
-  .footer {
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    margin-top: 40px;
-  }
-
-  .contact {
-    font-family: Nunito;
-    font-size: 18px;
-    color: #141414;
-  }
-
-  .links {
-    display: inline-flex;
-    gap: 24px;
-  }
-
-  .links a {
-    font-family: Nunito;
-    font-size: 18px;
-    color: #141414;
-    text-decoration: none;
-  }
-
   @media (max-width: 800px) {
     .gift-redemption-page {
       padding: 16px;
@@ -501,11 +474,6 @@
     .gift-card-bg {
       padding: 60px 30px 30px;
       min-height: 400px;
-    }
-
-    .gift-card-inner {
-      padding: 40px 25px;
-      min-height: 300px;
     }
 
     .gift-card-message {

@@ -117,9 +117,15 @@
 
     // gift_type "link" = recipient creates the story; show "Start creating". Otherwise (e.g. "story") = story exists; show "View the gift story"
     $: isLinkGift = (giftData?.gift_type ?? "link").toString().toLowerCase() === "link";
+    // Disable "Start creating" when a story has already been created for this gift
+    $: startCreatingDisabled = giftData != null && giftData.story_id != null && giftData.story_id !== "";
 
     const handleStartCreating = () => {
-        if (browser) sessionStorage.setItem('gift_mode', 'generation');
+        if (startCreatingDisabled) return;
+        if (browser) {
+            sessionStorage.setItem('gift_mode', 'generation');
+            if (giftId) sessionStorage.setItem('gift_id', giftId);
+        }
         goto("/create-character/1");
     };
 
@@ -175,7 +181,7 @@
                 <!-- Call to Action -->
                 <div class="call-to-action">
                     {#if isLinkGift}
-                        <button class="start-button" on:click={handleStartCreating}>
+                        <button class="start-button" disabled={startCreatingDisabled} on:click={handleStartCreating}>
                             <svg
                                 class="heart-icon"
                                 viewBox="0 0 24 24"
@@ -353,9 +359,6 @@
         color: #666d80;
     }
 
-    .recipient-info {
-    }
-
     .recipient-name {
         font-family: Quicksand;
         font-weight: 600;
@@ -404,6 +407,18 @@
         background: #3a7ae4;
         transform: translateY(-2px);
         box-shadow: 0 6px 16px rgba(67, 139, 255, 0.4);
+    }
+
+    .start-button:disabled {
+        background: #b0b0b0;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .start-button:disabled:hover {
+        background: #b0b0b0;
+        transform: none;
+        box-shadow: none;
     }
 
     .heart-icon {
