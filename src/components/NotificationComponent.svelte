@@ -8,6 +8,7 @@
   import { supabase } from '../lib/supabase';
   import giftIcon from '../assets/Gift.svg';
   import type { RealtimeChannel } from '@supabase/supabase-js';
+  import { formatDate } from '$lib/dateUtils';
 
   let notifications: Gift[] = [];
   let loading = true;
@@ -81,21 +82,6 @@
   const handleClickOutside = (event: MouseEvent) => {
     if (notificationElement && !notificationElement.contains(event.target as Node)) {
       showDropdown = false;
-    }
-  };
-
-  // Format date for display
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      });
-    } catch {
-      return 'N/A';
     }
   };
 
@@ -554,11 +540,11 @@
                   {/if}
                   <div class="notification-footer">
                     <span class="notification-date">
-                      {formatDate(notification.created_at)}
+                      {formatDate(notification.created_at) || 'N/A'}
                     </span>
                     {#if notification.delivery_time}
                       <span class="delivery-time">
-                        Delivery: {formatDate(notification.delivery_time)}
+                        Delivery: {formatDate(notification.delivery_time) || 'N/A'}
                       </span>
                     {/if}
                   </div>

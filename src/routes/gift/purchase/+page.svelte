@@ -12,6 +12,7 @@
   import { browser } from "$app/environment";
   import { page } from "$app/stores";
   import { env } from "../../../lib/env";
+  import { formatDate } from "$lib/dateUtils";
 
   let isLoading = false;
   let giftState: any = {};
@@ -62,23 +63,19 @@
     goto('/login');
   }
 
-  // Format delivery time for display
+  // Format delivery time for display (DD/MM/YYYY at H:MM AM/PM)
   const formatDeliveryTime = (deliveryOption: string, deliveryTime: string) => {
     if (deliveryOption === 'surprise') {
       return 'Surprise delivery (immediate)';
     } else if (deliveryOption === 'scheduled' && deliveryTime) {
       const date = new Date(deliveryTime);
-      const dateStr = date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      const timeStr = date.toLocaleTimeString('en-US', {
+      const dateStr = formatDate(date);
+      const timeStr = date.toLocaleTimeString('en-GB', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
       });
-      return `${dateStr} at ${timeStr}`;
+      return dateStr ? `${dateStr} at ${timeStr}` : deliveryTime;
     }
     return deliveryTime || 'Not specified';
   };

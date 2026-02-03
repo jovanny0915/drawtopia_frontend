@@ -16,6 +16,7 @@
   import Trash from "../assets/Trash.svg";
   import X from "../assets/X.svg";
   import logo from "../assets/logo.png";
+  import { formatDate } from "$lib/dateUtils";
 
   export let character: any;
 
@@ -75,20 +76,11 @@
     return character?.enhanced_images || character?.original_image_url || "https://placehold.co/125x127";
   };
 
-  // Format date
-  const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "Unknown";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    } catch {
-      return "Unknown";
-    }
-  };
+  const formatDateOrUnknown = (d: string | undefined) => formatDate(d) || "Unknown";
 
   // Get created date
   const getCreatedDate = () => {
-    return formatDate(character?.created_at);
+    return formatDateOrUnknown(character?.created_at);
   };
 
   // Get last used date (most recent book creation date)
@@ -98,7 +90,7 @@
       .map((book: any) => book.created_at)
       .filter(Boolean)
       .sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime());
-    return dates.length > 0 ? formatDate(dates[0]) : "Never";
+    return dates.length > 0 ? formatDateOrUnknown(dates[0]) : "Never";
   };
 
   // Get books count

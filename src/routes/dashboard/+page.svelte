@@ -18,6 +18,7 @@
   import gift from "../../assets/Gift.svg";
   import list from "../../assets/Sidebar.svg";
   import x from "../../assets/X.svg";
+  import arrowLeft from "../../assets/ArrowLeft.svg";
   import GiftTrackingComponent from "../../components/GiftTrackingComponent.svelte";
   import NotificationComponent from "../../components/NotificationComponent.svelte";
   import AccountDropdown from "../../components/AccountDropdown.svelte";
@@ -32,6 +33,7 @@
   import ChildProfilesView from "../../components/ChildProfilesView.svelte";
   import StoryLibraryView from "../../components/StoryLibraryView.svelte";
   import CharacterLibraryView from "../../components/CharacterLibraryView.svelte";
+  import { formatDate } from "$lib/dateUtils";
 
   // Sidebar library switch state
   let libraryView: "all" | "characters" | "children" = "all";
@@ -48,6 +50,8 @@
   }
 
   let showMobileMenu = false;
+  /** Desktop only: when true, sidebar shows only icons (no logo, no labels). */
+  let sidebarMinimized = false;
   let childProfiles: any[] = [];
   let stories: any[] = [];
   let rawStories: any[] = []; // Store raw story data for character extraction
@@ -142,6 +146,18 @@
 
   const toggleMobileMenu = () => {
     showMobileMenu = !showMobileMenu;
+  };
+
+  const toggleSidebarMinimized = () => {
+    if (!isMobile) sidebarMinimized = !sidebarMinimized;
+  };
+
+  const handleSidebarHeaderButtonClick = () => {
+    if (isMobile) {
+      toggleMobileMenu();
+    } else {
+      toggleSidebarMinimized();
+    }
   };
 
   // Function to format seconds into "h m s" format
@@ -319,9 +335,7 @@
               author: story.child_profiles?.first_name || "Unknown",
               status: story.status || "completed",
               story_cover: story.story_cover,
-              createdDate: story.created_at
-                ? new Date(story.created_at).toLocaleDateString("en-GB")
-                : "Unknown",
+              createdDate: formatDate(story.created_at) || "Unknown",
               created_at: story.created_at,
               durationText: "8 min read", // Default duration - could be calculated based on story content
               occasion: determineOccasion(
@@ -423,9 +437,7 @@
           status: gift.status,
           giftFrom: gift.relationship,
           occasion: gift.occasion,
-          expectedDelivery: gift.delivery_time
-            ? new Date(gift.delivery_time).toLocaleDateString("en-GB")
-            : "Unknown",
+          expectedDelivery: formatDate(gift.delivery_time) || "Unknown",
           createdAt: gift.created_at ? new Date(gift.created_at) : new Date(),
           notification_sent: gift.notification_sent,
           send_to: gift.delivery_email,
@@ -627,30 +639,35 @@
 
 {#if !isMobile}
 <div class="parent-dashboard">
-  <div class="navigation">
+  <div class="navigation" class:sidebar-minimized={sidebarMinimized}>
     <div class="sidebarheader">
-      <div class="logo-text-full">
-        <div class="logo-img"></div>
-      </div>
+      {#if !sidebarMinimized}
+        <div class="logo-text-full">
+          <div class="logo-img"></div>
+        </div>
+      {/if}
       <div
         data-weight="Regular"
         class="icon-list"
-        on:click={toggleMobileMenu}
-        on:keydown={(e) => e.key === "Enter" && toggleMobileMenu()}
+        on:click={handleSidebarHeaderButtonClick}
+        on:keydown={(e) => e.key === "Enter" && handleSidebarHeaderButtonClick()}
         role="button"
         tabindex="0"
+        title={sidebarMinimized ? "Expand sidebar" : "Minimize sidebar"}
       >
         <img
-          src={showMobileMenu ? x : list}
-          alt={showMobileMenu ? "close" : "menu"}
+          src={isMobile ? (showMobileMenu ? x : list) : (sidebarMinimized ? list : x)}
+          alt={sidebarMinimized ? "Expand sidebar" : "Minimize sidebar"}
           class="list"
         />
       </div>
     </div>
     <div class="content">
-      <div class="sidebargrouping-label">
-        <div><span class="mainmenu_span">MENU</span></div>
-      </div>
+      {#if !sidebarMinimized}
+        <div class="sidebargrouping-label">
+          <div><span class="mainmenu_span">MENU</span></div>
+        </div>
+      {/if}
       <div class="menu">
         <div 
           class="parent-menu-dropdown" 
@@ -659,13 +676,14 @@
           role="button"
           tabindex="0"
           on:keydown={(e) => e.key === "Enter" && handleMenuClick("home")}
+          title="Home"
         >
           <div class="sidebar-menu-parent">
             <div class="title-icon">
               <div class="house">
                 <img src={house} alt="house" class="house" />
               </div>
-              <div><span class="home_span">Home</span></div>
+              {#if !sidebarMinimized}<div><span class="home_span">Home</span></div>{/if}
             </div>
           </div>
         </div>
@@ -676,13 +694,14 @@
           role="button"
           tabindex="0"
           on:keydown={(e) => e.key === "Enter" && handleMenuClick("story-library")}
+          title="Story Library"
         >
           <div class="sidebar-menu-parent_02">
             <div class="title-icon_02">
               <div class="bookopen">
                 <img src={bookopen} alt="bookopen" class="bookopen" />
               </div>
-              <div><span class="storylibrary_span">Story Library</span></div>
+              {#if !sidebarMinimized}<div><span class="storylibrary_span">Story Library</span></div>{/if}
             </div>
           </div>
         </div>
@@ -694,13 +713,14 @@
           role="button"
           tabindex="0"
           on:keydown={(e) => e.key === "Enter" && handleMenuClick("characters")}
+          title="Characters"
         >
         <div class="sidebar-menu-parent_01">
             <div class="title-icon_01">
               <div class="baby">
                 <img src={userSquare} alt="characters" class="baby" />
               </div>
-              <div><span class="childprofiles_span">Characters</span></div>
+              {#if !sidebarMinimized}<div><span class="childprofiles_span">Characters</span></div>{/if}
             </div>
           </div>
         </div>
@@ -711,13 +731,14 @@
           role="button"
           tabindex="0"
           on:keydown={(e) => e.key === "Enter" && handleMenuClick("child-profiles")}
+          title="Child Profiles"
         >
           <div class="sidebar-menu-parent_01">
             <div class="title-icon_01">
               <div class="baby">
                 <img src={baby} alt="baby" class="baby" />
               </div>
-              <div><span class="childprofiles_span">Child Profiles</span></div>
+              {#if !sidebarMinimized}<div><span class="childprofiles_span">Child Profiles</span></div>{/if}
             </div>
           </div>
         </div>
@@ -728,13 +749,14 @@
           role="button"
           tabindex="0"
           on:keydown={(e) => e.key === "Enter" && handleMenuClick("gift-tracking")}
+          title="Gift Tracking"
         >
           <div class="sidebar-menu-parent_03">
             <div class="title-icon_03">
               <div class="gift">
                 <img src={gift} alt="gift" class="gift" />
               </div>
-              <div><span class="gifttracking_span">Gift Tracking</span></div>
+              {#if !sidebarMinimized}<div><span class="gifttracking_span">Gift Tracking</span></div>{/if}
             </div>
           </div>
         </div>
@@ -1576,6 +1598,70 @@
     justify-content: flex-start;
     align-items: flex-start;
     display: inline-flex;
+    transition: width 0.2s ease;
+  }
+
+  /* Minimized sidebar: icons only, no logo, narrow width */
+  .navigation.sidebar-minimized {
+    width: 72px;
+    min-width: 72px;
+  }
+
+  .navigation.sidebar-minimized .sidebarheader {
+    width: 72px;
+    min-width: 72px;
+    padding-left: 12px;
+    padding-right: 12px;
+    justify-content: center;
+  }
+
+  .navigation.sidebar-minimized .content {
+    width: 72px;
+    min-width: 72px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .navigation.sidebar-minimized .menu {
+    width: 72px;
+    min-width: 72px;
+    padding: 12px 0;
+    gap: 4px;
+  }
+
+  .navigation.sidebar-minimized .parent-menu-dropdown,
+  .navigation.sidebar-minimized .parent-menu-dropdown_01,
+  .navigation.sidebar-minimized .parent-menu-dropdown_02,
+  .navigation.sidebar-minimized .parent-menu-dropdown_03 {
+    width: 48px;
+    min-width: 48px;
+    align-items: center;
+  }
+
+  .navigation.sidebar-minimized .sidebar-menu-parent,
+  .navigation.sidebar-minimized .sidebar-menu-parent_01,
+  .navigation.sidebar-minimized .sidebar-menu-parent_02,
+  .navigation.sidebar-minimized .sidebar-menu-parent_03 {
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .navigation.sidebar-minimized .title-icon,
+  .navigation.sidebar-minimized .title-icon_01,
+  .navigation.sidebar-minimized .title-icon_02,
+  .navigation.sidebar-minimized .title-icon_03 {
+    justify-content: center;
+  }
+
+  .navigation.sidebar-minimized .house,
+  .navigation.sidebar-minimized .bookopen,
+  .navigation.sidebar-minimized .baby,
+  .navigation.sidebar-minimized .gift {
+    margin: 0;
+  }
+
+  .sidebar-expand-icon {
+    transform: rotate(180deg);
   }
 
   .sidebar {

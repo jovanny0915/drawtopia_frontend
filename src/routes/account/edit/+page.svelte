@@ -13,6 +13,7 @@
     import { supabase } from "../../../lib/supabase";
     import { uploadAvatar } from "../../../lib/storage";
     import AccountDropdown from "../../../components/AccountDropdown.svelte";
+    import { formatDate } from "$lib/dateUtils";
 
     // User data state
     let userName = "Alex Smith";
@@ -191,16 +192,6 @@
             subscriptionStatus = "free";
             subscriptionPlan = "Free Plan";
         }
-    }
-    
-    // Format date for display
-    function formatDate(date: Date | null): string {
-        if (!date) return "";
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
     }
     
     // Format subscription status for display
@@ -629,7 +620,7 @@
                                 {#if currentPeriodEnd}
                                     <div class="detail-row">
                                         <span class="detail-label">{subscriptionStatus === 'cancelled' || subscriptionStatus === 'canceled' ? 'Access Until:' : 'Next Billing Date:'}</span>
-                                        <span class="detail-value">{formatDate(currentPeriodEnd)}</span>
+                                        <span class="detail-value">{formatDate(currentPeriodEnd) || ""}</span>
                                     </div>
                                 {/if}
                                 {#if subscriptionStatus === 'cancelled' || subscriptionStatus === 'canceled'}
@@ -689,7 +680,7 @@
                     <li>You can resubscribe anytime</li>
                 </ul>
                 {#if currentPeriodEnd}
-                    <p class="access-until-text">You'll have access until <strong>{formatDate(currentPeriodEnd)}</strong></p>
+                    <p class="access-until-text">You'll have access until <strong>{formatDate(currentPeriodEnd) || ""}</strong></p>
                 {/if}
             </div>
             <div class="modal-actions">

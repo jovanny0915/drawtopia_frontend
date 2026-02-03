@@ -8,6 +8,7 @@
   import { getStoryById } from "../lib/database/stories";
   import { supabase } from "../lib/supabase";
   import GiftCard from "./GiftCard.svelte";
+  import { formatDate } from "$lib/dateUtils";
 
   interface GiftData {
     id: string;
@@ -93,9 +94,7 @@
             status: gift.status,
             giftFrom: gift.relationship,
             occasion: gift.occasion,
-            expectedDelivery: gift.delivery_time
-              ? new Date(gift.delivery_time).toLocaleDateString("en-GB")
-              : "Unknown",
+            expectedDelivery: formatDate(gift.delivery_time) || "Unknown",
             createdAt: gift.created_at ? new Date(gift.created_at) : new Date(),
             notification_sent: gift.notification_sent,
             story_id: gift.story_id ?? null,

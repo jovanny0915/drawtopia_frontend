@@ -306,7 +306,7 @@
                                     id="delivery-date"
                                     type="date"
                                     class="form-input date-input"
-                                    placeholder="MM/DD/YYYY"
+                                    placeholder="DD/MM/YYYY"
                                     bind:value={deliveryDate}
                                     min={new Date().toISOString().split('T')[0]}
                                 />

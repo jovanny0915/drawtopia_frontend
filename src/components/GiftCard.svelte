@@ -5,6 +5,7 @@
   import blueEye from "../assets/BlueEye.svg";
   import heart from "../assets/Heart.svg";
   import checkmark from "../assets/Check.svg";
+  import { formatDate } from "$lib/dateUtils";
   const dispatch = createEventDispatcher();
 
   export let gift: any;
@@ -15,7 +16,7 @@
   $: fromEmail = gift?.from_email || "";
   $: showFrom = isReceivedByMe;
   $: fromDisplay = (isReceivedByMe && fromEmail) ? fromEmail : (isReceivedByMe ? "Unknown" : "");
-  $: sentDate = gift?.created_at ? new Date(gift.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Unknown";
+  $: sentDate = formatDate(gift?.created_at) || "Unknown";
   $: deliveryDate = gift?.expectedDelivery || "Unknown";
   $: age = gift?.age || (gift?.ageGroup ? (() => {
     const match = gift.ageGroup.match(/(\d+)-(\d+)/);

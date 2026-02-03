@@ -17,6 +17,7 @@
     import { getUserProfile } from "../../lib/auth";
     import AccountDropdown from "../../components/AccountDropdown.svelte";
     import PushNotificationSettings from "../../components/PushNotificationSettings.svelte";
+    import { formatDate } from "$lib/dateUtils";
 
     let isEditing = false;
     let showEditProfileModal = false;
@@ -170,16 +171,6 @@
         }
     }
     
-    // Format date for display
-    function formatDate(date: Date | null): string {
-        if (!date) return "";
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    }
-
     // Reactive statement to update user data when auth state changes
     $: if (browser && $auth.user && !$auth.loading) {
         getAuthInfo();
@@ -324,7 +315,7 @@
                                 {#if currentPeriodEnd}
                                     <div class="detail-row">
                                         <span class="detail-label">Renews on:</span>
-                                        <span class="detail-value">{formatDate(currentPeriodEnd)}</span>
+                                        <span class="detail-value">{formatDate(currentPeriodEnd) || ""}</span>
                                     </div>
                                 {/if}
                             </div>

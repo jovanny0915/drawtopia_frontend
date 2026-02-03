@@ -49,14 +49,13 @@
     return "Story Mode";
   };
 
-  // Format date
-  const formatDate = (created_at: any): string => {
-    if (!books || books.length === 0) return "Never";
-    const dates = books
-      .map((book: any) => book.created_at)
-      .filter(Boolean)
-      .sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime());
-    return dates.length > 0 ? new Date(dates[0]).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Never";
+  import { formatDate } from "$lib/dateUtils";
+  const formatDateOrNever = (d: string | Date | undefined): string => formatDate(d) || "Never";
+  const getLastUsedDate = (): string | undefined => {
+    if (characterData?.last_used) return characterData.last_used;
+    if (!books?.length) return undefined;
+    const dates = books.map((b: any) => b.created_at).filter(Boolean).sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime());
+    return dates[0];
   };
 
   // Handle book click
@@ -153,13 +152,13 @@
             <div class="calendarplus">
               <img src={calendarPlus} alt="calendarPlus" class="calendarplus-icon">
             </div>
-            <div><span class="createdoct152024_span">Created: {formatDate(characterData?.created_at)}</span></div>
+            <div><span class="createdoct152024_span">Created: {formatDateOrNever(characterData?.created_at)}</span></div>
           </div>
           <div class="icons_04">
             <div class="calendardots">
               <img src={calendarDots} alt="calendarDots" class="calendardots-icon">
             </div>
-            <div><span class="lastusednov032024_span">Last Used: {formatDate(characterData?.last_used)}</span></div>
+            <div><span class="lastusednov032024_span">Last Used: {formatDateOrNever(getLastUsedDate())}</span></div>
           </div>
           <div class="icons_05">
             <div class="bookbookmark">

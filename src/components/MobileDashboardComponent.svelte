@@ -31,6 +31,7 @@
   import baby from "../assets/Baby.svg";
   import gift from "../assets/Gift.svg";
   import books from "../assets/Books.svg";
+  import { formatDate } from "$lib/dateUtils";
 
   let libraryView: "all" | "characters" | "children" = "all";
   let sidebarOpen = false;
@@ -307,9 +308,7 @@
               author: story.child_profiles?.first_name || "Unknown",
               status: story.status || "completed",
               story_cover: story.story_cover,
-              createdDate: story.created_at
-                ? new Date(story.created_at).toLocaleDateString("en-GB")
-                : "Unknown",
+              createdDate: formatDate(story.created_at) || "Unknown",
               created_at: story.created_at,
               durationText: "8 min read",
               occasion: determineOccasion(
@@ -359,23 +358,6 @@
     return parseInt(ageRange.split("-")[0]) || 7;
   };
 
-  // Helper to format date for display
-  const formatDate = (dateString: string | undefined): string => {
-    if (!dateString) return "Unknown";
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "Unknown";
-      // Format as "Oct 15, 2024"
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return "Unknown";
-    }
-  };
-
   const fetchGifts = async () => {
     try {
       loadingGifts = true;
@@ -391,11 +373,9 @@
           giftFrom: gift.relationship,
           occasion: gift.occasion,
           send_to: gift.delivery_email || "Unknown",
-          sentDate: formatDate(gift.created_at),
-          deliveryDate: formatDate(gift.delivery_time),
-          expectedDelivery: gift.delivery_time
-            ? new Date(gift.delivery_time).toLocaleDateString("en-GB")
-            : "Unknown",
+          sentDate: formatDate(gift.created_at) || "Unknown",
+          deliveryDate: formatDate(gift.delivery_time) || "Unknown",
+          expectedDelivery: formatDate(gift.delivery_time) || "Unknown",
           created_at: gift.created_at ? new Date(gift.created_at) : new Date(),
           notification_sent: gift.notification_sent,
           story_id: gift.story_id ?? null

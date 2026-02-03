@@ -236,7 +236,7 @@
             <span class="accountsettings_span">Account Settings</span>
           </div>
         </button>
-        <button class="menu_01" type="button" role="menuitem">
+        <button class="menu_01" type="button" role="menuitem" on:click={() => { closeDropdown(); goto('/pricing'); }}>
           <div class="globe">
             <img src={globe} alt="globe">
           </div>

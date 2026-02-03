@@ -12,6 +12,7 @@
   import simpledownload from "../assets/BlackDownloadSimple.svg";
   import simplesharenetwork from "../assets/BlackShareNetwork.svg";
   import { goto } from "$app/navigation";
+  import { formatDate } from "$lib/dateUtils";
 
   export let item: any;
   
@@ -75,19 +76,6 @@
 
   const actionButton = getActionButton();
 
-  // Format date
-  const formatDate = (date: string | Date | undefined) => {
-    if (!date) return "Unknown";
-    try {
-      const d = typeof date === "string" ? new Date(date) : date;
-      // Check if date is valid
-      if (isNaN(d.getTime())) return "Unknown";
-      return d.toLocaleDateString("en-GB");
-    } catch {
-      return "Unknown";
-    }
-  };
-
   // Get image source
   const getImageSrc = () => {
     return item?.story_cover || item?.original_image_url || vectorBook;
@@ -106,7 +94,7 @@
   // Get created date
   const getCreatedDate = () => {
     // Prefer created_at (raw date) over createdDate (pre-formatted string)
-    return formatDate(item?.created_at || item?.createdDate);
+    return formatDate(item?.created_at || item?.createdDate) || "Unknown";
   };
 
   // Handle view book button click

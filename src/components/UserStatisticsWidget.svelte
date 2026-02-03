@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { fetchUserStatistics, fetchUserStatisticsSummary, formatSubscriptionStatus, formatRole } from '$lib/api/userStatistics';
   import type { UserStatistics, UserStatisticsSummary } from '$lib/api/userStatistics';
+  import { formatDateTime } from '$lib/dateUtils';
 
   // Component props
   export let mode: 'summary' | 'detailed' = 'summary';
@@ -156,7 +157,7 @@
 
       <!-- Metadata -->
       <div class="metadata">
-        <small>Last updated: {new Date(statistics.metadata.generated_at).toLocaleString()}</small>
+        <small>Last updated: {formatDateTime(statistics.metadata.generated_at)}</small>
       </div>
     </div>
   {/if}

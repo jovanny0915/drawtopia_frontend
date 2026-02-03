@@ -5,6 +5,7 @@
 import { getCurrentUser, checkUserExists } from '$lib/auth';
 import { supabase } from '../supabase';
 import { env } from '../env';
+import { formatDate } from '../dateUtils';
 
 export interface Gift {
   id?: string;
@@ -140,7 +141,7 @@ export async function createGift(gift: Gift): Promise<DatabaseResult> {
           const now = new Date();
           if (delivery.getTime() > now.getTime() + 60 * 1000) {
             scenario = 'scheduled_delivery';
-            deliveryDate = delivery.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+            deliveryDate = formatDate(delivery) || delivery.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
             deliveryTime = delivery.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
           }
         }
