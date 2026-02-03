@@ -200,9 +200,9 @@
             <div class="logo-text-full">
                 <img src={drawtopia} alt="drawtopia" class="drawtopia-logo" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} />
             </div>
-            <div class="x">
+            <!-- <div class="x">
                 <img src={xicon} alt="" />
-            </div>
+            </div> -->
         </div>
         <div class="stroke"></div>
     </div>
@@ -2618,5 +2618,205 @@
         align-items: center;
         gap: 24px;
         display: inline-flex;
+    }
+
+    @media (max-width: 768px) {
+        .pop-up {
+            position: relative;
+            padding: 20px 16px 24px;
+        }
+
+        .chooseyourstoryadventure_span {
+            font-size: 30px;
+            line-height: 38px;
+        }
+
+        .createmagicalpersonalizedstoriesforyourchildrenstartfreeandunlockendlesspossibilities_span {
+            font-size: 16px;
+            line-height: 22px;
+        }
+
+        .frame-2147227474,
+        .frame-2147227473,
+        .frame-2147227468 {
+            width: 100%;
+            align-items: stretch;
+        }
+
+        .frame-2147227468,
+        .frame-2147227473 {
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .frame-2147227465,
+        .frame-2147227467,
+        .frame-2147227466 {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .frame-2147227471,
+        .frame-2147227472 {
+            width: 100%;
+            height: auto;
+            padding: 20px;
+            max-width: 420px;
+        }
+
+        .frame-2147227464,
+        .frame-2147227464_01,
+        .frame-2147227464_02,
+        .frame-2147227463,
+        .frame-2147227463_01,
+        .frame-2147227463_02 {
+            width: 100%;
+        }
+
+        .frame-1410103777,
+        .frame-1410103753 {
+            width: 100%;
+        }
+
+        .frame-1410103777 {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .checklist-container,
+        .checklist-container_01,
+        .checklist-container_02 {
+            width: 100%;
+            height: auto;
+        }
+
+        .scroll,
+        .rectangle-171 {
+            display: none;
+        }
+
+        .button_04 {
+            position: relative;
+            right: auto;
+            bottom: auto;
+            transform: none;
+            width: 100%;
+        }
+
+        .button_04:hover,
+        .button_04:active {
+            transform: none;
+        }
+
+        .heavygroup,
+        .lightgroup {
+            width: 140px;
+            height: auto;
+        }
+
+        .ellipse-1426,
+        .ellipse-1426_01,
+        .ellipse-1427,
+        .ellipse-1427_01,
+        .ellipse-1428,
+        .ellipse-1426_02 {
+            opacity: 0.5;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .chooseyourstoryadventure_span {
+            font-size: 26px;
+            line-height: 34px;
+        }
+
+        .singlestory_span,
+        .storybundle_span,
+        .familysubcription_span,
+        .freepreview_span,
+        .allplansinclude_span {
+            font-size: 20px;
+            line-height: 26px;
+        }
+
+        .f99story_span_01,
+        .f4993stories_span_01,
+        .f499month_span_01 {
+            font-size: 36px;
+            line-height: 46px;
+        }
+
+        .f99story_span_02,
+        .f4993stories_span_02,
+        .f499month_span_02,
+        .f7988annually_span {
+            font-size: 14px;
+            line-height: 20px;
+        }
+
+        .startcreatingfree_span,
+        .getstorybundle_span,
+        .startsubscription_span,
+        .startcreatingfree_01_span,
+        .startcreatingfree_02_span {
+            font-size: 16px;
+            line-height: 22px;
+        }
+
+        .button,
+        .button_01,
+        .button_02,
+        .button_03,
+        .button_04 {
+            width: 100%;
+        }
+
+        .checklist,
+        .checklist_01,
+        .checklist_02,
+        .checklist_03,
+        .checklist_04,
+        .checklist_05,
+        .checklist_06,
+        .checklist_07,
+        .checklist_08,
+        .checklist_09,
+        .checklist_10,
+        .checklist_11,
+        .checklist_12,
+        .checklist_13,
+        .checklist_14,
+        .checklist_15,
+        .checklist_16,
+        .checklist_17 {
+            align-items: flex-start;
+        }
+
+        .onepersonalizeddigitalstorybook_span,
+        .previewfirst2pagesfree_span,
+        .high-resolutiondownloadafterpurchase_span,
+        .shareviaemailorsocialmedia_span,
+        .threepersonalizeddigitalstorybook_span,
+        .high-resolutiondownloads_span,
+        .high-resolutiondownloadafterpurchase_01_span,
+        .save59820discount_span,
+        .upto20storiesmonthdigitalstorybooks_span,
+        .previewallstoriesforfree_span,
+        .accesstopremiumtemplates_span,
+        .createstorieswithmultiplecharacters_span,
+        .giftingoptionsavailable_span,
+        .billedannuallysamemonthlyrate_span,
+        .characterenhancementtechnology_span,
+        .professionalstorytemplates_span,
+        .educationalvalueintegration_span,
+        .digitaldownloadoptions_span {
+            font-size: 16px;
+            line-height: 22px;
+        }
+
+        .checklist-container_03 {
+            height: auto;
+        }
     }
 </style>

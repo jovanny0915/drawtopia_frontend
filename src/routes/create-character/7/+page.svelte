@@ -251,7 +251,7 @@
       <div class="logo-img"></div>
     </div>
   </div>
-  <MobileBackBtn backRoute="/create-character/6" />
+  <MobileBackBtn backRoute="/create-character/5" />
   <div class="frame-1410103818">
     <div class="heading">
       <div class="create-your-character">
@@ -271,8 +271,8 @@
         </div>
       </div>
     </div>
-    <MobileStepProgressBar currentStep={7} />
-    <ProgressBar currentStep={7} />
+    <MobileStepProgressBar currentStep={5} />
+    <ProgressBar currentStep={5} />
     <div class="frame-1410104027">
       <div class="star-container">
         <StarEmoticon />

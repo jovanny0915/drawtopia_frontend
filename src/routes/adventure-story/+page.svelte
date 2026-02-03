@@ -41,7 +41,7 @@
     </div>
     <div class="frame-1410103818">
         <div class="heading">
-            <div class="configure-your-story-adventure"><span class="configureyourstoryadventure_span">  Configure Your Story Adventure</span></div>
+            <div class="configure-your-story-adventure"><span class="configureyourstoryadventure_span">Configure Your Story Adventure</span></div>
             <div class="tag">
                 <div class="shieldstar">
                     <img src={shieldstar} alt="shieldstar">

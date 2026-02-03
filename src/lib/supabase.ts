@@ -5,6 +5,35 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+export const AUTH_STORAGE_KEY = 'sb-auth-token';
+
+/** Custom storage so first_name/last_name from custom users table persist in the same key as the session */
+function createAuthStorage(): Storage | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const base = window.localStorage;
+  return {
+    getItem: (key: string) => base.getItem(key),
+    setItem: (key: string, value: string) => {
+      if (key === AUTH_STORAGE_KEY) {
+        try {
+          const current = base.getItem(key);
+          const next = value ? JSON.parse(value) as Record<string, unknown> : null;
+          if (current && next && typeof next === 'object') {
+            const prev = JSON.parse(current) as Record<string, unknown>;
+            if (prev.first_name !== undefined) next.first_name = prev.first_name;
+            if (prev.last_name !== undefined) next.last_name = prev.last_name;
+            value = JSON.stringify(next);
+          }
+        } catch (_) {}
+      }
+      base.setItem(key, value);
+    },
+    removeItem: (key: string) => base.removeItem(key),
+    get length() { return base.length; },
+    key: (i: number) => base.key(i),
+    clear: () => base.clear()
+  };
+}
 
 // Create Supabase client
 export const supabase = createClient(
@@ -12,11 +41,11 @@ export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY,
   {
     auth: {
-      persistSession: true,        // Default: true - stores session in localStorage
-      autoRefreshToken: true,      // Default: true - automatically refreshes tokens
-      detectSessionInUrl: true,    // Default: true - detects OAuth callbacks
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined, // Default: localStorage
-      storageKey: 'sb-auth-token'  // Default: 'sb-<project-ref>-auth-token'
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: createAuthStorage(),
+      storageKey: AUTH_STORAGE_KEY
     }
   }
 );

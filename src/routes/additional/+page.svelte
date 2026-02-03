@@ -2,6 +2,7 @@
   import Navbar from "../../components/Navbar.svelte";
   import AccountDropdown from "../../components/AccountDropdown.svelte";
   import { goto } from '$app/navigation';
+  import MobileBackBtn from "../../components/MobileBackBtn.svelte";
   import purplecheck from "../../assets/purple-check.svg";
   import arrowleft from "../../assets/ArrowLeft.svg";
 
@@ -43,13 +44,8 @@
   </div>
   
   <!-- Mobile Back Button -->
-  <div class="mobile-back-button">
-    <div class="mobile-back-btn" role="button" tabindex="0" 
-         on:click={handleBack} 
-         on:keydown={(e) => e.key === 'Enter' && handleBack()}>
-      <img class="arrow-left-icon" src={arrowleft} alt="back" />
-    </div>
-    <span class="back-text">Back</span>
+  <div class="mobile-back-wrapper">
+    <MobileBackBtn backRoute="/purchase" backText="Back" />
   </div>
   
   <div class="menu">
@@ -771,40 +767,10 @@
   display: inline-flex;
 }
 
-/* Mobile Back Button Styles */
-.mobile-back-button {
+/* Mobile Back Button Wrapper */
+.mobile-back-wrapper {
   display: none;
-}
-
-.mobile-back-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 8px;
-  background: white;
-  border-radius: 8px;
-  outline: 1px #dcdcdc solid;
-  outline-offset: -1px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  width: fit-content;
-}
-
-.mobile-back-btn:hover {
-  background-color: #f8fafb;
-}
-
-.arrow-left-icon {
-  width: 20px;
-  height: 20px;
-}
-
-.back-text {
-  color: #121212;
-  font-size: 16px;
-  font-family: Quicksand;
-  font-weight: 600;
-  line-height: 22.4px;
+  width: 100%;
 }
 
 .purple-check {
@@ -818,12 +784,11 @@
 
 /* Mobile responsive styles */
 @media (max-width: 800px) {
-  .mobile-back-button {
+  .mobile-back-wrapper {
     display: flex;
     width: 100%;
     margin-bottom: 16px;
     align-items: center;
-    gap: 10px;
   }
 
   .additional-items-screen-preview {

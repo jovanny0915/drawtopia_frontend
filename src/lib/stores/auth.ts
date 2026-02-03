@@ -3,24 +3,81 @@
  * This module provides reactive authentication state management
  */
 
-import { writable } from 'svelte/store';
-import { supabase } from '../supabase';
+import { writable, derived } from 'svelte/store';
+import { supabase, AUTH_STORAGE_KEY } from '../supabase';
 import { registerUser, registerGoogleOAuthUser } from '../auth';
 import type { User, Session } from '@supabase/supabase-js';
+
+// User with profile fields from custom users table (for display name, etc.)
+export type UserWithProfile = User & { first_name?: string | null; last_name?: string | null };
 
 // Auth state interface
 interface AuthState {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 // Initial state
 const initialState: AuthState = {
   user: null,
   session: null,
-  loading: true
+  loading: true,
+  first_name: null,
+  last_name: null
 };
+
+/** Fetch first_name and last_name from custom users table and sync to auth state + sb-auth-token */
+async function syncUserProfileToAuth(session: Session | null): Promise<void> {
+  if (typeof window === 'undefined' || !session?.user?.id) {
+    if (!session) {
+      auth.update(s => ({ ...s, first_name: null, last_name: null }));
+    }
+    return;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('first_name, last_name')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Could not fetch user profile for auth store:', error.message);
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { first_name?: string; last_name?: string };
+          auth.update(s => ({
+            ...s,
+            first_name: parsed.first_name ?? null,
+            last_name: parsed.last_name ?? null
+          }));
+        }
+      } catch (_) {}
+      return;
+    }
+
+    const first_name = data?.first_name ?? null;
+    const last_name = data?.last_name ?? null;
+    auth.update(s => ({ ...s, first_name, last_name }));
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw) as Record<string, unknown>;
+        stored.first_name = first_name;
+        stored.last_name = last_name;
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stored));
+      }
+    } catch (e) {
+      console.warn('Error saving profile to sb-auth-token:', e);
+    }
+  } catch (e) {
+    console.warn('Error syncing user profile to auth:', e);
+  }
+}
 
 // Create the auth store
 export const auth = writable<AuthState>(initialState);
@@ -108,6 +165,25 @@ export function initAuth() {
       user: session?.user ?? null,
       loading: false
     }));
+
+    if (session) {
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw) as { first_name?: string; last_name?: string };
+            auth.update(s => ({
+              ...s,
+              first_name: parsed.first_name ?? null,
+              last_name: parsed.last_name ?? null
+            }));
+          }
+        } catch (_) {}
+      }
+      syncUserProfileToAuth(session);
+    } else {
+      auth.update(s => ({ ...s, first_name: null, last_name: null }));
+    }
   };
 
   getSessionWithRetry();
@@ -124,6 +200,12 @@ export function initAuth() {
         user: session?.user ?? null,
         loading: false
       }));
+
+      if (session) {
+        syncUserProfileToAuth(session);
+      } else {
+        auth.update(s => ({ ...s, first_name: null, last_name: null }));
+      }
       
       // Handle both SIGNED_IN and TOKEN_REFRESHED events
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
@@ -193,7 +275,15 @@ export function initAuth() {
 }
 
 // Derived stores for convenience
-export const user = writable<User | null>(null);
+/** User with first_name/last_name from custom users table - use this for display name */
+export const user = derived(auth, ($auth): UserWithProfile | null => {
+  if (!$auth.user) return null;
+  return {
+    ...$auth.user,
+    first_name: $auth.first_name ?? undefined,
+    last_name: $auth.last_name ?? undefined
+  };
+});
 export const session = writable<Session | null>(null);
 export const isAuthenticated = writable<boolean>(false);
 export const authLoading = writable<boolean>(true);
@@ -201,7 +291,6 @@ export const authLoading = writable<boolean>(true);
 // Subscribe to main auth store and update derived stores
 auth.subscribe(state => {
   console.log("state", state);
-  user.set(state.user);
   session.set(state.session);
   isAuthenticated.set(!!state.user);
   authLoading.set(state.loading);

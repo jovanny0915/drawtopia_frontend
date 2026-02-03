@@ -49,14 +49,8 @@
   </Navbar>
   
   <!-- Mobile Back Button -->
-  <div class="mobile-back-button">
-    <div class="mobile-back-btn" role="button" tabindex="0" 
-         on:click={handleBack} 
-         on:keydown={(e) => e.key === 'Enter' && handleBack()}>
-      <img class="arrow-left-icon" src={arrowleft} alt="back" />
-      
-    </div>
-    <span class="back-text">Back</span>
+  <div class="mobile-back-wrapper">
+    <MobileBackBtn backRoute="/dashboard" backText="Back" />
   </div>
   
   <div class="frame-1410103976">
@@ -231,7 +225,13 @@
         </div>
       </div>
       <div class="frame-1410103958">
-        <div class="button_04">
+        <div
+          class="button_04"
+          role="button"
+          tabindex="0"
+          on:click={handleBack}
+          on:keydown={(e) => e.key === 'Enter' && handleBack()}
+        >
           <div class="arrowleft">
             <img class="" src={arrowleft} alt="arrowleft" />
           </div>
@@ -898,6 +898,7 @@
     align-self: stretch;
     padding: 12px;
     overflow: hidden;
+    background: #e9e9e9;
     border-radius: 16px;
     flex-direction: column;
     justify-content: flex-start;
@@ -1238,40 +1239,10 @@
     display: inline-flex;
   }
 
-  /* Mobile Back Button Styles */
-  .mobile-back-button {
+  /* Mobile Back Button Wrapper */
+  .mobile-back-wrapper {
     display: none;
-  }
-
-  .mobile-back-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 8px;
-    background: white;
-    border-radius: 8px;
-    outline: 1px #dcdcdc solid;
-    outline-offset: -1px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    width: fit-content;
-  }
-
-  .mobile-back-btn:hover {
-    background-color: #f8fafb;
-  }
-
-  .arrow-left-icon {
-    width: 20px;
-    height: 20px;
-  }
-
-  .back-text {
-    color: #121212;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.4px;
+    width: 100%;
   }
 
   .purple-check {
@@ -1285,12 +1256,10 @@
 
   /* Mobile responsive styles */
   @media (max-width: 800px) {
-    .mobile-back-button {
+    .mobile-back-wrapper {
       display: flex;
       width: 100%;
       margin-bottom: 16px;
-      align-items: center;
-      gap: 10px;
     }
 
     .purchase-option-screen-preview {
@@ -1341,11 +1310,6 @@
       width: 100%;
     }
 
-    .frame-1410103837,
-    .frame-1410103837_01,
-    .frame-1410103837_02 {
-      height: 200px;
-    }
 
     .purchase-option {
       width: 100%;

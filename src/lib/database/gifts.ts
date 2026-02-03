@@ -141,7 +141,7 @@ export async function createGift(gift: Gift): Promise<DatabaseResult> {
           const now = new Date();
           if (delivery.getTime() > now.getTime() + 60 * 1000) {
             scenario = 'scheduled_delivery';
-            deliveryDate = formatDate(delivery) || delivery.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+            deliveryDate = formatDate(delivery) || delivery.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
             deliveryTime = delivery.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
           }
         }

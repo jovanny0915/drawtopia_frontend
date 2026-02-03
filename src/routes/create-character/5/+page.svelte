@@ -8,11 +8,11 @@
   import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";
   import { browser } from "$app/environment";
   import { onMount } from "svelte";
-  import forest from "../../../assets/big.png";
-  import outspace from "../../../assets/outspace.png";
-  import underwater from "../../../assets/underwater.png";
-  import treasure from "../../../assets/treasurehunt.png";
-  import helping from "../../../assets/helpfriend.png";
+  import forest from "../../../assets/cenchanted_forest.png";
+  import outspace from "../../../assets/couter_space.png";
+  import underwater from "../../../assets/cunderwater_kingdom.png";
+  import treasure from "../../../assets/treasure_hunt.png";
+  import helping from "../../../assets/help_friend.png";
   import globehemispherewest from "../../../assets/BlackGlobeHemiSphereWest.svg";
   import { storyCreation } from "../../../lib/stores/storyCreation";
 
@@ -370,7 +370,7 @@
 
   .image {
     align-self: stretch;
-    height: 400px;
+    height: 280px;
     position: relative;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
@@ -387,7 +387,7 @@
 
   .image_03 {
     align-self: stretch;
-    height: 400px;
+    height: 280px;
     position: relative;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
@@ -397,7 +397,7 @@
 
   .image_04 {
     align-self: stretch;
-    height: 400px;
+    height: 280px;
     position: relative;
     overflow: hidden;
     border-top-left-radius: 12px;
@@ -406,7 +406,7 @@
 
   .image-6 {
     width: 100%;
-    height: 100%;
+    height: 280px;
     object-fit: cover;
   }
 
@@ -664,10 +664,7 @@
 
   .card {
     flex: 1 1 0;
-    padding-top: 1px;
     padding-bottom: 10px;
-    padding-left: 1px;
-    padding-right: 1px;
     background: white;
     border-radius: 20px;
     outline: 1px #EDEDED solid;
@@ -704,6 +701,7 @@
 
   .card_04 {
     flex: 1 1 0;
+    height: 500px;
     padding-bottom: 10px;
     background: white;
     border-radius: 20px;
@@ -752,12 +750,13 @@
 
   .frame-10_04 {
     align-self: stretch;
+    flex: 1;
     padding-top: 8px;
     padding-bottom: 12px;
     padding-left: 12px;
     padding-right: 12px;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: flex-start;
     gap: 32px;
     display: flex;
@@ -822,10 +821,14 @@
   }
 
   .button-selected {
-    height: 49px;
     background: #E7FEFF;
     box-shadow: 0px 4px 0px #438BFF;
     outline: 2px rgba(231, 254, 255, 0.20) solid;
+    outline-offset: -2px;
+  }
+
+  .button-selected .select_span {
+    color: #438BFF;
   }
 
   .button_03 {
@@ -846,7 +849,6 @@
 
   .button_04 {
     align-self: stretch;
-    height: 49px;
     padding-left: 24px;
     padding-right: 24px;
     padding-top: 12px;
@@ -866,6 +868,12 @@
     background: #E7FEFF;
     box-shadow: 0px 4px 0px #438BFF;
     outline: 2px rgba(231, 254, 255, 0.20) solid;
+    outline-offset: -2px;
+  }
+
+  .button_03.button-selected .select_03_span,
+  .button_04.button-selected .select_04_span {
+    color: #438BFF;
   }
 
   .frame-2147227609 {
@@ -905,7 +913,7 @@
   }
 
   .ffreepagepreview_span {
-    color: #438bff;
+    color: #438BFF;
     font-size: 14px;
     font-family: Quicksand;
     font-weight: 600;
@@ -970,12 +978,11 @@
     height: 20px;
     position: relative;
     overflow: hidden;
-    top: -2px;
   }
 
   .arrowleft {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     position: relative;
     overflow: hidden;
   }
@@ -1008,7 +1015,7 @@
     padding-bottom: 8px;
     padding-left: 8px;
     padding-right: 12px;
-    background: #eef6ff;
+    background: #EEF6FF;
     border-radius: 99px;
     outline: 1px #438bff solid;
     outline-offset: -1px;
@@ -1052,10 +1059,10 @@
     display: inline-flex;
   }
   .logo-text-full {
-    width: 203.32px;
-    height: 38px;
-    min-height: 38px;
+    height: 43px;
+    width: 100%;
     position: relative;
+    margin: auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1129,33 +1136,78 @@
     word-wrap: break-word;
   }
 
-  @media (max-width: 800px) {
+  @media (max-width: 1024px) {
+    .character-creation-default {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+
+    .frame-1410103818 {
+      align-items: stretch;
+    }
+
+    .frame-1410103884,
+    .frame-1410103885 {
+      width: 100%;
+    }
+
+    .frame-1410103852,
+    .frame-1410103852_01 {
+      flex-wrap: wrap;
+    }
+  }
+
+  @media (max-width: 768px) {
     .configure-your-story-adventure {
       text-align: left;
     }
     .heading {
       align-items: flex-start;
     }
+    .character-creation-default {
+      padding-left: 16px;
+      padding-right: 16px;
+      padding-top: 16px;
+      padding-bottom: 40px;
+      gap: 32px;
+      align-items: stretch;
+    }
+
+    .navbar {
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .logo-text-full {
+      margin: 0 auto;
+    }
+
+    .frame-1410103818 {
+      gap: 20px;
+      justify-content: flex-start;
+    }
+
     .frame-1410103852,
     .frame-1410103852_01 {
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
     }
 
-    .character-creation-default {
-      padding-left: 20px;
-      padding-right: 20px;
+    .frame-1410103884,
+    .frame-1410103885 {
+      padding: 16px;
+      outline-width: 1px;
     }
 
     .configureyourstoryadventure_span {
-      font-size: 32px;
-      line-height: 38.4px;
+      font-size: 28px;
+      line-height: 1.2;
     }
 
     .step1choosestoryworld_span,
     .step2chooseadventuretype_span {
-      font-size: 24px;
-      line-height: 28.8px;
+      font-size: 22px;
+      line-height: 1.3;
     }
 
     .card,
@@ -1163,6 +1215,9 @@
     .card_04 {
       width: 100%;
       flex: none;
+    }
+    .card_04 {
+      height: auto;
     }
     .star-container {
       width: 25%;
@@ -1172,6 +1227,32 @@
     }
     .message-content {
       width: 90%;
+    }
+
+    .frame-1410104246 {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .configureyourstoryadventure_span {
+      font-size: 24px;
+    }
+
+    .step1choosestoryworld_span,
+    .step2chooseadventuretype_span {
+      font-size: 20px;
+    }
+
+    .generatesearchadventure_span {
+      font-size: 16px;
+    }
+
+    .button,
+    .button_03,
+    .button_04 {
+      padding-left: 16px;
+      padding-right: 16px;
     }
   }
 </style>
