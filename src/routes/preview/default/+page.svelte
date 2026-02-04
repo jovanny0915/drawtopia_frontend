@@ -19,7 +19,7 @@
   import ShareStoryModal from "../../../components/ShareStoryModal.svelte";
   import StoryInfoModal from "../../../components/StoryInfoModal.svelte";
   import StoryPreviewEnd from "../../../components/StoryPreviewEnd.svelte";
-  import PreviewLockModal from "../../../components/PreviewLockModal.svelte";
+  import BookSelectionModal, { type BookOption } from "../../../components/BookSelectionModal.svelte";
   import { user } from "../../../lib/stores/auth";
   import { getUserProfile } from "../../../lib/auth";
   import { getStoryById, updateReadingState } from "../../../lib/database/stories";
@@ -488,23 +488,40 @@
     }
   }
   
-  function handleClosePreviewLockModal() {
+  function handleCloseBookSelectionModal() {
     showPreviewLockModal = false;
   }
-  
-  function handleUnlockPreview(event: CustomEvent) {
-    // Navigate to pricing page with story ID when unlock button is clicked
+
+  // Build books list for BookSelectionModal (current story)
+  $: bookSelectionBooks = currentStoryId && storyTitle
+    ? [
+        {
+          id: currentStoryId,
+          title: storyTitle,
+          unlockTitle: storyTitle,
+          coverImageUrl: typeof storyScenes[0] === "string" && storyScenes[0] !== "DEDICATION_PAGE"
+            ? storyScenes[0]
+            : "https://placehold.co/100x100",
+          pagesAvailable: 2,
+          pagesLocked: 3,
+        } as BookOption,
+      ]
+    : [];
+
+  $: bookSelectionCreditsAvailable = 1;
+  $: bookSelectionCreditsTotal = 1;
+
+  function handleUnlockBookSelection(event: CustomEvent<{ book: BookOption }>) {
     showPreviewLockModal = false;
-    const storyId = event.detail?.storyId || currentStoryId;
-    
+    const storyId = event.detail?.book?.id || currentStoryId;
+
     // Store current scene index in sessionStorage so we can restore it after payment
     if (browser && storyId && currentSceneIndex !== undefined) {
       sessionStorage.setItem(`preview_scene_index_${storyId}`, currentSceneIndex.toString());
       console.log(`[preview] Stored scene index ${currentSceneIndex} for story ${storyId}`);
     }
-    
+
     // Pass story ID and scene index as URL parameters to pricing page
-    // This ensures the scene index persists through Stripe redirects
     if (storyId) {
       const sceneIndexParam = currentSceneIndex !== undefined ? `&sceneIndex=${currentSceneIndex}` : '';
       goto(`/pricing?storyId=${storyId}${sceneIndexParam}`);
@@ -1331,12 +1348,15 @@
       </div>
     </div>
   {/if}
-  {#if showPreviewLockModal}
-    <PreviewLockModal
-      characterName={storyTitle.split("'")[0] || "Emma"}
-      storyId={currentStoryId}
-      on:close={handleClosePreviewLockModal}
-      on:unlock={handleUnlockPreview}
+  {#if showPreviewLockModal && bookSelectionBooks.length > 0}
+    <BookSelectionModal
+      books={bookSelectionBooks}
+      currentBookId={currentStoryId}
+      totalBooks={bookSelectionBooks.length}
+      creditsAvailable={bookSelectionCreditsAvailable}
+      creditsTotal={bookSelectionCreditsTotal}
+      on:close={handleCloseBookSelectionModal}
+      on:unlock={handleUnlockBookSelection}
     />
   {/if}
 </div>

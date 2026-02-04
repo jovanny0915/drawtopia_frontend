@@ -21,6 +21,8 @@
   import { enhance } from "$app/forms";
   import ShareStoryModal from "../../../components/ShareStoryModal.svelte";
   import StoryInfoModal from "../../../components/StoryInfoModal.svelte";
+  import BookSelectionModal, { type BookOption } from "../../../components/BookSelectionModal.svelte";
+  import { getUserProfile } from "../../../lib/auth";
   import { env } from '../../../lib/env';
   import { getStoryById, updateReadingState } from '../../../lib/database/stories';
   import { user } from '../../../lib/stores/auth';
@@ -48,6 +50,9 @@
   
   let showStoryInfoModal = false;
   let showShareStoryModal = false;
+  let showBookSelectionModal = false;
+  let isFreePlan = true;
+  let isPurchased = false;
 
   // Fullscreen and zoom state
   let isFullscreen = false;
@@ -310,7 +315,13 @@
       calculationAbortController = null;
       console.log('[next-scene] Calculation cancelled');
     }
-    
+
+    const nextIndex = currentSceneIndex + 1;
+    if (isSceneLocked(nextIndex)) {
+      showBookSelectionModal = true;
+      return;
+    }
+
     if (currentSceneIndex < generatedImages.length - 1) {
       currentSceneIndex++;
     }
@@ -330,6 +341,34 @@
     }
   }
 
+  function getStoryPageIndex(sceneIndex: number): number {
+    return hasDedication ? sceneIndex - 2 : sceneIndex - 1;
+  }
+
+  function isSceneLocked(sceneIndex: number): boolean {
+    const storyPageIndex = getStoryPageIndex(sceneIndex);
+    return storyPageIndex > 1 && isFreePlan && !isPurchased;
+  }
+
+  async function checkSubscriptionStatus() {
+    if (!browser || !$user) {
+      isFreePlan = true;
+      return;
+    }
+    try {
+      const result = await getUserProfile($user.id);
+      if (result.success && result.profile) {
+        const profile = Array.isArray(result.profile) ? result.profile[0] : result.profile;
+        const status = (profile?.subscription_status || '').toLowerCase().trim();
+        isFreePlan = status === 'free' || status === 'free plan' || status === '';
+      } else {
+        isFreePlan = true;
+      }
+    } catch {
+      isFreePlan = true;
+    }
+  }
+
   function goToScene(index: number) {
     // Stop any ongoing calculation when navigating to another scene
     if (calculatingSimilarity && calculationAbortController) {
@@ -338,7 +377,12 @@
       calculationAbortController = null;
       console.log('[goToScene] Calculation cancelled');
     }
-    
+
+    if (isSceneLocked(index)) {
+      showBookSelectionModal = true;
+      return;
+    }
+
     if (index >= 0 && index < generatedImages.length) {
       currentSceneIndex = index;
       // Start timer if it's a searchable scene (not cover or dedication)
@@ -473,6 +517,8 @@
 
   onMount(async () => {
     if (browser) {
+      await checkSubscriptionStatus();
+
       // Listen for fullscreen changes
       const handleFullscreenChange = () => {
         isFullscreen = !!document.fullscreenElement;
@@ -511,6 +557,7 @@
         // Set story details
         storyTitle = story[0].story_title || story[0].character_name || "Search Adventure";
         characterName = story[0].character_name;
+        isPurchased = story[0].purchased === true;
         characterImageUrl = story[0].original_image_url || null;
         characterId = story[0].character_id || null;
         userId = story[0].user_id || null;
@@ -834,8 +881,12 @@
         goto("/intersearch/3");
       }
     } else if (currentSceneIndex < generatedImages.length - 1) {
+      const nextIndex = currentSceneIndex + 1;
+      if (isSceneLocked(nextIndex)) {
+        showBookSelectionModal = true;
+        return;
+      }
       // Show the next scene on the current page
-      // Start timer for the new scene
       currentSceneIndex++;
       startSceneTimer(currentSceneIndex);
     }
@@ -1587,6 +1638,36 @@
     zoomScale = 1;
     zoomPosition = { x: 0, y: 0 };
   }
+
+  function handleCloseBookSelectionModal() {
+    showBookSelectionModal = false;
+  }
+
+  $: bookSelectionBooks = storyId && storyTitle
+    ? [
+        {
+          id: storyId,
+          title: storyTitle,
+          unlockTitle: storyTitle,
+          coverImageUrl:
+            generatedImages[0] && typeof generatedImages[0] === "string" && generatedImages[0] !== "DEDICATION_PAGE"
+              ? generatedImages[0]
+              : "https://placehold.co/100x100",
+          pagesAvailable: 2,
+          pagesLocked: 3,
+        } as BookOption,
+      ]
+    : [];
+
+  function handleUnlockBookSelection(event: CustomEvent<{ book: BookOption }>) {
+    showBookSelectionModal = false;
+    const sid = event.detail?.book?.id || storyId;
+    if (sid) {
+      goto(`/pricing?storyId=${sid}`);
+    } else {
+      goto("/pricing");
+    }
+  }
 </script>
 
 <div class="preview-outer">
@@ -1895,14 +1976,17 @@
             <button
               class="preview-dot"
               class:active={currentSceneIndex === idx}
+              class:locked={isSceneLocked(idx)}
               on:click={() => goToScene(idx)}
-              aria-label={idx === 0 ? "Go to cover" : idx === 1 ? "Go to dedication" : `Go to scene ${idx - 1}`}
+              aria-label={idx === 0 ? "Go to cover" : idx === 1 ? "Go to dedication" : isSceneLocked(idx) ? "Locked - unlock to access" : `Go to scene ${idx - 1}`}
               disabled={isLoading}
             >
               {#if idx === 0}
                 <img src={coverIcon} alt="cover icon" />
               {:else if idx === 1 && hasDedication && generatedImages[idx] === 'DEDICATION_PAGE'}
                 <img src={mailIcon} alt="dedication icon" />
+              {:else if isSceneLocked(idx)}
+                <img src={lockKeyIcon} alt="locked" />
               {:else}
                 {hasDedication ? idx - 2 : idx - 1}
               {/if}
@@ -2064,6 +2148,18 @@
     storyTitle={storyTitle || "Untitled Story"} 
     storyId={storyId || ""}
     on:close={() => showShareStoryModal = false} 
+  />
+{/if}
+
+{#if showBookSelectionModal && bookSelectionBooks.length > 0}
+  <BookSelectionModal
+    books={bookSelectionBooks}
+    currentBookId={storyId}
+    totalBooks={bookSelectionBooks.length}
+    creditsAvailable={1}
+    creditsTotal={1}
+    on:close={handleCloseBookSelectionModal}
+    on:unlock={handleUnlockBookSelection}
   />
 {/if}
 
@@ -2540,6 +2636,12 @@
     background: #144be1;
     color: white;
     box-shadow: 0 2px 12px #477de710;
+  }
+  .preview-dot.locked {
+    cursor: pointer;
+  }
+  .preview-dot.locked img {
+    opacity: 0.8;
   }
   .preview-dot:disabled {
     opacity: 0.5;

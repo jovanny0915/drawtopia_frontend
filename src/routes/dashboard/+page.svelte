@@ -49,6 +49,10 @@
   }
 
   let showMobileMenu = false;
+  let sidebarCollapsed = false;
+  const toggleSidebarCollapsed = () => {
+    sidebarCollapsed = !sidebarCollapsed;
+  };
   let childProfiles: any[] = [];
   let stories: any[] = [];
   let rawStories: any[] = []; // Store raw story data for character extraction
@@ -625,26 +629,28 @@
 {#if !isMobile}
 <div class="parent-dashboard">
   <div class="navigation">
-    <div class="sidebarheader">
+    <div class="sidebarheader" class:collapsed={sidebarCollapsed}>
       <div class="logo-text-full">
         <div class="logo-img"></div>
       </div>
       <div
         data-weight="Regular"
         class="icon-list"
-        on:click={toggleMobileMenu}
-        on:keydown={(e) => e.key === "Enter" && toggleMobileMenu()}
+        on:click={toggleSidebarCollapsed}
+        on:keydown={(e) => e.key === "Enter" && toggleSidebarCollapsed()}
         role="button"
         tabindex="0"
+        title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
+        aria-label={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
       >
         <img
-          src={showMobileMenu ? x : list}
-          alt={showMobileMenu ? "close" : "menu"}
+          src={list}
+          alt={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
           class="list"
         />
       </div>
     </div>
-    <div class="content">
+    <div class="content" class:collapsed={sidebarCollapsed}>
       <div class="sidebargrouping-label">
         <div><span class="mainmenu_span">MENU</span></div>
       </div>
@@ -1366,6 +1372,18 @@
     justify-content: space-between;
     align-items: center;
     display: inline-flex;
+    transition: width 0.2s ease, padding 0.2s ease;
+  }
+
+  .sidebarheader.collapsed {
+    width: 72px;
+    padding-left: 12px;
+    padding-right: 12px;
+    justify-content: center;
+  }
+
+  .sidebarheader.collapsed .logo-text-full {
+    display: none;
   }
 
   .title-icon {
@@ -1565,6 +1583,57 @@
     align-items: flex-start;
     gap: 8px;
     display: flex;
+    transition: width 0.2s ease, padding 0.2s ease;
+  }
+
+  .content.collapsed {
+    width: 72px;
+    padding-left: 12px;
+    padding-right: 12px;
+    align-items: center;
+  }
+
+  .content.collapsed .sidebargrouping-label {
+    display: none;
+  }
+
+  .content.collapsed .menu {
+    width: 100%;
+    align-items: center;
+    padding: 0;
+  }
+
+  .content.collapsed .parent-menu-dropdown,
+  .content.collapsed .parent-menu-dropdown_01,
+  .content.collapsed .parent-menu-dropdown_02,
+  .content.collapsed .parent-menu-dropdown_03 {
+    width: 48px;
+    min-width: 48px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .content.collapsed .sidebar-menu-parent,
+  .content.collapsed .sidebar-menu-parent_01,
+  .content.collapsed .sidebar-menu-parent_02,
+  .content.collapsed .sidebar-menu-parent_03 {
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .content.collapsed .title-icon,
+  .content.collapsed .title-icon_01,
+  .content.collapsed .title-icon_02,
+  .content.collapsed .title-icon_03 {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .content.collapsed .home_span,
+  .content.collapsed .storylibrary_span,
+  .content.collapsed .childprofiles_span,
+  .content.collapsed .gifttracking_span {
+    display: none;
   }
 
   .navigation {
