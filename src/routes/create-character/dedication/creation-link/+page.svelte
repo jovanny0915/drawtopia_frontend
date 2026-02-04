@@ -6,7 +6,10 @@
     import std_book_image from "../../../../assets/std_book_cover.png"
     import { browser } from "$app/environment";
     import { goto } from "$app/navigation";
+    import { onDestroy } from "svelte";
+    import MobileStepProgressBar from "../../../../components/MobileStepProgressBar.svelte";
 
+    let isMobile = false;
     let isCustomDedicationSelected = false;
     let customDedicationText = "Dear Emma, Adventure awaits for the bravest of hearts — just like yours.       — From Papa";
     const maxCharacters = 200;
@@ -18,6 +21,13 @@
         if (!childName) {
             childName = sessionStorage.getItem("selectedChildName") || "";
         }
+    }
+
+    if (browser) {
+        const updateMobile = () => { isMobile = window.innerWidth < 800; };
+        updateMobile();
+        window.addEventListener("resize", updateMobile);
+        onDestroy(() => window.removeEventListener("resize", updateMobile));
     }
     
     $: characterCount = customDedicationText.length;
@@ -70,6 +80,9 @@
                 <div><span class="ffreepagepreview_span">2 Free Page Preview</span></div>
             </div>
         </div>
+        {#if isMobile}
+            <MobileStepProgressBar currentStep={6} />
+        {:else}
         <div class="progress-bar">
             <div class="progress-bar_01">
                 <div class="progress-bar_02">
@@ -109,6 +122,7 @@
                 </div>
             </div>
         </div>
+        {/if}
         <div class="frame-1410104027">
             <div class="loopa">
                 <img src={star} alt="Star" class="img-star" />
@@ -1604,4 +1618,227 @@
     gap: 48px;
     display: inline-flex;
 }
+
+  @media (max-width: 800px) {
+    .dedication-pages-when-selected-creation-link-default {
+      padding-left: 16px;
+      padding-right: 16px;
+      padding-top: 24px;
+      padding-bottom: 32px;
+      gap: 32px;
+    }
+
+    .dedication-text1 {
+      color: #ffffff;
+      font-size: 28px;
+      font-family: DM Sans;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 80px;
+      z-index: 1;
+    }
+
+    .dedication-text2 {
+      color: #ffffff;
+      font-size: 20px;
+      font-family: sans-serif;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .dedication-text3 {
+      color: #ffffff;
+      font-size: 24px;
+      font-family: DM Sans;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .frame-1410103818 {
+      width: 100%;
+      gap: 24px;
+    }
+
+    .heading {
+      align-items: flex-start;
+    }
+
+    .here-your-magical-story {
+      width: 100%;
+      text-align: left;
+    }
+
+    .hereyourmagicalstory_span {
+      font-size: 32px;
+      line-height: 38.4px;
+    }
+
+    .your-character-is-now-part-of-their-very-own-adventure {
+      width: 100%;
+      text-align: left;
+    }
+
+    .yourcharacterisnowpartoftheirveryownadventure_span {
+      font-size: 16px;
+      line-height: 22.4px;
+    }
+
+    .progress-bar {
+      width: 100%;
+    }
+
+    .frame-1410104027 {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .loopa {
+      width: 64px;
+      height: 64px;
+    }
+
+    .img-star {
+      width: 100%;
+      height: 100%;
+    }
+
+    .frame-1410104029 {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .frame-1410104026 {
+      width: calc(100% - 40px);
+      max-width: 269px;
+      left: 20px;
+      padding-left: 10.7px;
+      padding-right: 10.7px;
+      padding-top: 14.26px;
+      padding-bottom: 14.26px;
+    }
+
+    .letsdesignthededicationpagesforyourgift_span {
+      font-size: 16px;
+      line-height: 22.4px;
+    }
+
+    .frame-1410104031 {
+      flex-direction: column;
+      width: 100%;
+      gap: 24px;
+    }
+
+    .frame-8 {
+      width: 100%;
+      height: auto;
+      flex: none;
+      height: 600px;
+    }
+
+    .dedication-wrapper {
+      height: 459px;
+    }
+
+    .dedicationpagespreview_span {
+      font-size: 20px;
+      line-height: 24px;
+    }
+
+    .frame-9 {
+      width: 100%;
+      flex: none;
+    }
+
+    .informationdedicationpages_span {
+      font-size: 20px;
+      line-height: 24px;
+    }
+
+    .selectiondedicationmessages_span {
+      font-size: 16px;
+      line-height: 22.4px;
+    }
+
+    .customdedicationmessages_span {
+      font-size: 16px;
+      line-height: 22.4px;
+    }
+
+    .mayyoualwaysbelieveinmagicwonderandyourbeautifulimaginationwithlovegrandma_span,
+    .everypageisahugfrommetoyouwithlovegrandma_span,
+    .everyadventurebeginswithalittlebitofloveandimaginationwithlovegrandma_span,
+    .mayyourheartstaycuriousandyourdreamsgrowbrightereverydaylovealwaysgrandma_span {
+      font-size: 14px;
+      line-height: 19.6px;
+    }
+
+    .customdedicationmessage_span {
+      font-size: 14px;
+      line-height: 19.6px;
+    }
+
+    .dear-emma-adventure-awaits-for-the-bravest-of-hearts-just-like-yours-from-papa {
+      font-size: 14px;
+      line-height: 19.6px;
+    }
+
+    .f2200characters_span {
+      font-size: 14px;
+      line-height: 22.4px;
+    }
+
+    .dedicationmessagesaienhanced_span {
+      font-size: 12px;
+    }
+
+    .frame-1410103860 {
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .frame-1410103870 {
+      width: 100%;
+    }
+
+    .button {
+      width: 100%;
+    }
+
+    .backtostep_span {
+      font-size: 16px;
+      line-height: 22.4px;
+    }
+
+    .frame-1410104246 {
+      width: 100%;
+    }
+
+    .continuetopreviewstory_span {
+      font-size: 16px;
+      line-height: 22.4px;
+    }
+
+    .ellipse-1415 {
+      width: 248px;
+      height: 114px;
+      left: 52px;
+      top: 17px;
+    }
+
+    .navbar {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+
+    .logo-text-full {
+      width: 170.15px;
+      height: 31.8px;
+    }
+
+    .img-logo {
+      width: 100%;
+      height: 100%;
+    }
+  }
 </style>

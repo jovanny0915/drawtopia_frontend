@@ -13,6 +13,7 @@
   import { page } from "$app/stores";
   import { env } from "../../../lib/env";
   import { formatDate } from "$lib/dateUtils";
+  import MobileBackBtn from "../../../components/MobileBackBtn.svelte";
 
   let isLoading = false;
   let giftState: any = {};
@@ -205,18 +206,7 @@
   </div>
 
   <!-- Mobile Back Button -->
-  <div class="mobile-back-button">
-    <div
-      class="mobile-back-btn"
-      role="button"
-      tabindex="0"
-      on:click={handleBack}
-      on:keydown={(e) => e.key === "Enter" && handleBack()}
-    >
-      <img class="arrow-left-icon" src={arrow_left} alt="back" />
-    </div>
-    <span class="back-text">Back</span>
-  </div>
+  <MobileBackBtn backRoute="/gift/review" backText="Back" />
 
   <div class="frame-1410103818">
     <div class="frame-5">
@@ -846,7 +836,6 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
-    padding: 4px;
     border-radius: 4px;
     transition: all 0.2s ease;
   }
@@ -1112,52 +1101,8 @@
     display: inline-flex;
   }
 
-  /* Mobile Back Button Styles */
-  .mobile-back-button {
-    display: none;
-  }
-
-  .mobile-back-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 8px;
-    background: white;
-    border-radius: 8px;
-    outline: 1px #dcdcdc solid;
-    outline-offset: -1px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    width: fit-content;
-  }
-
-  .mobile-back-btn:hover {
-    background-color: #f8fafb;
-  }
-
-  .arrow-left-icon {
-    width: 20px;
-    height: 20px;
-  }
-
-  .back-text {
-    color: #121212;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.4px;
-  }
-
   /* Mobile responsive styles */
   @media (max-width: 800px) {
-    .mobile-back-button {
-      display: flex;
-      width: 100%;
-      margin-bottom: 16px;
-      align-items: center;
-      gap: 10px;
-    }
-
     .gift-confirmation {
       padding-left: 16px;
       padding-right: 16px;

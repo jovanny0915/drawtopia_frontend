@@ -124,9 +124,15 @@
 
 <div class="finishing-touches-page">
   <div class="navbar">
-    <div class="logo-text-full">
-      <img src={logo} alt="logo" class="logo-img">
+    <div class="navbar-top">
+      <div class="logo-text-full">
+        <img src={logo} alt="logo" class="logo-img">
+      </div>
     </div>
+    <button class="back-button-mobile" on:click={handleBack} aria-label="Back">
+      <img src={arrow_left} alt="" class="arrow-icon" />
+      <span>Back</span>
+    </button>
   </div>
 
   <div class="content">
@@ -232,7 +238,7 @@
         Send Gift Creation Link
         <img src={PaperPlaneTilt} alt="send" class="send-icon" />
       </button>
-      <button class="back-button" on:click={handleBack}>
+      <button class="back-button back-desktop" on:click={handleBack}>
         <img src={arrow_left} alt="back" class="arrow-icon" />
         Back
       </button>
@@ -320,6 +326,19 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+  }
+
+  .navbar-top {
+    display: block;
+  }
+
+  .back-button-mobile {
+    display: none;
+  }
+
+  .back-desktop {
+    display: inline-flex;
   }
 
   .logo-text-full {
@@ -518,7 +537,7 @@
 
   .blue-card {
     background-image: url("../../../../assets/giftpackage1.png");
-    background-size: contain;
+    background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
   }
@@ -638,56 +657,185 @@
 
   @media (max-width: 800px) {
     .finishing-touches-page {
+      width: 100%;
+      max-width: 100%;
       padding: 16px;
+      padding-bottom: 32px;
+      gap: 24px;
+    }
+
+    .navbar {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px;
+      height: auto;
+      min-height: auto;
+    }
+
+    .navbar-top {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    .back-button-mobile {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      border: 1px solid #dcdcdc;
+      border-radius: 9999px;
+      padding: 10px 16px;
+      font-family: Quicksand;
+      font-size: 16px;
+      font-weight: 600;
+      color: #121212;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .back-button-mobile:hover {
+      background: #f8fafb;
+    }
+    .back-button-mobile .arrow-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .logo-text-full {
+      width: 140px;
+      height: 28px;
+    }
+
+    .logo-img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .content {
+      width: 100%;
+      max-width: 100%;
+      min-height: auto;
       gap: 20px;
+      align-items: stretch;
+    }
+
+    .header {
+      width: 100%;
+      text-align: center;
     }
 
     .title {
-      font-size: 32px;
-      line-height: 44px;
+      font-size: 24px;
+      line-height: 32px;
     }
 
     .subtitle {
       font-size: 16px;
+      line-height: 22px;
+    }
+
+    .content-container {
+      width: 100%;
+      max-width: 100%;
+      gap: 24px;
     }
 
     .section {
       padding: 16px;
+      gap: 16px;
     }
 
     .section-title {
       font-size: 20px;
     }
 
-    .gift-cards {
-      flex-direction: column;
-      align-items: center;
+    .section-subtitle {
+      font-size: 16px;
+      padding: 6px 0;
     }
 
-    .gift-card {
-      width: 100%;
+    .form-label {
+      font-size: 14px;
     }
 
-    .card-content {
-      width: 100%;
-      max-width: 280px;
+    .message-textarea {
+      min-height: 140px;
+      font-size: 16px;
+    }
+
+    .character-count {
+      font-size: 13px;
     }
 
     .example-messages {
       flex-direction: column;
+      gap: 8px;
+    }
+
+    .example-label {
+      font-size: 14px;
+    }
+
+    .example-buttons-group {
+      flex-direction: column;
+      width: 100%;
+      gap: 8px;
     }
 
     .example-button {
       width: 100%;
+      justify-content: center;
+      text-align: center;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    .gift-cards {
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .gift-card {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .card-content {
+      width: 100%;
+      max-width: 100%;
+      height: 280px;
+      min-height: 280px;
+    }
+
+    .preview-button {
+      width: 100%;
+      margin-top: 12px;
+      padding: 12px 20px;
+      font-size: 15px;
     }
 
     .actions {
+      width: 100%;
+      max-width: 100%;
       gap: 12px;
     }
 
-    .send-button,
-    .back-button {
+    .back-desktop {
+      display: none;
+    }
+
+    .send-button {
       width: 100%;
+      padding: 16px 24px;
+      font-size: 16px;
+    }
+
+    .send-button:disabled {
+      background: #e0e0e0;
+      color: #666666;
     }
   }
 

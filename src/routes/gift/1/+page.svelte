@@ -36,12 +36,22 @@
 
 <div class="gift-mode-page">
     <div class="navbar">
-        <div class="logo-text-full">
-            <div
-                class="logo-img"
-                style={`background-image: url(${logo});`}
-            ></div>
+        <div class="navbar-top">
+            <div class="logo-text-full">
+                <div
+                    class="logo-img"
+                    style={`background-image: url(${logo});`}
+                ></div>
+            </div>
         </div>
+        <button
+            class="back-button-mobile"
+            on:click={handleBack}
+            aria-label="Back"
+        >
+            <img src={arrow_left} alt="" class="arrow" />
+            <span>Back</span>
+        </button>
     </div>
     <div class="content">
         <div class="divider">
@@ -61,7 +71,7 @@
     
             <div class="tip-question">
                 <img src={star} alt="star" class="tip-question-star" />
-                <div style="display:flex; flex-direciton:row;">
+                <div class="tip-question-bubble">
                     <svg class="tip-shape" style="transform: translate(10px, 0px); z-index: 0;" viewBox="0 0 21.5 82" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                         <polygon points="0,50 21.5,30 21.5,50" class="tip-shape-fill" />
                     </svg>
@@ -174,7 +184,7 @@
         </div>
 
         <div class="actions">
-            <button class="ghost" on:click={handleBack}>
+            <button class="ghost back-desktop" on:click={handleBack}>
                 <img src={arrow_left} alt="back" class="arrow" />
                 Back To Step
             </button>
@@ -242,6 +252,19 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        position: relative;
+    }
+
+    .navbar-top {
+        display: block;
+    }
+
+    .back-button-mobile {
+        display: none;
+    }
+
+    .back-desktop {
+        display: inline-flex;
     }
 
     .logo-text-full {
@@ -275,9 +298,6 @@
         line-height: 22px;
         color: #666d80;
         margin-top: 8px;
-    }
-
-    .cards {
     }
 
     .cards-container {
@@ -416,37 +436,6 @@
         height: 20px;
     }
 
-
-    @media (max-width: 800px) {
-        .gift-mode-page {
-            padding-left: 16px;
-            padding-right: 16px;
-            padding-top: 16px;
-            padding-bottom: 16px;
-            gap: 24px;
-        }
-        .cards {
-            grid-template-columns: 1fr;
-        }
-        .card-media {
-            height: 180px;
-        }
-        .title {
-            font-size: 32px;
-            line-height: 44px;
-        }
-        .actions {
-            flex-direction: column-reverse;
-            gap: 12px;
-            align-items: stretch;
-        }
-        .primary.large,
-        .ghost {
-            width: 100%;
-            justify-content: center;
-        }
-    }
-
     .tip {
         border: 1px solid #438bff;
         color: #438bff;
@@ -496,6 +485,11 @@
         height: 88px;
     }
 
+    .tip-question-bubble {
+        display: flex;
+        flex-direction: row;
+    }
+
     .tip-shape {
         width: 21.5px;
         height: 88px;
@@ -511,4 +505,220 @@
         stroke-width: 3;
         stroke-linejoin: round;
     }
+
+    @media (max-width: 720px) {
+        .gift-mode-page {
+            width: 100%;
+            max-width: 100%;
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 16px;
+            padding-bottom: 32px;
+            gap: 24px;
+        }
+
+        .navbar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding-left: 16px;
+            padding-right: 16px;
+            height: auto;
+            min-height: auto;
+        }
+
+        .navbar-top {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .back-button-mobile {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            border: 1px solid #dcdcdc;
+            border-radius: 9999px;
+            padding: 10px 16px;
+            font-family: Quicksand;
+            font-size: 16px;
+            font-weight: 600;
+            color: #121212;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .back-button-mobile:hover {
+            background: #f8fafb;
+        }
+        .back-button-mobile .arrow {
+            width: 18px;
+            height: 18px;
+        }
+
+        .logo-text-full {
+            width: 140px;
+            height: 28px;
+        }
+
+        .content {
+            height: auto;
+            width: 100%;
+            gap: 20px;
+        }
+
+        .divider {
+            width: 100%;
+            padding-bottom: 16px;
+            gap: 14px;
+        }
+
+        .content-header {
+            width: 100%;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header {
+            width: 100%;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 24px;
+            line-height: 32px;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            line-height: 22px;
+            text-align: center;
+        }
+
+        .tip {
+            padding: 6px 12px 6px 8px;
+            font-size: 13px;
+        }
+        .shieldstart {
+            width: 20px;
+            height: 20px;
+        }
+
+        .tip-question {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            gap: 10px;
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        .tip-question-star {
+            width: 64px;
+            height: 64px;
+        }
+
+        .tip-question-container {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            min-height: 60px;
+        }
+
+        .tip-question-text {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            padding: 12px 14px;
+            font-size: 16px;
+        }
+
+        .tip-shape {
+            flex-shrink: 0;
+        }
+
+        .cards-container {
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            max-width: 100%;
+            gap: 16px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            min-height: 0;
+        }
+
+        .card-media {
+            width: 100%;
+            height: 200px;
+        }
+
+        .card-body {
+            padding: 14px;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            padding-bottom: 6px;
+        }
+
+        .card-desc {
+            font-size: 14px;
+        }
+
+        .best-for-title {
+            font-size: 13px;
+        }
+
+        .best-for ul {
+            font-size: 13px;
+        }
+
+        .best-for-list-item {
+            gap: 6px;
+        }
+
+        .best-for-list-item img {
+            width: 14px;
+            height: 14px;
+        }
+
+        .secondary {
+            width: 100%;
+            justify-content: center;
+            padding: 12px 20px;
+            font-size: 16px;
+        }
+
+        .actions {
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+            width: 100%;
+        }
+
+        .back-desktop {
+            display: none;
+        }
+
+        .primary.large {
+            width: 100%;
+            justify-content: center;
+            padding: 16px 24px;
+            font-size: 16px;
+        }
+
+        .primary.large:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            opacity: 1;
+        }
+    }
+
 </style>

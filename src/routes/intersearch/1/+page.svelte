@@ -3786,5 +3786,10 @@
     .zoom-info span:nth-child(2) {
       display: none;
     }
+
+    .dedication-image {
+      height: 50dvh;
+      width: auto;
+    }
   }
 </style>

@@ -550,4 +550,16 @@
     overflow: auto;
     display: inline-flex;
   }
+
+  @media (max-width: 720px) {
+    .sharetitlestorytoeveryone_span {
+      text-wrap-mode: wrap;
+    }
+
+    .frame-1410103962 {
+      overflow-y: auto;
+      max-height: 50vh;
+      padding: 12px 0 12px 0;
+    }
+  }
 </style>

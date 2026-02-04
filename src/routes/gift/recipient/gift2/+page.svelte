@@ -229,8 +229,9 @@
 
 <style>
     .gift-redemption-page {
-        margin: auto;
-        width: 1240px;
+        margin: 0 auto;
+        max-width: 1240px;
+        width: 100%;
         min-height: 100vh;
         padding: 24px 100px 80px;
         background: white;
@@ -238,6 +239,7 @@
         flex-direction: column;
         align-items: center;
         gap: 32px;
+        box-sizing: border-box;
     }
 
     .header {
@@ -269,6 +271,7 @@
         align-items: center;
         gap: 24px;
         text-align: center;
+        box-sizing: border-box;
     }
 
     .title {
@@ -289,8 +292,8 @@
     }
 
     .card-container {
-        width: 550px;
-        height: 429px;
+        width: 100%;
+        max-width: 550px;
         outline: 1px #dfd8d8 solid;
         border-radius: 12px;
         display: flex;
@@ -298,12 +301,12 @@
         align-items: center;
         gap: 12px;
         padding: 4px;
+        box-sizing: border-box;
     }
 
     .card-inner {
         width: 100%;
         max-width: 542px;
-        height: 421px;
         border-radius: 16px;
         background: #ffffff;
         outline: 1px #dcdcdc solid;
@@ -311,6 +314,7 @@
         display: flex;
         flex-direction: column;
         gap: 32px;
+        box-sizing: border-box;
     }
 
     .card-subtitle {
@@ -320,14 +324,15 @@
         line-height: 26px;
         font-style: Medium;
         margin: 0;
+        text-align: center;
     }
 
     .card-content {
-        width: 510px;
-        height: 273px;
+        width: 100%;
         display: flex;
         flex-direction: column;
         gap: 24px;
+        box-sizing: border-box;
     }
 
     .card-message {
@@ -339,6 +344,7 @@
         padding: 12px 16px 12px 14px;
         color: #40c4aa;
         background-color: #effefa;
+        box-sizing: border-box;
     }
 
     .gift-details {
@@ -346,11 +352,11 @@
         border-radius: 20px;
         outline: 1px #dcdcdc solid;
         padding: 24px 16px 24px 14px;
-        height: 138px;
         display: flex;
         flex-direction: column;
         gap: 4px;
         text-align: left;
+        box-sizing: border-box;
     }
 
     .details-label {
@@ -380,12 +386,15 @@
     .call-to-action {
         display: flex;
         flex-direction: column;
+        align-items: center;
         gap: 12px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .start-button {
-        height: 44px;
-        width: 510px;
+        width: 100%;
+        min-height: 44px;
         padding: 16px 32px;
         background: #438bff;
         border: none;
@@ -401,6 +410,7 @@
         gap: 10px;
         transition: all 0.2s ease;
         box-shadow: 0 4px 12px rgba(67, 139, 255, 0.3);
+        box-sizing: border-box;
     }
 
     .start-button:hover {
@@ -424,6 +434,7 @@
     .heart-icon {
         width: 20px;
         height: 20px;
+        flex-shrink: 0;
     }
 
     .expiration-notice {
@@ -440,35 +451,168 @@
     .calendar-icon {
         width: 16px;
         height: 16px;
+        flex-shrink: 0;
     }
 
-    @media (max-width: 800px) {
+    /* Tablet and small desktop */
+    @media (max-width: 900px) {
         .gift-redemption-page {
-            padding: 16px;
+            padding: 20px 24px 60px;
+            gap: 28px;
+        }
+
+        .card-container {
+            max-width: 100%;
+        }
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+        .gift-redemption-page {
+            padding: 16px 20px 48px;
             gap: 24px;
         }
 
+        .header {
+            padding: 12px 0;
+        }
+
+        .logo {
+            width: 160px;
+            height: 30px;
+        }
+
+        .main-content {
+            gap: 20px;
+        }
+
         .title {
-            font-size: 32px;
-            line-height: 44px;
+            font-size: 28px;
+            line-height: 1.3;
+            padding: 0 8px;
         }
 
         .subtitle {
             font-size: 16px;
+            line-height: 1.5;
+            padding: 0 8px;
+        }
+
+        .card-container {
+            border-radius: 12px;
+            padding: 8px;
+        }
+
+        .card-inner {
+            padding: 16px 12px 20px;
+            gap: 24px;
+        }
+
+        .card-subtitle {
+            font-size: 20px;
+            line-height: 1.4;
+        }
+
+        .card-message {
+            font-size: 13px;
+            padding: 12px 14px;
+            border-radius: 10px;
         }
 
         .gift-details {
-            padding: 20px;
+            padding: 20px 14px;
+            border-radius: 16px;
+            align-items: center;
+        }
+
+        .details-label {
+            font-size: 13px;
         }
 
         .recipient-name {
             font-size: 20px;
         }
 
+        .occasion-info {
+            font-size: 14px;
+        }
+
         .start-button {
-            width: 100%;
+            min-height: 56px;
             padding: 14px 24px;
             font-size: 16px;
+            border-radius: 16px;
+        }
+
+        .heart-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .expiration-notice {
+            font-size: 13px;
+        }
+    }
+
+    /* Small mobile */
+    @media (max-width: 480px) {
+        .gift-redemption-page {
+            padding: 12px 16px 40px;
+            gap: 20px;
+        }
+
+        .logo {
+            width: 140px;
+            height: 26px;
+        }
+
+        .title {
+            font-size: 24px;
+        }
+
+        .subtitle {
+            font-size: 15px;
+        }
+
+        .card-container {
+            padding: 6px;
+            border-radius: 10px;
+        }
+
+        .card-inner {
+            padding: 14px 10px 16px;
+            gap: 20px;
+        }
+
+        .card-subtitle {
+            font-size: 18px;
+        }
+
+        .card-message {
+            font-size: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+        }
+
+        .gift-details {
+            align-items: center;
+            padding: 16px 12px;
+            border-radius: 12px;
+        }
+
+        .recipient-name {
+            font-size: 18px;
+        }
+
+        .start-button {
+            min-height: 52px;
+            padding: 12px 20px;
+            font-size: 15px;
+            border-radius: 12px;
+        }
+
+        .expiration-notice {
+            font-size: 12px;
         }
     }
 </style>

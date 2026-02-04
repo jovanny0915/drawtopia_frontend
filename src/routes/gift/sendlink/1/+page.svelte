@@ -179,9 +179,15 @@
 
 <div class="send-link-page">
     <div class="navbar">
-        <div class="logo-text-full" on:click={handleLogoClick} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && handleLogoClick()}>
-            <img src={logo} alt="logo" class="logo-img">
+        <div class="navbar-top">
+            <div class="logo-text-full" on:click={handleLogoClick} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && handleLogoClick()}>
+                <img src={logo} alt="logo" class="logo-img">
+            </div>
         </div>
+        <button class="back-button-mobile" on:click={handleBack} aria-label="Back">
+            <img src={arrow_left} alt="" class="arrow-icon" />
+            <span>Back</span>
+        </button>
     </div>
 
     <div class="content">
@@ -327,7 +333,7 @@
             </div>
         </div>
         <div class="actions">
-            <button class="back-button" on:click={handleBack}>
+            <button class="back-button back-desktop" on:click={handleBack}>
                 <img src={arrow_left} alt="back" class="arrow-icon" />
                 Back To Step
             </button>
@@ -381,6 +387,19 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        position: relative;
+    }
+
+    .navbar-top {
+        display: block;
+    }
+
+    .back-button-mobile {
+        display: none;
+    }
+
+    .back-desktop {
+        display: inline-flex;
     }
 
     .logo-text-full {
@@ -681,25 +700,157 @@
 
     @media (max-width: 800px) {
         .send-link-page {
+            width: 100%;
+            max-width: 100%;
             padding: 16px;
+            padding-bottom: 32px;
             gap: 20px;
         }
 
+        .navbar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            height: auto;
+            min-height: auto;
+        }
+
+        .navbar-top {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .back-button-mobile {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            border: 1px solid #dcdcdc;
+            border-radius: 9999px;
+            padding: 10px 16px;
+            font-family: Quicksand;
+            font-size: 16px;
+            font-weight: 600;
+            color: #121212;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .back-button-mobile:hover {
+            background: #f8fafb;
+        }
+        .back-button-mobile .arrow-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .logo-text-full {
+            width: 140px;
+            height: 28px;
+        }
+
+        .content {
+            width: 100%;
+            min-height: auto;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .divider {
+            width: 100%;
+            padding-bottom: 16px;
+            gap: 16px;
+        }
+
+        .header {
+            width: 100%;
+            align-items: center;
+        }
+
         .title {
-            font-size: 32px;
-            line-height: 44px;
+            font-size: 24px;
+            line-height: 32px;
+            text-align: center;
         }
 
         .subtitle {
             font-size: 16px;
+            line-height: 22px;
+            text-align: center;
+        }
+
+        .preview-button {
+            width: auto;
+            padding: 6px 12px 6px 8px;
+            font-size: 13px;
+        }
+        .preview-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .tip-question {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .star-icon {
+            width: 64px;
+            height: 64px;
+            flex-shrink: 0;
+        }
+
+        .tip-question-container {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .speech-bubble {
+            margin-left: 0;
+            width: 100%;
+            max-width: 100%;
+            min-height: auto;
+            font-size: 16px;
+            padding: 12px 14px;
         }
 
         .form-container {
+            width: 100%;
+            max-width: 100%;
             padding: 16px;
         }
 
         .form-title {
             font-size: 20px;
+        }
+
+        .form-label {
+            font-size: 14px;
+        }
+
+        .form-input {
+            height: 48px;
+            font-size: 16px;
+        }
+
+        .form-textarea {
+            min-height: 140px;
+            font-size: 16px;
+        }
+
+        .character-count {
+            font-size: 13px;
+        }
+
+        .checkbox-label {
+            font-size: 14px;
         }
 
         .datetime-input-container {
@@ -708,29 +859,20 @@
         }
 
         .actions {
-            flex-direction: column-reverse;
+            flex-direction: column;
             gap: 12px;
+            align-items: stretch;
         }
 
-        .back-button,
+        .back-desktop {
+            display: none;
+        }
+
         .continue-button {
             width: 100%;
             justify-content: center;
-        }
-
-        .tip-question {
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .star-icon {
-            width: 60px;
-            height: 60px;
-        }
-
-        .speech-bubble {
+            padding: 16px 24px;
             font-size: 16px;
-            padding: 12px;
         }
     }
 </style>

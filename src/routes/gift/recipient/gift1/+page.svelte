@@ -256,8 +256,9 @@
 
 <style>
   .gift-redemption-page {
-    margin: auto;
-    width: 1240px;
+    margin: 0 auto;
+    max-width: 1240px;
+    width: 100%;
     min-height: 100vh;
     padding: 24px 100px 80px;
     background: white;
@@ -265,6 +266,7 @@
     flex-direction: column;
     align-items: center;
     gap: 32px;
+    box-sizing: border-box;
   }
 
   .header {
@@ -291,12 +293,12 @@
 
   .main-content {
     width: 100%;
-    min-height: 1194.728515625px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 24px;
     text-align: center;
+    box-sizing: border-box;
   }
 
   .title {
@@ -317,32 +319,31 @@
   }
 
   .card-container {
-    width: 730px;
-    min-height: 1194.728515625px;
+    width: 100%;
+    max-width: 730px;
     outline: 1px #dfd8d8 solid;
     border-radius: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
+    box-sizing: border-box;
   }
 
   .gift-card-container {
     width: 100%;
     max-width: 698px;
-    max-height: 1046.728515625px;
     border-radius: 20px;
     border: 1px #dfd8d8 solid;
     padding: 8px;
     margin-top: 12px;
+    box-sizing: border-box;
   }
 
   .gift-card-bg {
     position: relative;
     padding: 70px 40px 40px;
     border-radius: 20px;
-    max-height: 880.7284545898438px;
-    max-width: 682px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -351,6 +352,8 @@
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    min-height: 320px;
+    box-sizing: border-box;
   }
 
   .gift-card-message {
@@ -363,7 +366,7 @@
     white-space: pre-wrap;
     align-content: center;
     width: 100%;
-    height: 880.7284545898438px;
+    box-sizing: border-box;
   }
 
   .gift-details {
@@ -374,6 +377,7 @@
     width: 100%;
     max-width: 698px;
     text-align: left;
+    box-sizing: border-box;
   }
 
   .details-label {
@@ -406,8 +410,9 @@
   }
 
   .start-button {
-    width: 698px;
-    height: 64px;
+    width: 100%;
+    max-width: 698px;
+    min-height: 64px;
     padding: 16px 32px;
     background: #438bff;
     border: none;
@@ -423,6 +428,7 @@
     gap: 10px;
     transition: all 0.2s ease;
     box-shadow: 0 4px 12px rgba(67, 139, 255, 0.3);
+    box-sizing: border-box;
   }
 
   .start-button:hover {
@@ -434,6 +440,7 @@
   .heart-icon {
     width: 20px;
     height: 20px;
+    flex-shrink: 0;
   }
 
   .expiration-notice {
@@ -450,48 +457,168 @@
   .calendar-icon {
     width: 16px;
     height: 16px;
+    flex-shrink: 0;
   }
 
-  @media (max-width: 800px) {
+  /* Tablet and small desktop */
+  @media (max-width: 900px) {
     .gift-redemption-page {
-      padding: 16px;
+      padding: 20px 24px 60px;
+      gap: 28px;
+    }
+
+    .card-container {
+      max-width: 100%;
+    }
+  }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    .gift-redemption-page {
+      padding: 16px 20px 48px;
       gap: 24px;
     }
 
+    .header {
+      padding: 12px 0;
+    }
+
+    .logo {
+      width: 160px;
+      height: 30px;
+    }
+
+    .main-content {
+      gap: 20px;
+    }
+
     .title {
-      font-size: 32px;
-      line-height: 44px;
+      font-size: 28px;
+      line-height: 1.3;
+      padding: 0 8px;
     }
 
     .subtitle {
       font-size: 16px;
+      line-height: 1.5;
+      padding: 0 8px;
+    }
+
+    .card-container {
+      border-radius: 16px;
+      padding: 0 12px 16px;
+      gap: 12px;
     }
 
     .gift-card-container {
-      max-width: 100%;
+      margin-top: 8px;
+      padding: 6px;
+      border-radius: 16px;
     }
 
     .gift-card-bg {
-      padding: 60px 30px 30px;
+      padding: 50px 24px 24px;
       min-height: 400px;
+      border-radius: 16px;
     }
 
     .gift-card-message {
       font-size: 20px;
+      line-height: 1.6;
     }
 
     .gift-details {
-      padding: 20px;
+      padding: 20px 16px;
+      border-radius: 16px;
+    }
+
+    .details-label {
+      font-size: 13px;
     }
 
     .recipient-name {
       font-size: 20px;
     }
 
+    .occasion-info {
+      font-size: 14px;
+    }
+
     .start-button {
-      width: 100%;
+      min-height: 56px;
       padding: 14px 24px;
       font-size: 16px;
+      border-radius: 16px;
+    }
+
+    .heart-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .expiration-notice {
+      font-size: 13px;
+    }
+  }
+
+  /* Small mobile */
+  @media (max-width: 480px) {
+    .gift-redemption-page {
+      padding: 12px 16px 40px;
+      gap: 20px;
+    }
+
+    .logo {
+      width: 140px;
+      height: 26px;
+    }
+
+    .title {
+      font-size: 24px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+    }
+
+    .card-container {
+      padding: 0 8px 12px;
+      border-radius: 12px;
+    }
+
+    .gift-card-container {
+      padding: 4px;
+      border-radius: 12px;
+    }
+
+    .gift-card-bg {
+      padding: 40px 16px 20px;
+      min-height: 400px;
+      border-radius: 12px;
+    }
+
+    .gift-card-message {
+      font-size: 18px;
+    }
+
+    .gift-details {
+      padding: 16px 12px;
+      border-radius: 12px;
+    }
+
+    .recipient-name {
+      font-size: 18px;
+    }
+
+    .start-button {
+      min-height: 52px;
+      padding: 12px 20px;
+      font-size: 15px;
+      border-radius: 12px;
+    }
+
+    .expiration-notice {
+      font-size: 12px;
     }
   }
 </style>

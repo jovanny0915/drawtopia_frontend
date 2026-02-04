@@ -19,6 +19,10 @@
     import magicalwand1 from "../../../assets/magic-wand1.gif"; 
     import magicalwand2 from "../../../assets/magic-wand2.gif"; 
     import shootingstar from "../../../assets/ShootingStar.svg"
+    import firstGeneration from "../../../assets/first_generation.png";
+    import secondGeneration from "../../../assets/second_generation.png";
+    import thirdGeneration from "../../../assets/third_generation.png";
+    import spinnerGap from "../../../assets/SpinnerGap.svg";
     import ProgressBar from "../../../components/ProgressBar.svelte";
     import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";
 
@@ -35,6 +39,20 @@
     let previewImage1: string | null = null; // Preview image 1
     let previewImage2: string | null = null; // Preview image 2
     let previewImage3: string | null = null; // Preview image 3 (first scene preview)
+
+    // Blank white image for slots that should show no image yet
+    const BLANK_WHITE_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='171' height='218'%3E%3Crect fill='%23ffffff' width='171' height='218'/%3E%3C/svg%3E";
+
+    // Preview slot sources: use only local assets by percentage (no Supabase/S3 links)
+    // <30%: first asset only; <60%: first + second; >=90%: all three
+    $: displayImage1 = firstGeneration;
+    $: displayImage2 = completionPercent < 30 ? BLANK_WHITE_IMAGE : secondGeneration;
+    $: displayImage3 = completionPercent < 90 ? BLANK_WHITE_IMAGE : thirdGeneration;
+
+    // Spinner visibility: <30% slot1, <60% slot2, >60% slot3
+    $: showSpinnerSlot1 = completionPercent < 30;
+    $: showSpinnerSlot2 = completionPercent >= 30 && completionPercent < 60;
+    $: showSpinnerSlot3 = completionPercent > 60;
 
     // Determine which magical wand GIF to show based on completion percentage
     $: currentMagicalWand = completionPercent < 25 
@@ -1344,23 +1362,45 @@
                             </div>
                         </div>
                         <div class="frame-2147227510">
-                            <div class="frame-2147227508">
+                            <div
+                                class="frame-2147227508"
+                                style="background-image: url({displayImage1})"
+                            >
                                 <div class="tag_01">
                                     <div>
                                         <span class="sketch_span">Sketch</span>
                                     </div>
                                 </div>
+                                {#if showSpinnerSlot1}
+                                    <div class="preview-slot-spinner">
+                                        <img src={spinnerGap} alt="" class="spinner-icon" />
+                                    </div>
+                                {/if}
                             </div>
-                            <img
-                                class="frame-2147227509_01"
-                                src={"https://placehold.co/171x218"}
-                                alt=""
-                            />
-                            <img
-                                class="frame-2147227510_01"
-                                src={"https://placehold.co/171x218"}
-                                alt=""
-                            />
+                            <div class="preview-slot-wrapper">
+                                <img
+                                    class="frame-2147227509_01"
+                                    src={displayImage2}
+                                    alt=""
+                                />
+                                {#if showSpinnerSlot2}
+                                    <div class="preview-slot-spinner">
+                                        <img src={spinnerGap} alt="" class="spinner-icon" />
+                                    </div>
+                                {/if}
+                            </div>
+                            <div class="preview-slot-wrapper">
+                                <img
+                                    class="frame-2147227510_01"
+                                    src={displayImage3}
+                                    alt=""
+                                />
+                                {#if showSpinnerSlot3}
+                                    <div class="preview-slot-spinner">
+                                        <img src={spinnerGap} alt="" class="spinner-icon" />
+                                    </div>
+                                {/if}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1520,6 +1560,20 @@
         word-wrap: break-word;
     }
 
+    .preview-slot-wrapper {
+        flex: 1 1 0;
+        min-width: 0;
+        height: 218px;
+        position: relative;
+    }
+
+    .preview-slot-wrapper .frame-2147227509_01,
+    .preview-slot-wrapper .frame-2147227510_01 {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
     .frame-2147227509_01 {
         flex: 1 1 0;
         height: 218px;
@@ -1536,6 +1590,32 @@
         box-shadow: 0px 0px 18px rgba(67, 139, 255, 0.1);
         border-radius: 12px;
         border: 1px #ededed solid;
+    }
+
+    .preview-slot-spinner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 12px;
+        pointer-events: none;
+    }
+
+    .spinner-icon {
+        width: 48px;
+        height: 48px;
+        animation: spinner-rotate 1s linear infinite;
+    }
+
+    @keyframes spinner-rotate {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     .cancel_span {
@@ -1704,7 +1784,8 @@
         box-shadow: 0px 0px 18px rgba(67, 139, 255, 0.1);
         overflow: hidden;
         border-radius: 12px;
-        background-image: url(https://placehold.co/171x218);
+        background-size: cover;
+        background-position: center;
     }
 
     .heading {
@@ -1999,6 +2080,10 @@
 
         .frame-2147227508 {
             width: 100%;
+            height: 146px;
+        }
+
+        .preview-slot-wrapper {
             height: 146px;
         }
 
