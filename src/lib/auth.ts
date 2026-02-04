@@ -248,6 +248,90 @@ export async function signUpWithPhone(phone: string, password: string, firstName
 }
 
 /**
+ * Update last_login (as text YYYY-MM-DD) and reset upload_cnt to 10 if last login was a previous day.
+ * Call this when a user logs in.
+ */
+export async function updateUserLastLogin(userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD" text
+
+    const { data: row, error: fetchError } = await supabase
+      .from('users')
+      .select('last_login, upload_cnt')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching user for last_login update:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    const lastLogin = row?.last_login;
+    const currentUploadCnt = row?.upload_cnt;
+    const isPreviousDay = lastLogin == null || lastLogin === '' || lastLogin < today;
+    const newUploadCnt = isPreviousDay ? 10 : (typeof currentUploadCnt === 'number' ? currentUploadCnt : 10);
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        last_login: today,
+        upload_cnt: newUploadCnt
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error updating last_login:', updateError);
+      return { success: false, error: updateError.message };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('updateUserLastLogin error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+    };
+  }
+}
+
+/**
+ * Decrement user's upload_cnt by 1 (e.g. after a successful character upload).
+ */
+export async function decrementUserUploadCount(userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: row, error: fetchError } = await supabase
+      .from('users')
+      .select('upload_cnt')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching upload_cnt:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    const current = typeof row?.upload_cnt === 'number' ? row.upload_cnt : 0;
+    const next = Math.max(0, current - 1);
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ upload_cnt: next })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('Error decrementing upload_cnt:', updateError);
+      return { success: false, error: updateError.message };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('decrementUserUploadCount error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+    };
+  }
+}
+
+/**
  * Sign in with email and password
  */
 export async function signInWithEmail(email: string, password: string): Promise<AuthResponse> {
@@ -262,6 +346,10 @@ export async function signInWithEmail(email: string, password: string): Promise<
         success: false,
         error: error.message
       };
+    }
+
+    if (data.user?.id) {
+      await updateUserLastLogin(data.user.id);
     }
 
     return {
@@ -292,6 +380,10 @@ export async function signInWithPhone(phone: string, password: string): Promise<
         success: false,
         error: error.message
       };
+    }
+
+    if (data.user?.id) {
+      await updateUserLastLogin(data.user.id);
     }
 
     return {

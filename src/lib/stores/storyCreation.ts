@@ -48,10 +48,12 @@ const createStoryCreationStore = () => {
         const selectedFormat = sessionStorage.getItem('selectedFormat');
         const storyWorld = sessionStorage.getItem('selectedWorld');
         const adventureType = sessionStorage.getItem('selectedAdventure');
-        const originalImageUrl = sessionStorage.getItem('characterImageUrl');
+        const originalImageUrl = sessionStorage.getItem('characterImageUrl')
+          || sessionStorage.getItem('selectedCharacterEnhancedImage');
         const storyTitle = sessionStorage.getItem('storyTitle');
         const coverDesign = sessionStorage.getItem('coverDesign');
-        const storyCover = sessionStorage.getItem('storyCover');
+        const storyCover = sessionStorage.getItem('storyCover')
+          || sessionStorage.getItem('selectedImage_step6');
         console.log(selectedChildProfileId);
         // Load enhanced images if they exist
         const enhancedImages: string[] = [];

@@ -2,6 +2,8 @@
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
     import { storyCreation } from "../../../lib/stores/storyCreation";
+    import { user } from "../../../lib/stores/auth";
+    import { getUserProfile } from "../../../lib/auth";
     import drawtopia from "../../../assets/logo.png";
     import shieldstar from "../../../assets/ShieldStar.svg";
     import arrowleft from "../../../assets/ArrowLeft.svg";
@@ -13,11 +15,65 @@
     import notepad from "../../../assets/Notepad.svg";
     import genderneuter from "../../../assets/GenderNeuter.svg";
     import check from "../../../assets/Check_blue.svg";
+    import warningIcon from "../../../assets/WhiteWarning.svg";
     import { goto } from "$app/navigation";
     import ProgressBar from "../../../components/ProgressBar.svelte";
     import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";
 
     let isMobile = false;
+    let showCreditErrorNotification = false;
+    let creditErrorNotificationMessage = "";
+
+    function formatRenewalDate(isoDate: string): string {
+        try {
+            const d = new Date(isoDate);
+            return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        } catch {
+            return "";
+        }
+    }
+
+    async function handleContinueToStory() {
+        const currentUser = $user;
+        if (!currentUser?.id) {
+            return;
+        }
+        try {
+            const profileResult = await getUserProfile(currentUser.id);
+            if (profileResult.success && profileResult.profile) {
+                const profile = Array.isArray(profileResult.profile) ? profileResult.profile[0] : profileResult.profile;
+                const currentCredit = profile?.credit !== undefined && profile?.credit !== null
+                    ? (typeof profile.credit === "string" ? parseInt(profile.credit, 10) : profile.credit)
+                    : 0;
+                const credit = isNaN(currentCredit) ? 0 : currentCredit;
+
+                if (credit <= 0) {
+                    const subscriptionStatus = (profile?.subscription_status || "free").toLowerCase();
+                    const isFreePlan = subscriptionStatus === "free";
+
+                    if (isFreePlan) {
+                        creditErrorNotificationMessage = "You need more stories to create this one. Check your subscription or add credits.";
+                    } else {
+                        const renewalDate = profile?.subscription_expires
+                            ? formatRenewalDate(profile.subscription_expires)
+                            : "";
+                        creditErrorNotificationMessage = renewalDate
+                            ? `You've used all your monthly stories. Your next set of stories renews on ${renewalDate}.`
+                            : "You've used all your monthly stories. Your next set of stories renews next month.";
+                    }
+                    showCreditErrorNotification = true;
+                    setTimeout(() => {
+                        showCreditErrorNotification = false;
+                    }, 5000);
+                    return;
+                }
+            }
+        } catch (err) {
+            console.error("Error checking credit:", err);
+            return;
+        }
+        goto("/adventure-story/loading");
+    }
 
     $: if (browser) {
         isMobile = window.innerWidth < 800;
@@ -65,7 +121,7 @@
         return styleMap[style.toLowerCase()] || style;
     }
 
-    // Initialize store on mount
+    // Initialize store on mount (restore from sessionStorage on refresh)
     onMount(() => {
         if (browser) {
             storyCreation.init();
@@ -74,17 +130,23 @@
 
     // Reactive store subscription
     $: storyState = $storyCreation;
-    
+
+    // SessionStorage fallbacks so images persist on refresh (store may be empty before init)
+    $: storyCover = storyState?.storyCover
+        || (browser && (sessionStorage.getItem('storyCover') || sessionStorage.getItem('selectedImage_step6')))
+        || "https://placehold.co/287x431";
+    $: originalImageUrl = storyState?.originalImageUrl
+        || (browser && (sessionStorage.getItem('characterImageUrl') || sessionStorage.getItem('selectedCharacterEnhancedImage')))
+        || "https://placehold.co/91x90";
+
     // Computed values for display
-    $: storyTitle = storyState?.storyTitle || "[Storybook Title]";
-    $: characterName = storyState?.characterName || "[Character Name]";
-    $: characterType = storyState?.characterType || "";
-    $: specialAbility = storyState?.specialAbility || "[Special Ability]";
-    $: storyCover = storyState?.storyCover || "https://placehold.co/287x431";
-    $: originalImageUrl = storyState?.originalImageUrl || "https://placehold.co/91x90";
-    $: storyWorld = storyState?.storyWorld || "";
-    $: adventureType = storyState?.adventureType || "";
-    $: characterStyle = storyState?.characterStyle || "";
+    $: storyTitle = storyState?.storyTitle || (browser && sessionStorage.getItem('storyTitle')) || "[Storybook Title]";
+    $: characterName = storyState?.characterName || (browser && sessionStorage.getItem('characterName')) || "[Character Name]";
+    $: characterType = storyState?.characterType || (browser && sessionStorage.getItem('selectedCharacterType')) || "";
+    $: specialAbility = storyState?.specialAbility || (browser && sessionStorage.getItem('specialAbility')) || "[Special Ability]";
+    $: storyWorld = storyState?.storyWorld || (browser && sessionStorage.getItem('selectedWorld')) || "";
+    $: adventureType = storyState?.adventureType || (browser && sessionStorage.getItem('selectedAdventure')) || "";
+    $: characterStyle = storyState?.characterStyle || (browser && sessionStorage.getItem('selectedStyle')) || "";
     
     $: characterTypeDisplay = getCharacterTypeDisplayName(characterType);
     $: characterInfo = characterName && characterType && characterName !== "[Character Name]" && characterType !== ""
@@ -96,6 +158,19 @@
 </script>
 
 <div class="story-preview-summary-default">
+    <!-- Credit Error Notification Toast -->
+    {#if showCreditErrorNotification}
+        <div class="credit-error-toast">
+            <div class="credit-error-toast-content">
+                <div class="credit-error-toast-icon">
+                    <img src={warningIcon} alt="warning" class="warning-icon" />
+                </div>
+                <div class="credit-error-toast-message">
+                    <span class="credit-error-toast-text">{creditErrorNotificationMessage}</span>
+                </div>
+            </div>
+        </div>
+    {/if}
     <div class="navbar">
         <div class="logo-text-full">
             <img src={drawtopia} alt="drawtopia logo" class="img-logo" />
@@ -438,7 +513,7 @@
                         <span class="saveasdraft_span">Save as Draft</span>
                     </div>
                 </div>
-                <div class="frame-1410104246" on:click={() => {goto('/adventure-story/loading')}}>
+                <div class="frame-1410104246" on:click={handleContinueToStory} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && handleContinueToStory()}>
                     <div class="ellipse-1415"></div>
                     <div class="floppydiskback">
                         <img
@@ -459,6 +534,72 @@
 </div>
 
 <style>
+    /* Credit Error Toast Notification - from right with animation */
+    .credit-error-toast {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 1000;
+        animation: slideInFromRight 0.35s ease-out;
+    }
+
+    @keyframes slideInFromRight {
+        from {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .credit-error-toast-content {
+        padding: 16px 24px;
+        background: #FFF0F3;
+        border-radius: 12px;
+        outline: 2px #DF1C41 solid;
+        outline-offset: -2px;
+        box-shadow: 0px 4px 12px rgba(223, 28, 65, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        min-width: 300px;
+        max-width: 500px;
+    }
+
+    .credit-error-toast-icon {
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .warning-icon {
+        /* White SVG → #DF1C41 red */
+        filter: brightness(0) invert(27%) sepia(98%) saturate(2476%) hue-rotate(330deg) brightness(87%) contrast(91%);
+    }
+
+    .credit-error-toast-icon .warning-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .credit-error-toast-message {
+        flex: 1;
+    }
+
+    .credit-error-toast-text {
+        color: #DF1C41;
+        font-size: 16px;
+        font-family: Quicksand;
+        font-weight: 600;
+        line-height: 22.4px;
+        word-wrap: break-word;
+    }
+
     .hereyourpreviewstory_span {
         color: #141414;
         font-size: 48px;
@@ -1955,6 +2096,17 @@
             padding-right: 24px;
             padding-top: 12px;
             padding-bottom: 12px;
+        }
+
+        .credit-error-toast {
+            top: 80px;
+            right: 20px;
+            left: auto;
+        }
+
+        .credit-error-toast-content {
+            min-width: auto;
+            width: 100%;
         }
 
         .frame-1410104246 {

@@ -76,7 +76,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    animation: slideIn 0.3s ease-out;
+    animation: slideInFromRight 0.35s ease-out;
   }
 
   .notification-content {
@@ -122,7 +122,7 @@
     color: #374151;
   }
 
-  @keyframes slideIn {
+  @keyframes slideInFromRight {
     from {
       transform: translateX(100%);
       opacity: 0;
@@ -137,8 +137,8 @@
     .notification-container {
       top: 10px;
       right: 10px;
-      left: 10px;
-      max-width: none;
+      left: auto;
+      max-width: min(400px, calc(100vw - 20px));
     }
   }
 </style>

@@ -9,7 +9,7 @@
     import type { ChildProfile } from '../../../lib/database/childProfiles';
     import { createStory } from '../../../lib/database/stories';
     import { updateGift } from '../../../lib/database/gifts';
-    import { user } from '../../../lib/stores/auth';
+    import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
     import { buildStoryTextPrompt, buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt } from '../../../lib/promptBuilder';
     import drawtopia from "../../../assets/logo.png";
@@ -669,6 +669,34 @@
                         storyData.story_title || storyState.storyTitle || `${storyState.characterName || 'Character'}'s Search Adventure`,
                         'interactive_search'
                     );
+
+                    // Deduct 1 credit from current user when story generation completes successfully
+                    const accessToken = get(session)?.access_token;
+                    if (accessToken) {
+                        const API_BASE_URL = (env.API_BASE_URL || '').replace('/api', '') || 'http://localhost:8000';
+                        try {
+                            const deductRes = await fetch(`${API_BASE_URL}/api/users/deduct-credit`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${accessToken}`
+                                },
+                                body: JSON.stringify({ amount: 1 })
+                            });
+                            if (deductRes.ok) {
+                                const deductData = await deductRes.json();
+                                if (deductData.success) {
+                                    console.log('✅ Story generation complete: 1 credit deducted');
+                                } else {
+                                    console.warn('Deduct credit returned not success:', deductData.message);
+                                }
+                            } else {
+                                console.warn('Failed to deduct credit:', await deductRes.json().catch(() => ({})));
+                            }
+                        } catch (deductErr) {
+                            console.warn('Error deducting credit after story generation:', deductErr);
+                        }
+                    }
                 }
             } else {
                 console.error('Failed to save interactive story:', result.error);
@@ -890,6 +918,34 @@
                         storyData.story_title || storyState.storyTitle || 'Your Story',
                         'adventure-story'
                     );
+
+                    // Deduct 1 credit from current user when story generation completes successfully
+                    const accessToken = get(session)?.access_token;
+                    if (accessToken) {
+                        const API_BASE_URL = (env.API_BASE_URL || '').replace('/api', '') || 'http://localhost:8000';
+                        try {
+                            const deductRes = await fetch(`${API_BASE_URL}/api/users/deduct-credit`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${accessToken}`
+                                },
+                                body: JSON.stringify({ amount: 1 })
+                            });
+                            if (deductRes.ok) {
+                                const deductData = await deductRes.json();
+                                if (deductData.success) {
+                                    console.log('✅ Story generation complete: 1 credit deducted');
+                                } else {
+                                    console.warn('Deduct credit returned not success:', deductData.message);
+                                }
+                            } else {
+                                console.warn('Failed to deduct credit:', await deductRes.json().catch(() => ({})));
+                            }
+                        } catch (deductErr) {
+                            console.warn('Error deducting credit after story generation:', deductErr);
+                        }
+                    }
                 }
             } else {
                 console.error('Failed to save story:', result.error);

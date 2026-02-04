@@ -469,3 +469,43 @@ export async function getRecentlyUsedCharacters(
   }
 }
 
+/**
+ * Get the count of characters created today (UTC) by a user.
+ * Used for free tier daily upload limit.
+ * @param userId - The user ID
+ * @returns Promise with count
+ */
+export async function getCharactersCreatedTodayCount(userId: string): Promise<DatabaseResult & { count?: number }> {
+  try {
+    const now = new Date();
+    const startOfTodayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    const startOfTodayIso = startOfTodayUtc.toISOString();
+
+    const { count, error } = await supabase
+      .from('characters')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', startOfTodayIso);
+
+    if (error) {
+      console.error('Error counting characters created today:', error);
+      return {
+        success: false,
+        error: error.message,
+        count: 0
+      };
+    }
+
+    return {
+      success: true,
+      count: count ?? 0
+    };
+  } catch (error) {
+    console.error('Unexpected error counting characters created today:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred while counting characters',
+      count: 0
+    };
+  }
+}

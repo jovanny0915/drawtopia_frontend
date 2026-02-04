@@ -5,7 +5,7 @@
 
 import { writable, derived } from 'svelte/store';
 import { supabase, AUTH_STORAGE_KEY } from '../supabase';
-import { registerUser, registerGoogleOAuthUser } from '../auth';
+import { registerUser, registerGoogleOAuthUser, updateUserLastLogin } from '../auth';
 import type { User, Session } from '@supabase/supabase-js';
 
 // User with profile fields from custom users table (for display name, etc.)
@@ -207,6 +207,13 @@ export function initAuth() {
         auth.update(s => ({ ...s, first_name: null, last_name: null }));
       }
       
+      // On actual sign-in, update last_login and possibly reset daily upload_cnt
+      if (event === 'SIGNED_IN' && session?.user?.id) {
+        updateUserLastLogin(session.user.id).catch((err) =>
+          console.warn('Failed to update last_login:', err)
+        );
+      }
+
       // Handle both SIGNED_IN and TOKEN_REFRESHED events
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         const user = session.user;
