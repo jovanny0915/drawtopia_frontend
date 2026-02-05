@@ -12,80 +12,83 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { onMount } from "svelte";
-  import { browser } from "$app/environment";
   import logo from "../assets/logo.png";
   import XIcon from "../assets/X.svg";
   import BookOpenText from "../assets/BookOpenText.svg";
   import LockKey from "../assets/LockKey.svg";
   import { getAllStoriesForParent } from "../lib/database/stories";
-  import { user } from "../lib/stores/auth";
 
-  export let books: BookOption[] = []; // Initial/current book from parent
+  export let books: BookOption[] = [];
+  export let userId: string | null = null; // User ID to fetch all un-purchased books
   export let currentBookId: string | null = null; // ID of the book currently being read
-  export let totalBooks: number = 7;
   export let creditsAvailable: number = 1;
   export let creditsTotal: number = 1;
 
   const dispatch = createEventDispatcher();
 
-  // All user books (fetched when modal opens)
-  let allUserBooks: BookOption[] = [];
-  let loadingUserBooks = false;
+  let fetchedBooks: BookOption[] = [];
+  let isLoadingBooks = false;
+  let fetchError = "";
 
-  onMount(async () => {
-    if (!browser || !$user?.id) return;
-    loadingUserBooks = true;
+  // Fetch all un-purchased books when modal opens and userId is available
+  async function fetchUnpurchasedBooks() {
+    if (!userId || !userId.trim()) return;
+    isLoadingBooks = true;
+    fetchError = "";
     try {
-      const result = await getAllStoriesForParent($user.id);
+      const result = await getAllStoriesForParent(userId);
       if (result.success && result.data) {
-        const storiesData = Array.isArray(result.data) ? result.data : [];
-        allUserBooks = storiesData
-          .map((story: any) => {
-            const id = story.uid || story.id || "";
-            const coverUrl =
-              story.story_cover ||
-              story.cover ||
-              (story.story_content && typeof story.story_content === "object" && story.story_content?.cover) ||
-              "https://placehold.co/100x100";
-            return {
-              id,
-              title: story.story_title || `${story.character_name || "Story"}'s Adventure`,
-              unlockTitle: story.story_title || `${story.character_name || "Story"}'s Adventure`,
-              coverImageUrl: typeof coverUrl === "string" ? coverUrl.split("?")[0] : "https://placehold.co/100x100",
-              pagesAvailable: 2,
-              pagesLocked: 3,
-            } as BookOption;
-          })
-          .filter((b) => b.id);
+        const stories = Array.isArray(result.data) ? result.data : [];
+        const unpurchased = stories.filter(
+          (s: { purchased?: boolean; uid?: string }) => s.purchased !== true
+        );
+        fetchedBooks = unpurchased.map((s: any) => ({
+          id: s.uid || s.id || String(s.id),
+          title: s.story_title || `${s.character_name || "Character"}'s Adventure`,
+          unlockTitle: s.story_title || `${s.character_name || "Character"}'s Adventure`,
+          coverImageUrl: s.story_cover || "https://placehold.co/100x100",
+          pagesAvailable: 2,
+          pagesLocked: 3,
+        }));
       }
     } catch (err) {
-      console.error("[BookSelectionModal] Error fetching user books:", err);
+      console.error("[BookSelectionModal] Error fetching books:", err);
+      fetchError = "Failed to load books";
+      fetchedBooks = [];
     } finally {
-      loadingUserBooks = false;
+      isLoadingBooks = false;
     }
+  }
+
+  onMount(() => {
+    if (userId) fetchUnpurchasedBooks();
   });
 
-  // Use fetched books when available; otherwise fall back to books prop
-  $: displayBooks = allUserBooks.length > 0 ? allUserBooks : books;
-  $: effectiveTotalBooks = displayBooks.length || totalBooks;
+  // Use fetched un-purchased books when available, otherwise fall back to prop
+  // Ensure current book from parent is in the list (in case fetch missed it)
+  $: displayBooks = (() => {
+    const list = fetchedBooks.length > 0 ? fetchedBooks : books;
+    if (currentBookId && list.length > 0) {
+      const hasCurrent = list.some((b) => b.id === currentBookId);
+      if (!hasCurrent && books.length > 0) {
+        const currentFromParent = books.find((b) => b.id === currentBookId);
+        if (currentFromParent) return [currentFromParent, ...list];
+      }
+    }
+    return list;
+  })();
 
-  // Merge current book from parent if it has better data (e.g. cover from storyScenes)
-  $: currentBookFromParent = books.find((b) => b.id === currentBookId);
-  $: effectiveCurrentId = currentBookId ?? (books[0]?.id ?? displayBooks[0]?.id ?? null);
+  $: booksWithCurrent = displayBooks.length > 0 ? displayBooks : books;
+  $: effectiveCurrentId = currentBookId ?? (booksWithCurrent[0]?.id ?? null);
   $: currentBook =
-    currentBookFromParent ??
-    displayBooks.find((b) => b.id === effectiveCurrentId) ??
-    books[0] ??
-    displayBooks[0];
+    booksWithCurrent.find((b) => b.id === effectiveCurrentId) ?? booksWithCurrent[0] ?? books[0];
 
   // Selected book for unlock (user selection, falls back to current book)
   let selectedBookId = "";
-  $: defaultSelection = effectiveCurrentId ?? currentBook?.id ?? displayBooks[0]?.id ?? "";
+  $: defaultSelection = effectiveCurrentId ?? booksWithCurrent[0]?.id ?? "";
   $: effectiveSelectedId = selectedBookId || defaultSelection;
   $: selectedBook =
-    displayBooks.find((b) => b.id === effectiveSelectedId) ??
-    currentBook ??
-    displayBooks[0];
+    booksWithCurrent.find((b) => b.id === effectiveSelectedId) ?? currentBook ?? booksWithCurrent[0];
 
   function handleClose() {
     dispatch("close");
@@ -132,7 +135,7 @@
 
     <div class="modal-body">
       <h2 id="book-selection-title" class="modal-title">Choose Your Story Adventure</h2>
-      <p class="modal-subtitle">You have {effectiveTotalBooks} books. Choose which one to unlock first!</p>
+      <p class="modal-subtitle">You have {booksWithCurrent.length} books. Choose which one to unlock first!</p>
 
       <div class="section-divider"></div>
 
@@ -161,11 +164,13 @@
 
       <!-- Select a different book -->
       <p class="section-label">Or select a different book to unlock:</p>
+      {#if isLoadingBooks}
+        <div class="books-loading">Loading your books...</div>
+      {:else if fetchError}
+        <div class="books-error">{fetchError}</div>
+      {:else}
       <div class="book-covers-scroll">
-        {#if loadingUserBooks}
-          <div class="books-loading">Loading your books...</div>
-        {:else}
-        {#each displayBooks as book (book.id)}
+        {#each booksWithCurrent as book (book.id)}
           <button
             type="button"
             class="book-cover-btn"
@@ -177,8 +182,8 @@
             <div class="book-cover-thumb" style="background-image: url({book.coverImageUrl})"></div>
           </button>
         {/each}
-        {/if}
       </div>
+      {/if}
 
       <!-- Footer -->
       <div class="modal-footer">
@@ -321,6 +326,18 @@
     margin: 0;
   }
 
+  .books-loading,
+  .books-error {
+    padding: 16px;
+    text-align: center;
+    color: #727272;
+    font-size: 14px;
+  }
+
+  .books-error {
+    color: #c00;
+  }
+
   .current-book-card {
     display: flex;
     align-items: center;
@@ -373,12 +390,6 @@
     height: 18px;
     flex-shrink: 0;
     filter: brightness(0) saturate(100%) invert(45%);
-  }
-
-  .books-loading {
-    padding: 24px;
-    color: #727272;
-    font-size: 14px;
   }
 
   .book-covers-scroll {

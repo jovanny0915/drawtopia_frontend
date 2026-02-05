@@ -14,12 +14,8 @@
   import { storyCreation } from "../../../lib/stores/storyCreation";
   import { generateIntersearchCover, generateStoryAdventureCover, generateStyledImage, saveSelectedImageUrl } from "../../../lib/imageGeneration";
   import { user } from "../../../lib/stores/auth";
-  import { getUserProfile } from "../../../lib/auth";
-  import warningIcon from "../../../assets/WhiteWarning.svg";
 
   let isMobile = false;
-  let showCreditErrorNotification = false;
-  let creditErrorNotificationMessage = "";
   let characterName = "";
   let selectedImageFromStep6 = "";
   let selectedStyle = "";
@@ -217,16 +213,6 @@
     selectedTitle = title;
   }
 
-  // Format renewal date for display (e.g. "January 15, 2026")
-  function formatRenewalDate(isoDate: string): string {
-    try {
-      const d = new Date(isoDate);
-      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    } catch {
-      return '';
-    }
-  }
-
   // Handle preview story button click (continue generation)
   const handleContinueToDedicationPage = async () => {
     // Only proceed if conditions are met
@@ -234,42 +220,6 @@
 
     const currentUser = $user;
     if (!currentUser?.id) {
-      return;
-    }
-
-    // Check credit before proceeding
-    try {
-      const profileResult = await getUserProfile(currentUser.id);
-      if (profileResult.success && profileResult.profile) {
-        const profile = Array.isArray(profileResult.profile) ? profileResult.profile[0] : profileResult.profile;
-        const currentCredit = profile?.credit !== undefined && profile?.credit !== null
-          ? (typeof profile.credit === 'string' ? parseInt(profile.credit, 10) : profile.credit)
-          : 0;
-        const credit = isNaN(currentCredit) ? 0 : currentCredit;
-
-        if (credit <= 0) {
-          const subscriptionStatus = (profile?.subscription_status || 'free').toLowerCase();
-          const isFreePlan = subscriptionStatus === 'free';
-
-          if (isFreePlan) {
-            creditErrorNotificationMessage = "You need more stories to create this one. Check your subscription or add credits.";
-          } else {
-            const renewalDate = profile?.subscription_expires
-              ? formatRenewalDate(profile.subscription_expires)
-              : '';
-            creditErrorNotificationMessage = renewalDate
-              ? `You've used all your monthly stories. Your next set of stories renews on ${renewalDate}.`
-              : "You've used all your monthly stories. Your next set of stories renews next month.";
-          }
-          showCreditErrorNotification = true;
-          setTimeout(() => {
-            showCreditErrorNotification = false;
-          }, 5000);
-          return;
-        }
-      }
-    } catch (err) {
-      console.error('Error checking credit:', err);
       return;
     }
 
@@ -302,19 +252,6 @@
 </script>
 
 <div class="character-creation-default">
-  <!-- Credit Error Notification Toast -->
-  {#if showCreditErrorNotification}
-    <div class="credit-error-toast">
-      <div class="credit-error-toast-content">
-        <div class="credit-error-toast-icon">
-          <img src={warningIcon} alt="warning" class="warning-icon">
-        </div>
-        <div class="credit-error-toast-message">
-          <span class="credit-error-toast-text">{creditErrorNotificationMessage}</span>
-        </div>
-      </div>
-    </div>
-  {/if}
   <div class="navbar">
     <div class="logo-text-full" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()}>
       <div class="logo-img"></div>
@@ -1392,79 +1329,5 @@
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-  }
-
-  /* Credit Error Toast Notification - from right with animation */
-  .credit-error-toast {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 1000;
-    animation: slideInFromRight 0.35s ease-out;
-  }
-
-  @keyframes slideInFromRight {
-    from {
-      opacity: 0;
-      transform: translateX(100%);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  .credit-error-toast-content {
-    padding: 16px 24px;
-    background: #FFF0F3;
-    border-radius: 12px;
-    outline: 2px #DF1C41 solid;
-    outline-offset: -2px;
-    box-shadow: 0px 4px 12px rgba(223, 28, 65, 0.2);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 300px;
-    max-width: 500px;
-  }
-
-  .credit-error-toast-icon {
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .credit-error-toast-icon .warning-icon {
-    width: 20px;
-    height: 20px;
-  }
-
-  .credit-error-toast-message {
-    flex: 1;
-  }
-
-  .credit-error-toast-text {
-    color: #DF1C41;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  @media (max-width: 800px) {
-    .credit-error-toast {
-      top: 80px;
-      right: 20px;
-      left: auto;
-    }
-
-    .credit-error-toast-content {
-      min-width: auto;
-      width: 100%;
-    }
   }
 </style>

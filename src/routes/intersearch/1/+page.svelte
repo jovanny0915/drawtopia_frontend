@@ -2154,8 +2154,8 @@
 {#if showBookSelectionModal && bookSelectionBooks.length > 0}
   <BookSelectionModal
     books={bookSelectionBooks}
+    userId={$user?.id ?? null}
     currentBookId={storyId}
-    totalBooks={bookSelectionBooks.length}
     creditsAvailable={1}
     creditsTotal={1}
     on:close={handleCloseBookSelectionModal}

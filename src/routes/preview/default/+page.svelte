@@ -1351,8 +1351,8 @@
   {#if showPreviewLockModal && bookSelectionBooks.length > 0}
     <BookSelectionModal
       books={bookSelectionBooks}
+      userId={$user?.id ?? null}
       currentBookId={currentStoryId}
-      totalBooks={bookSelectionBooks.length}
       creditsAvailable={bookSelectionCreditsAvailable}
       creditsTotal={bookSelectionCreditsTotal}
       on:close={handleCloseBookSelectionModal}
