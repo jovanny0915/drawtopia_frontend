@@ -13,6 +13,7 @@
   import spinner from "../../../assets/Spinner.svg";
   import { storyCreation } from "../../../lib/stores/storyCreation";
   import { generateIntersearchCover, generateStoryAdventureCover, generateStyledImage, saveSelectedImageUrl } from "../../../lib/imageGeneration";
+  import { generateStoryTitles } from "../../../lib/api/storyTitles";
   import { user } from "../../../lib/stores/auth";
 
   let isMobile = false;
@@ -25,6 +26,7 @@
   let selectedFormat = "";
   let enhancedCharacterImage = "";
   let isGeneratingImage = false;
+  let isGeneratingTitles = false;
   let selectedCharacterEnhancedImage = "";
   let intersearchWorld = "";
   let intersearchDifficulty = "";
@@ -36,7 +38,7 @@
   let titleOptions: string[] = [];
   
   // Computed property to check if continue button should be enabled
-  $: canContinue = !isGeneratingImage && 
+  $: canContinue = !isGeneratingImage && !isGeneratingTitles &&
                    selectedImageFromStep6 && 
                    selectedImageFromStep6.trim().length > 0 &&
                    selectedTitle && 
@@ -46,28 +48,21 @@
     isMobile = window.innerWidth < 800;
   }
 
+  // Fallback titles when API fails or data is missing
+  const getFallbackTitles = () => {
+    const name = characterName || '[Your Name]';
+    return [
+      `The Great Adventure of ${name}`,
+      `The Amazing Journey of ${name}`,
+      `${name} and the Magical Quest`
+    ];
+  };
+
   // Retrieve character data from sessionStorage on component mount
   onMount(async () => {
     if (browser) {
       const storedCharacterName = sessionStorage.getItem('characterName');
-      if (storedCharacterName) {
-        characterName = storedCharacterName;
-        // Update title options with character name
-        titleOptions = [
-          `The Great Addventure ${characterName}`,
-          `The Amazing of Journey ${characterName}`,
-          `${characterName} and the Space Adventure`
-        ];
-        // Update selected title with character name
-        selectedTitle = titleOptions[0];
-      } else {
-        // Fallback titles with placeholder
-        titleOptions = [
-          "The Great Addventure [Your Name]",
-          "The Amazing of Journey [Your Name]",
-          "[Your Name] and the Space Adventure"
-        ];
-      }
+      characterName = storedCharacterName || '';
       
       // Get selections from sessionStorage
       selectedStyle = sessionStorage.getItem('selectedStyle') || "";
@@ -76,8 +71,37 @@
       selectedAdventure = sessionStorage.getItem('selectedAdventure') || "";
       selectedFormat = sessionStorage.getItem('selectedFormat') || "";
       enhancedCharacterImage = sessionStorage.getItem('selectedCharacterEnhancedImage') || "";
-      
-      // Generate images: first environment, then adventure
+      const specialAbility = sessionStorage.getItem('specialAbility') || '';
+      const characterType = sessionStorage.getItem('selectedCharacterType') || 'person';
+      const ageGroup = sessionStorage.getItem('ageGroup') || '7-10';
+
+      // Step 1: Generate story titles via backend API (before cover image)
+      isGeneratingTitles = true;
+      const titlesResult = await generateStoryTitles({
+        characterName: characterName || 'Character',
+        specialAbility: specialAbility,
+        storyWorld: selectedWorld || 'forest',
+        adventureType: selectedAdventure || 'treasure',
+        characterType: characterType,
+        characterStyle: selectedStyle || 'cartoon',
+        storyFormat: selectedFormat || 'story',
+        ageGroup: ageGroup
+      });
+
+      if (titlesResult.success && titlesResult.titles && titlesResult.titles.length >= 3) {
+        titleOptions = titlesResult.titles;
+        selectedTitle = titleOptions[0];
+      } else {
+        // Fallback to default titles
+        titleOptions = getFallbackTitles();
+        selectedTitle = titleOptions[0];
+        if (titlesResult.error) {
+          console.warn('Story titles API failed, using fallback:', titlesResult.error);
+        }
+      }
+      isGeneratingTitles = false;
+
+      // Step 2: Generate cover images (environment, then adventure)
       if (enhancedCharacterImage && selectedWorld && selectedAdventure) {
         await generateImages();
       } else if (selectedFormat === "interactive") {
@@ -303,10 +327,10 @@
             <span class="coverbookpreview_span">Cover Book Preview</span>
           </div>
         </div>
-        {#if isGeneratingImage}
+        {#if isGeneratingImage || isGeneratingTitles}
           <div class="generating-overlay">
             <img src={spinner} alt="Loading" class="spinner" />
-            <div class="generating-text">Generating adventure image...</div>
+            <div class="generating-text">{isGeneratingTitles ? 'Generating story titles...' : 'Generating adventure image...'}</div>
           </div>
         {:else}
           <img

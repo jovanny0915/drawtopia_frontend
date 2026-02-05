@@ -351,11 +351,6 @@
         </div>
       {/if}
       <div class="frame-2147227476">
-        <button class="button_01">
-          <div class="keep-current-version">
-            <span class="keepcurrentversion_span">Keep Current Version</span>
-          </div>
-        </button>
         <button
           class="button_02"
           class:mobile-full-width={isMobile}

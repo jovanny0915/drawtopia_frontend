@@ -314,7 +314,7 @@
     uploadError = "";
     showUploadNotification = false;
     
-    // Auto-hide notification after 5 seconds
+    // Auto-hide notification after 7 seconds
     setTimeout(() => {
       showErrorNotification = false;
     }, 5000);
@@ -375,14 +375,9 @@
           }
         }
 
-        // Show success notification
+        // Show success badge on upload component (persists while image is shown)
         showUploadNotification = true;
         showErrorNotification = false;
-
-        // Auto-hide notification after 5 seconds
-        setTimeout(() => {
-          showUploadNotification = false;
-        }, 5000);
       } else {
         // Handle upload failure
         showError("Something went wrong while uploading. Please try again.");
@@ -631,6 +626,18 @@
         <!-- Upload Character Card -->
         <div class="frame-10">
           <div class="frame-1410103935">
+            {#if showErrorNotification}
+              <div class="frame-1410104035-error">
+                <div class="frame-1410104036-error">
+                  <div class="warning">
+                    <img src={warningIcon} alt="warning" class="warning-icon">
+                  </div>
+                </div>
+                <div class="error-message-container">
+                  <span class="errormessage_span">{errorNotificationMessage}</span>
+                </div>
+              </div>
+            {/if}
             <div class="upload-character">
               <span class="uploadcharacter_span">Upload Character</span>
             </div>
@@ -640,7 +647,7 @@
                 <span class="free-tier-limit-count">{uploadCnt}/{FREE_TIER_DAILY_CHARACTER_LIMIT} characters today</span>
               </div>
             {/if}
-            {#if showUploadNotification}
+            {#if showUploadNotification && uploadedImageUrl && !uploading}
               <div class="frame-1410104035">
                 <div class="frame-1410104036">
                   <div class="sealcheck">
@@ -651,18 +658,6 @@
                   <span class="yourcharacterlooksamazing_span"
                     >Your character looks amazing!</span
                   >
-                </div>
-              </div>
-            {/if}
-            {#if showErrorNotification}
-              <div class="frame-1410104035-error">
-                <div class="frame-1410104036-error">
-                  <div class="warning">
-                    <img src={warningIcon} alt="warning" class="warning-icon">
-                  </div>
-                </div>
-                <div class="error-message-container">
-                  <span class="errormessage_span">{errorNotificationMessage}</span>
                 </div>
               </div>
             {/if}
@@ -2479,7 +2474,7 @@
   }
 
   .yourcharacterlooksamazing_span {
-    color: #40c4aa;
+    color: #121212;
     font-size: 16px;
     font-family: Quicksand;
     font-weight: 600;
@@ -2492,120 +2487,121 @@
   }
 
   .sealcheck {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .greencheck {
     width: 100%;
-    margin: auto;
+    height: 100%;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
   }
 
   .frame-1410104036 {
-    padding: 8px;
-    background: #40c4aa;
-    border-radius: 12px;
-    justify-content: flex-start;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    background: #2db8a1;
+    border-radius: 50%;
+    justify-content: center;
     align-items: center;
-    gap: 10px;
+    gap: 0;
     display: flex;
   }
 
-  /* Notifications from right with animation */
-  @keyframes slideInFromRight {
+  /* Success badge on upload component */
+  @keyframes badgeFadeIn {
     from {
       opacity: 0;
-      transform: translateX(100%);
+      transform: translateY(-4px);
     }
     to {
       opacity: 1;
-      transform: translateX(0);
+      transform: translateY(0);
     }
   }
 
   .frame-1410104035 {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 1000;
-    max-width: 400px;
-    padding: 16px;
-    background: #effefa;
-    border-radius: 10px;
-    outline: 1px #40c4aa solid;
-    outline-offset: -1px;
+    align-self: stretch;
+    padding: 12px 16px;
+    background: linear-gradient(90deg, #e8f8f5 0%, #effefa 50%, #e8f8f5 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(64, 196, 170, 0.4);
     justify-content: flex-start;
     align-items: center;
     gap: 12px;
-    display: inline-flex;
-    animation: slideInFromRight 0.35s ease-out;
+    display: flex;
+    animation: badgeFadeIn 0.3s ease-out;
   }
 
-  /* Upload error notification styles */
+  /* Upload error badge on upload component */
   .warning-icon {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     position: relative;
     margin: auto;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
   }
 
   .errormessage_span {
-    color: #DF1C41;
+    color: #E60049;
     font-size: 16px;
     font-family: Quicksand;
     font-weight: 600;
-    line-height: 22.40px;
+    line-height: 22.4px;
     word-wrap: break-word;
   }
 
   .error-message-container {
-    text-align: center;
+    flex: 1;
+    min-width: 0;
+    text-align: left;
   }
 
   .warning {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .frame-1410104036-error {
-    padding: 8px;
-    background: #DF1C41;
-    border-radius: 12px;
-    justify-content: flex-start;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    background: #E60049;
+    border-radius: 50%;
+    justify-content: center;
     align-items: center;
-    gap: 10px;
     display: flex;
   }
 
   .frame-1410104035-error {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 1000;
-    max-width: 400px;
-    padding: 16px;
-    background: #FFF0F3;
-    border-radius: 10px;
-    outline: 1px #DF1C41 solid;
-    outline-offset: -1px;
+    align-self: stretch;
+    padding: 12px 16px;
+    background: #FFECEF;
+    border: 1px solid #E60049;
+    border-radius: 16px;
     justify-content: flex-start;
     align-items: center;
     gap: 12px;
-    display: inline-flex;
-    animation: slideInFromRight 0.35s ease-out;
-  }
-
-  @media (max-width: 480px) {
-    .frame-1410104035,
-    .frame-1410104035-error {
-      top: 16px;
-      right: 16px;
-      left: auto;
-      max-width: min(400px, calc(100vw - 32px));
-    }
+    display: flex;
+    animation: badgeFadeIn 0.3s ease-out;
   }
 </style>

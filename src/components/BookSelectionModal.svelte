@@ -393,36 +393,18 @@
   }
 
   .book-covers-scroll {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
-    overflow-x: auto;
     padding: 4px 0;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .book-covers-scroll::-webkit-scrollbar {
-    height: 6px;
-  }
-
-  .book-covers-scroll::-webkit-scrollbar-track {
-    background: #f0f0f0;
-    border-radius: 3px;
-  }
-
-  .book-covers-scroll::-webkit-scrollbar-thumb {
-    background: #c0c0c0;
-    border-radius: 3px;
   }
 
   .book-cover-btn {
-    flex-shrink: 0;
     padding: 0;
     border: none;
     background: transparent;
     cursor: pointer;
     border-radius: 12px;
-    scroll-snap-align: start;
     transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
 
@@ -435,8 +417,8 @@
   }
 
   .book-cover-thumb {
-    width: 100px;
-    height: 100px;
+    width: 100%;
+    aspect-ratio: 1;
     border-radius: 12px;
     background-size: cover;
     background-position: center;
@@ -518,11 +500,6 @@
     .current-book-card {
       flex-direction: column;
       align-items: flex-start;
-    }
-
-    .book-cover-thumb {
-      width: 88px;
-      height: 88px;
     }
   }
 </style>

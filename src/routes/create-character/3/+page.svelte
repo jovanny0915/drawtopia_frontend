@@ -96,8 +96,19 @@
   };
 
   const handleTryStoryAdventure = () => {
-    selectFormat("story");
-    handleCloseModal();
+    if (!selectedFormat) {
+      alert('Please select an adventure format');
+      return;
+    }
+    
+    // Navigate to the appropriate next step based on format
+    if (selectedFormat === "interactive") {
+      // For Interactive Search Adventure, go to intersearch flow
+      goto("/intersearch");
+    } else {
+      // For Story Adventure, continue to story world selection
+      goto("/create-character/5");
+    }
   };
 
   const handlePreviewCardClick = (formatId: string) => {

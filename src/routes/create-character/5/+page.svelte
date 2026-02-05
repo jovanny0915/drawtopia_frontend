@@ -153,7 +153,7 @@
         <span class="step1choosestoryworld_span">Step 1: Choose Story World</span>
       </div>
       <div class="frame-1410103852">
-        <div class="card" class:card-selected={selectedWorld === "forest"}>
+        <div class="card" class:card-selected={selectedWorld === "forest"} role="button" tabindex="0" on:click={() => selectWorld("forest")} on:keydown={(e) => e.key === 'Enter' && selectWorld("forest")}>
           <div class="image-container">
             <img class="image" src={forest} alt="Enchanted Forest" />
           </div>
@@ -180,7 +180,7 @@
             </div>
           </div>
         </div>
-        <div class="card" class:card-selected={selectedWorld === "outerspace"}>
+        <div class="card" class:card-selected={selectedWorld === "outerspace"} role="button" tabindex="0" on:click={() => selectWorld("outerspace")} on:keydown={(e) => e.key === 'Enter' && selectWorld("outerspace")}>
           <div class="image-container">
             <img class="image" src={outspace} alt="Outer Space" />
           </div>
@@ -207,7 +207,7 @@
             </div>
           </div>
         </div>
-        <div class="card" class:card-selected={selectedWorld === "underwater"}>
+        <div class="card" class:card-selected={selectedWorld === "underwater"} role="button" tabindex="0" on:click={() => selectWorld("underwater")} on:keydown={(e) => e.key === 'Enter' && selectWorld("underwater")}>
           <div class="image-container">
             <img class="image" src={underwater} alt="Underwater Kingdom" />
           </div>
@@ -242,7 +242,7 @@
         <span class="step2chooseadventuretype_span">Step 2: Choose Adventure Type</span>
       </div>
       <div class="frame-1410103852_01">
-        <div class="card_03" class:card-selected={selectedAdventure === "treasure"}>
+        <div class="card_03" class:card-selected={selectedAdventure === "treasure"} role="button" tabindex="0" on:click={() => selectAdventure("treasure")} on:keydown={(e) => e.key === 'Enter' && selectAdventure("treasure")}>
           <div class="image-container">
             <img class="image_03" src={treasure} alt="Treasure Hunt" />
           </div>
@@ -266,7 +266,7 @@
             </div>
           </div>
         </div>
-        <div class="card_04" class:card-selected={selectedAdventure === "helping"}>
+        <div class="card_04" class:card-selected={selectedAdventure === "helping"} role="button" tabindex="0" on:click={() => selectAdventure("helping")} on:keydown={(e) => e.key === 'Enter' && selectAdventure("helping")}>
           <div class="image_04">
             <img class="image-6" src={helping} alt="Helping a Friend" />
           </div>
