@@ -5,7 +5,7 @@
   import { page } from "$app/stores";
   import share from "../../../assets/Share.svg";
   import DotsThreeOutline from "../../../assets/DotsThreeOutline.svg";
-  import CornersOut from "../../../assets/CornersOut.svg";
+  import fullscreen from "../../../assets/fullscreen.svg";
   import Book from "../../../assets/Book.svg";
   import EnvelopeSimple from "../../../assets/EnvelopeSimple.svg";
   import LockKey from "../../../assets/LockKey.svg";
@@ -39,6 +39,7 @@
   const totalScenes = 5;
   let viewMode: 'one-page' | 'two-page' = 'two-page'; // Default to two-page view
   let isFullscreen = false;
+  let imageWrapperRef: HTMLDivElement | null = null;
   let currentSubPage: 'left' | 'right' = 'left'; // Track which sub-page to show in one-page mode
   
   let storyTitle = "Luna's Adventure";
@@ -707,6 +708,9 @@
   
   // Cleanup on component destroy
   onDestroy(() => {
+    if (browser && isFullscreen && document.fullscreenElement) {
+      document.exitFullscreen();
+    }
     cleanupAudio();
     stopReadingTimerAndSave();
   });
@@ -751,11 +755,11 @@
           : '';
       })();
   
-  // Toggle fullscreen mode
+  // Toggle fullscreen mode (same as /intersearch/1: fullscreen the story container only)
   function toggleFullscreen() {
     if (!browser) return;
     
-    const elem = document.documentElement;
+    const elem = imageWrapperRef || document.documentElement;
     
     if (!document.fullscreenElement) {
       // Enter fullscreen
@@ -798,8 +802,20 @@
 
 <svelte:window on:keydown={(e) => {
   if (e.key === 'Escape') {
-    showStoryInfoModal = false;
-    showShareStoryModal = false;
+    if (isFullscreen) {
+      toggleFullscreen();
+    } else {
+      showStoryInfoModal = false;
+      showShareStoryModal = false;
+    }
+  } else if (isFullscreen) {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      previousScene();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      nextScene();
+    }
   }
 }} />
 
@@ -909,6 +925,7 @@
               </div>
             </div>
             <div class="book-container-wrapper">
+              <div class="preview-fullscreen-wrapper" bind:this={imageWrapperRef}>
               <div class="frame-1410104106">
                 <div class="book-container">
                   {#if isLoading}
@@ -926,7 +943,7 @@
                   {:else if storyScenes.length > 0}
                     {#if currentSceneIndex === 0}
                       <!-- Cover: Single image display -->
-                      <div class="cover-image-container">
+                      <div class="cover-image-container" class:fullscreen-cover={isFullscreen}>
                         <div class="image cover-image">
                           <img
                             src={storyScenes[currentSceneIndex]}
@@ -939,7 +956,7 @@
                       </div>
                     {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'DEDICATION_PAGE'}
                       <!-- Dedication Page: Left blank, Right with dedication image and text -->
-                      <div class="mobile-image-split">
+                      <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh;' : ''}>
                         <div class="mobile-image-half mobile-image-left dedication-blank">
                           <div class="image dedication-blank-page">
                             <!-- White blank page -->
@@ -972,9 +989,9 @@
                       </div>
                     {:else if viewMode === 'one-page' && storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'DEDICATION_PAGE'}
                       <!-- One-page mode: Show only left OR right page -->
-                      <div class="mobile-image-split" class:single-page-mode={true}>
+                      <div class="mobile-image-split" class:single-page-mode={true} style={isFullscreen ? 'height: 90dvh;' : ''}>
                         {#if currentSubPage === 'left'}
-                          <div class="mobile-image-half mobile-image-left single-page-full">
+                          <div class="mobile-image-half mobile-image-left single-page-full" style={isFullscreen ? 'height: 100%;' : ''}>
                             <div class="image">
                               <img
                                 src={storyScenes[currentSceneIndex]}
@@ -995,7 +1012,7 @@
                             </div>
                           </div>
                         {:else}
-                          <div class="mobile-image-half mobile-image-right single-page-full">
+                          <div class="mobile-image-half mobile-image-right single-page-full" style={isFullscreen ? 'height: 100%;' : ''}>
                             <div class="image_01">
                               <img
                                 src={storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'DEDICATION_PAGE' ? storyScenes[currentSceneIndex] : ''}
@@ -1018,9 +1035,9 @@
                         {/if}
                       </div>
                     {:else if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'DEDICATION_PAGE'}
-                      <!-- Two-page mode: Split into left and right halves -->
-                      <div class="mobile-image-split">
-                        <div class="mobile-image-half mobile-image-left">
+                      <!-- Two-page mode: Split into left and right halves (same image; left half shows left 50%, right half shows right 50%) -->
+                      <div class="mobile-image-split" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh;' : ''}>
+                        <div class="mobile-image-half mobile-image-left" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image">
                             <img
                               src={storyScenes[currentSceneIndex]}
@@ -1040,7 +1057,7 @@
                             <div class="inner-shadow"></div>
                           </div>
                         </div>
-                        <div class="mobile-image-half mobile-image-right">
+                        <div class="mobile-image-half mobile-image-right" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image_01">
                             <img
                               src={storyScenes[currentSceneIndex]}
@@ -1070,22 +1087,43 @@
                   {/if}
                 </div>
               </div>
-              <div class="notification-wrapper">
-                <div 
-                  class="notification"
-                  role="button"
-                  tabindex="0"
-                  on:click={toggleFullscreen}
-                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleFullscreen()}
-                >
-                  <img src={CornersOut} alt="corners" />
-                  <div>
-                    <span class="fullscreenpreview_span">
-                      {isFullscreen ? 'Exit Full Screen' : 'Full Screen Preview'}
-                    </span>
-                  </div>
+              {#if isFullscreen}
+                <div class="fullscreen-navigation">
+                  <button
+                    class="fullscreen-nav-btn fullscreen-nav-btn-left"
+                    on:click={previousScene}
+                    disabled={currentSceneIndex === 0}
+                    aria-label="Previous scene"
+                  >
+                    <img src={ArrowLeft} alt="Previous" />
+                  </button>
+                  <button
+                    class="fullscreen-nav-btn fullscreen-nav-btn-right"
+                    on:click={nextScene}
+                    disabled={currentSceneIndex === storyScenes.length - 1 || storyScenes.length === 0}
+                    aria-label="Next scene"
+                  >
+                    <img src={ArrowRight} alt="Next" class="arrow-right" />
+                  </button>
+                </div>
+              {/if}
+            </div>
+            <div class="notification-wrapper">
+              <div 
+                class="notification"
+                role="button"
+                tabindex="0"
+                on:click={toggleFullscreen}
+                on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleFullscreen()}
+              >
+                <img src={fullscreen} alt="fullscreen" class="btn-icon-fullscreen" />
+                <div>
+                  <span class="fullscreenpreview_span">
+                    {isFullscreen ? 'Exit Full Screen' : 'Full Screen Preview'}
+                  </span>
                 </div>
               </div>
+            </div>
             </div>
             <div class="frame-1410104061">
               <div class="frame-1410104060">
@@ -1322,6 +1360,7 @@
     <ShareStoryModal 
       storyTitle={storyTitle} 
       storyId={currentStoryId || ""}
+      storyCoverUrl={typeof storyScenes[0] === "string" && storyScenes[0] !== "DEDICATION_PAGE" ? storyScenes[0] : ""}
       on:close={() => showShareStoryModal = false} 
     />
   {/if}
@@ -1445,6 +1484,70 @@
     font-weight: 600;
     line-height: 28px;
     word-wrap: break-word;
+  }
+
+  .preview-fullscreen-wrapper {
+    position: relative;
+  }
+
+  /* Fullscreen Navigation (same as /intersearch/1) */
+  .fullscreen-navigation {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+    z-index: 2000;
+    padding: 0 40px;
+  }
+
+  .fullscreen-nav-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(67, 139, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+  }
+
+  .fullscreen-nav-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 1);
+    border-color: #438bff;
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .fullscreen-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .fullscreen-nav-btn img {
+    width: 32px;
+    height: 32px;
+    display: block;
+  }
+
+  .fullscreen-nav-btn .arrow-right {
+    transform: rotate(180deg);
+  }
+
+  .btn-icon-fullscreen {
+    width: 24px;
+    height: 24px;
+    display: block;
   }
 
   .previous_span {
@@ -2459,6 +2562,25 @@
     align-items: center;
     width: 100%;
     padding: 0;
+  }
+
+  /* Fullscreen: center cover vertically and horizontally */
+  .cover-image-container.fullscreen-cover {
+    height: 90vh;
+    min-height: 90vh;
+  }
+
+  .cover-image-container.fullscreen-cover .cover-image {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .cover-image-container.fullscreen-cover .cover-main-image {
+    max-height: 90vh;
+    width: auto;
+    object-fit: contain;
   }
 
   .cover-image {

@@ -650,6 +650,7 @@
   <ShareStoryModal 
     storyTitle={selectedStoryForSharing?.story_title || "Untitled Story"} 
     storyId={selectedStoryForSharing?.uid || selectedStoryForSharing?.id || ""}
+    storyCoverUrl={selectedStoryForSharing?.story_cover ?? ""}
     on:close={() => {
       showShareStoryModal = false;
       selectedStoryForSharing = null;

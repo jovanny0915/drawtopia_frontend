@@ -48,7 +48,7 @@
       {/each}
     </div>
     <button class="select-button">
-      <span class="select-button_span">Select</span>
+      <span class="select-button_span">{isSelected ? 'Selected' : 'Select'}</span>
     </button>
   </div>
   {#if isSelected}

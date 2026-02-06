@@ -14,6 +14,13 @@
   import dedicationLeft from "../../assets/dedicationleft.png";
   import { getStoryById } from "../../lib/database/stories";
 
+  export let data: {
+    story?: any;
+    uid?: string;
+    shareCanonicalUrl?: string;
+    meta?: { title: string; description: string; imageUrl: string } | null;
+  } = {} as any;
+
   let storyScenes: string[] = [];
   let storyPages: Array<{ pageNumber: number; text: string }> = [];
   let currentSceneIndex = 0;
@@ -37,32 +44,33 @@
   let audioDuration = 0;
   let audioCurrentTime = 0;
 
-  // Load story data from database
+  // Load story data from load() when available, otherwise fetch in onMount
   onMount(async () => {
-    if (browser) {
-      // Get story UID from URL query string (format: /share?{uid})
-      const queryString = $page.url.search;
-      const uid = queryString ? queryString.substring(1) : ''; // Remove the '?' prefix
-      
-      if (!uid) {
-        loadError = "No story UID provided. Please check the share link.";
-        isLoading = false;
-        console.error("No UID found in URL");
-        return;
-      }
-      
+    if (!browser) return;
+    const uid = data?.uid ?? ($page.url.search ? $page.url.search.substring(1) : '');
+    if (!uid) {
+      loadError = "No story UID provided. Please check the share link.";
+      isLoading = false;
+      return;
+    }
+    let story = data?.story;
+    if (!story) {
       try {
-        // Fetch story from database
         const result = await getStoryById(uid);
-        
         if (!result.success || !result.data) {
           loadError = result.error || "Story not found. The story may have been deleted.";
           isLoading = false;
-          console.error("Failed to fetch story:", result.error);
           return;
         }
-        
-        const story = result.data;
+        story = result.data;
+      } catch (error) {
+        console.error("Error loading story:", error);
+        loadError = "An unexpected error occurred while loading the story.";
+        isLoading = false;
+        return;
+      }
+    }
+    try {
         console.log("Loaded shared story:", story);
         
         // Set story title and world
@@ -219,19 +227,14 @@
         }
         
         storyScenes = loadedScenes;
-        
         if (storyScenes.length === 0) {
           loadError = "Story has no images to display.";
         }
-        
-        isLoading = false;
-        
-      } catch (error) {
-        console.error("Error loading story:", error);
-        loadError = "An unexpected error occurred while loading the story.";
-        isLoading = false;
-      }
+    } catch (error) {
+      console.error("[share] Error loading story:", error);
+      loadError = "An unexpected error occurred while loading the story.";
     }
+    isLoading = false;
   });
 
   function previousScene() {
@@ -405,7 +408,26 @@
 </script>
 
 <svelte:head>
-  <title>{storyTitle} - Shared Story</title>
+  <title>{data?.meta?.title ?? storyTitle} - Shared Story</title>
+  {#if data?.meta && data?.shareCanonicalUrl}
+    <!-- Open Graph (Facebook / Meta) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={data.shareCanonicalUrl} />
+    <meta property="og:title" content={data.meta.title} />
+    <meta property="og:description" content={data.meta.description} />
+    {#if data.meta.imageUrl}
+      <meta property="og:image" content={data.meta.imageUrl} />
+      <meta property="og:image:secure_url" content={data.meta.imageUrl} />
+    {/if}
+    <meta property="og:site_name" content="Drawtopia" />
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={data.meta.title} />
+    <meta name="twitter:description" content={data.meta.description} />
+    {#if data.meta.imageUrl}
+      <meta name="twitter:image" content={data.meta.imageUrl} />
+    {/if}
+  {/if}
 </svelte:head>
 
 <div 

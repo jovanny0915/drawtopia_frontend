@@ -13,8 +13,62 @@
 
   export let storyTitle: string = "";
   export let storyId: string = "";
+  /** Optional: cover image URL for Pinterest and richer social previews (Open Graph is set on the share page). */
+  export let storyCoverUrl: string = "";
 
   const dispatch = createEventDispatcher();
+
+  function getShareUrl(): string {
+    if (!storyId) return "";
+    return `${typeof window !== "undefined" ? window.location.origin : ""}/share?${storyId}`;
+  }
+
+  function openShare(platform: "facebook" | "twitter" | "linkedin" | "pinterest" | "whatsapp" | "tiktok" | "instagram") {
+    const shareUrl = getShareUrl();
+    const encodedUrl = encodeURIComponent(shareUrl);
+    const encodedTitle = encodeURIComponent(storyTitle);
+    const encodedText = encodeURIComponent(`${storyTitle} ${shareUrl}`);
+
+    if (!shareUrl) {
+      addNotification({ type: "error", message: "Story ID is missing", duration: 3000 });
+      return;
+    }
+
+    let url = "";
+    switch (platform) {
+      case "facebook":
+        // Meta uses Open Graph meta on the shared URL (og:image, og:title, og:description)
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+        break;
+      case "twitter":
+        url = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`;
+        break;
+      case "linkedin":
+        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+        break;
+      case "pinterest":
+        url = storyCoverUrl
+          ? `https://pinterest.com/pin/create/button/?url=${encodedUrl}&description=${encodedTitle}&media=${encodeURIComponent(storyCoverUrl)}`
+          : `https://pinterest.com/pin/create/button/?url=${encodedUrl}&description=${encodedTitle}`;
+        break;
+      case "whatsapp":
+        url = `https://wa.me/?text=${encodedText}`;
+        break;
+      case "tiktok":
+      case "instagram":
+        // No web share URL for external links; copy link and notify
+        handleCopyLink();
+        addNotification({
+          type: "info",
+          message: platform === "instagram" ? "Link copied! Paste it in your Instagram post or story." : "Link copied! Paste it in the app.",
+          duration: 4000
+        });
+        return;
+      default:
+        return;
+    }
+    if (url) window.open(url, "_blank", "noopener,noreferrer,width=600,height=400");
+  }
 
   function handleClose() {
     dispatch('close');
@@ -96,27 +150,27 @@
           </div>
         </div>
         <div class="frame-1410103962">
-          <div class="notification">
-            <img src={facebook} alt="facebook" />
-          </div>
-          <div class="notification_01">
-            <img src={instagram} alt="instagram" />
-          </div>
-          <div class="notification_02">
-            <img src={xcom} alt="xcom" />
-          </div>
-          <div class="notification_03">
-            <img src={pinterest} alt="pinterest" />
-          </div>
-          <div class="notification_04">
-            <img src={tiktok} alt="tiktok" />
-          </div>
-          <div class="notification_05">
-            <img src={linkedin} alt="linkedin" />
-          </div>
-          <div class="notification_06">
-            <img src={whatsapp} alt="whatsapp" />
-          </div>
+          <button type="button" class="notification" aria-label="Share on Facebook" on:click={() => openShare("facebook")}>
+            <img src={facebook} alt="Facebook" />
+          </button>
+          <button type="button" class="notification_01" aria-label="Share on Instagram" on:click={() => openShare("instagram")}>
+            <img src={instagram} alt="Instagram" />
+          </button>
+          <button type="button" class="notification_02" aria-label="Share on X (Twitter)" on:click={() => openShare("twitter")}>
+            <img src={xcom} alt="X (Twitter)" />
+          </button>
+          <button type="button" class="notification_03" aria-label="Share on Pinterest" on:click={() => openShare("pinterest")}>
+            <img src={pinterest} alt="Pinterest" />
+          </button>
+          <button type="button" class="notification_04" aria-label="Share on TikTok" on:click={() => openShare("tiktok")}>
+            <img src={tiktok} alt="TikTok" />
+          </button>
+          <button type="button" class="notification_05" aria-label="Share on LinkedIn" on:click={() => openShare("linkedin")}>
+            <img src={linkedin} alt="LinkedIn" />
+          </button>
+          <button type="button" class="notification_06" aria-label="Share on WhatsApp" on:click={() => openShare("whatsapp")}>
+            <img src={whatsapp} alt="WhatsApp" />
+          </button>
         </div>
       </div>
       <div class="frame-1410103905">
@@ -300,6 +354,18 @@
     justify-content: space-between;
     align-items: center;
     display: inline-flex;
+  }
+
+  .notification,
+  .notification_01,
+  .notification_02,
+  .notification_03,
+  .notification_04,
+  .notification_05,
+  .notification_06 {
+    border: none;
+    margin: 0;
+    font: inherit;
   }
 
   .notification {

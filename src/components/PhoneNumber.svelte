@@ -96,7 +96,7 @@
           <span class="flag-placeholder">🏳️</span>
         {/if}
         {#if selectedCountryData}
-          <span class="dial-code">+{selectedCountryData.dialCode}</span>
+          <span class="dial-code">Selected</span>
         {:else}
           <span class="dial-code">Select</span>
         {/if}

@@ -175,7 +175,7 @@
             </div>
             <div class="button" class:button-selected={selectedWorld === "forest"} on:click={() => selectWorld("forest")}>
               <div class="select">
-                <span class="select_span">Select</span>
+                <span class="select_span">{selectedWorld === "forest" ? "Selected" : "Select"}</span>
               </div>
             </div>
           </div>
@@ -229,7 +229,7 @@
             </div>
             <div class="button" class:button-selected={selectedWorld === "underwater"} on:click={() => selectWorld("underwater")}>
               <div class="select">
-                <span class="select_span">Select</span>
+                <span class="select_span">{selectedWorld === "underwater" ? "Selected" : "Select"}</span>
               </div>
             </div>
           </div>
@@ -261,7 +261,7 @@
             </div>
             <div class="button_03" class:button-selected={selectedAdventure === "treasure"} on:click={() => selectAdventure("treasure")}>
               <div class="select_03">
-                <span class="select_03_span">Select</span>
+                <span class="select_03_span">{selectedAdventure === "treasure" ? "Selected" : "Select"}</span>
               </div>
             </div>
           </div>
@@ -285,7 +285,7 @@
             </div>
             <div class="button_04" class:button-selected={selectedAdventure === "helping"} on:click={() => selectAdventure("helping")}>
               <div class="select_04">
-                <span class="select_04_span" class:select-selected={selectedAdventure === "helping"}>Select</span>
+                <span class="select_04_span" class:select-selected={selectedAdventure === "helping"}>{selectedAdventure === "helping" ? "Selected" : "Select"}</span>
               </div>
             </div>
           </div>

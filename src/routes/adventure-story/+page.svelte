@@ -121,7 +121,7 @@
                             role="button"
                             tabindex="0"
                         >
-                            <div class="select"><span class="select_span">Select</span></div>
+                            <div class="select"><span class="select_span">{selectedScene === 'enchanted-forest' ? 'Selected' : 'Select'}</span></div>
                         </div>
                     </div>
                 </div>
@@ -154,7 +154,7 @@
                             role="button"
                             tabindex="0"
                         >
-                            <div class="select_01"><span class="select_01_span">Select</span></div>
+                            <div class="select_01"><span class="select_01_span">{selectedScene === 'outer-space' ? 'Selected' : 'Select'}</span></div>
                         </div>
                     </div>
                 </div>
@@ -187,7 +187,7 @@
                             role="button"
                             tabindex="0"
                         >
-                            <div class="select_02"><span class="select_02_span">Select</span></div>
+                            <div class="select_02"><span class="select_02_span">{selectedScene === 'underwater-kingdom' ? 'Selected' : 'Select'}</span></div>
                         </div>
                     </div>
                 </div>
@@ -220,7 +220,7 @@
                             role="button"
                             tabindex="0"
                         >
-                            <div class="select_03"><span class="select_03_span">Select</span></div>
+                            <div class="select_03"><span class="select_03_span">{selectedAdventureType === 'treasure-hunt' ? 'Selected' : 'Select'}</span></div>
                         </div>
                     </div>
                 </div>
@@ -250,7 +250,7 @@
                             role="button"
                             tabindex="0"
                         >
-                            <div class="select_04"><span class="select_04_span">Select</span></div>
+                            <div class="select_04"><span class="select_04_span">{selectedAdventureType === 'helping-a-friend' ? 'Selected' : 'Select'}</span></div>
                         </div>
                     </div>
                 </div>
