@@ -54,6 +54,7 @@ const createStoryCreationStore = () => {
         const coverDesign = sessionStorage.getItem('coverDesign');
         const storyCover = sessionStorage.getItem('storyCover')
           || sessionStorage.getItem('selectedImage_step6');
+        const storyId = sessionStorage.getItem('currentStoryId');
         console.log(selectedChildProfileId);
         // Load enhanced images if they exist
         const enhancedImages: string[] = [];
@@ -83,7 +84,8 @@ const createStoryCreationStore = () => {
           enhancedImages: enhancedImages.length > 0 ? enhancedImages : undefined,
           storyTitle: storyTitle || undefined,
           coverDesign: coverDesign || undefined,
-          storyCover: storyCover || undefined
+          storyCover: storyCover || undefined,
+          storyId: storyId || undefined
         };
         
         console.log('Initializing story creation state from sessionStorage:', newState);

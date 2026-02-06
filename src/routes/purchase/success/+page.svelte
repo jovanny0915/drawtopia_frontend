@@ -148,6 +148,13 @@
                     console.error('[purchase/success] Error checking sessionStorage:', error);
                 }
             }
+
+            // If user came from story-preview to buy credits, return there (sessionStorage preserved)
+            const returnUrl = sessionStorage.getItem('postPaymentReturnUrl');
+            if (returnUrl && verificationSuccess) {
+                sessionStorage.removeItem('postPaymentReturnUrl');
+                goto(returnUrl);
+            }
             
             isVerifying = false;
         }

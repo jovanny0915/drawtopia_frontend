@@ -31,18 +31,21 @@
   let intersearchWorld = "";
   let intersearchDifficulty = "";
   // Selection state variables - these will be updated with the character name
-  let selectedTitle = "The Great Addventure [Your Name]";
+  let selectedTitle = "The Great Addventure ";
   let selectedCoverDesign = "Classic Storybook";
+  let customTitleText = "";
 
   // Title options with character name
   let titleOptions: string[] = [];
   
+  // Effective title for continue/store: preset or custom text when "Custom Title" is selected
+  $: effectiveTitle = selectedTitle === "Custom Title" ? customTitleText.trim() : selectedTitle;
+
   // Computed property to check if continue button should be enabled
   $: canContinue = !isGeneratingImage && !isGeneratingTitles &&
                    selectedImageFromStep6 && 
                    selectedImageFromStep6.trim().length > 0 &&
-                   selectedTitle && 
-                   selectedTitle.trim().length > 0;
+                   (selectedTitle !== "Custom Title" ? (selectedTitle && selectedTitle.trim().length > 0) : (customTitleText && customTitleText.trim().length > 0));
 
   $: if (browser) {
     isMobile = window.innerWidth < 800;
@@ -248,9 +251,9 @@
     }
 
     // Update story creation store with final story presentation data
-    // Include the cover image URL if available
+    // Include the cover image URL if available (use effective title: custom text when "Custom Title" is selected)
     const coverImageUrl = selectedImageFromStep6 ? selectedImageFromStep6.split('?')[0] : undefined;
-    storyCreation.setStoryPresentation(selectedTitle, selectedCoverDesign, coverImageUrl);
+    storyCreation.setStoryPresentation(effectiveTitle, selectedCoverDesign, coverImageUrl);
 
     // Determine which dedication page to navigate to based on the gift_mode from sessionStorage
     let dedicationPath = "/create-character/dedication/creation-link"; // Default to creation-link
@@ -345,123 +348,131 @@
           <span class="informationcover_span">Information Cover</span>
         </div>
         <div class="form">
-          <div class="form_01">
-            <div><span class="titleselection_span">TItle Selection</span></div>
-            <div class="frame-1410103942">
-              <div 
-                class="selected" 
-                class:selected={selectedTitle === (titleOptions[0] || "The Great Addventure [Your Name]")}
-                class:selected_01={selectedTitle !== (titleOptions[0] || "The Great Addventure [Your Name]")}
-                on:click={() => selectTitle(titleOptions[0] || "The Great Addventure [Your Name]")}
-                on:keydown={(e) => e.key === 'Enter' && selectTitle(titleOptions[0] || "The Great Addventure [Your Name]")}
-                tabindex="0"
-                role="button"
-                aria-label="Select The Great Adventure title"
-              >
-                <div class="frame-1410103940">
-                  <div class="frame-1410103939">
-                    <div>
-                      <span class="thegreataddventureyourname_span"
-                        >{titleOptions[0] || "The Great Addventure [Your Name]"}
-                      </span>
-                    </div>
+          <div><span class="titleselection_span">Title Selection</span></div>
+          <div class="frame-1410103942">
+            <div 
+              class="selected" 
+              class:selected={selectedTitle === (titleOptions[0] || "The Great Addventure [Your Name]")}
+              class:selected_01={selectedTitle !== (titleOptions[0] || "The Great Addventure [Your Name]")}
+              on:click={() => selectTitle(titleOptions[0] || "The Great Addventure [Your Name]")}
+              on:keydown={(e) => e.key === 'Enter' && selectTitle(titleOptions[0] || "The Great Addventure [Your Name]")}
+              tabindex="0"
+              role="button"
+              aria-label="Select The Great Adventure title"
+            >
+              <div class="frame-1410103940">
+                <div class="frame-1410103939">
+                  <div>
+                    <span class="thegreataddventureyourname_span"
+                      >{titleOptions[0] || "The Great Addventure [Your Name]"}
+                    </span>
                   </div>
                 </div>
-                <!-- <div class="ellipse-13"></div> -->
-                {#if selectedTitle === (titleOptions[0] || "The Great Addventure [Your Name]")}
-                  <div class="frame-1410104043">
-                    <div class="ellipse-14"></div>
-                    <div class="ellipse-13_01"></div>
-                  </div>
-                {:else}
-                  <div class="ellipse-13"></div>
-                {/if}
               </div>
-              <div 
-                class="selected_01" 
-                class:selected={selectedTitle === (titleOptions[1] || "The Amazing of Journey [Your Name]")}
-                class:selected_01={selectedTitle !== (titleOptions[1] || "The Amazing of Journey [Your Name]")}
-                on:click={() => selectTitle(titleOptions[1] || "The Amazing of Journey [Your Name]")}
-                on:keydown={(e) => e.key === 'Enter' && selectTitle(titleOptions[1] || "The Amazing of Journey [Your Name]")}
-                tabindex="0"
-                role="button"
-                aria-label="Select The Amazing Journey title"
-              >
-                <div class="frame-1410103940_01">
-                  <div class="frame-1410103939_01">
-                    <div>
-                      <span class="theamazingofjourneyyourname_span"
-                        >{titleOptions[1] || "The Amazing of Journey [Your Name]"}
-                      </span>
-                    </div>
+              {#if selectedTitle === (titleOptions[0] || "The Great Addventure [Your Name]")}
+                <div class="frame-1410104043">
+                  <div class="ellipse-14"></div>
+                  <div class="ellipse-13_01"></div>
+                </div>
+              {:else}
+                <div class="ellipse-13"></div>
+              {/if}
+            </div>
+            <div 
+              class="selected_01" 
+              class:selected={selectedTitle === (titleOptions[1] || "The Amazing of Journey [Your Name]")}
+              class:selected_01={selectedTitle !== (titleOptions[1] || "The Amazing of Journey [Your Name]")}
+              on:click={() => selectTitle(titleOptions[1] || "The Amazing of Journey [Your Name]")}
+              on:keydown={(e) => e.key === 'Enter' && selectTitle(titleOptions[1] || "The Amazing of Journey [Your Name]")}
+              tabindex="0"
+              role="button"
+              aria-label="Select The Amazing Journey title"
+            >
+              <div class="frame-1410103940_01">
+                <div class="frame-1410103939_01">
+                  <div>
+                    <span class="theamazingofjourneyyourname_span"
+                      >{titleOptions[1] || "The Amazing of Journey [Your Name]"}
+                    </span>
                   </div>
                 </div>
-                {#if selectedTitle === (titleOptions[1] || "The Amazing of Journey [Your Name]")}
-                  <div class="frame-1410104043">
-                    <div class="ellipse-14"></div>
-                    <div class="ellipse-13_01"></div>
-                  </div>
-                {:else}
-                  <div class="ellipse-13_02"></div>
-                {/if}
               </div>
-              <div 
-                class="selected_02" 
-                class:selected={selectedTitle === (titleOptions[2] || "[Your Name] and the Space Adventure")}
-                class:selected_02={selectedTitle !== (titleOptions[2] || "[Your Name] and the Space Adventure")}
-                on:click={() => selectTitle(titleOptions[2] || "[Your Name] and the Space Adventure")}
-                on:keydown={(e) => e.key === 'Enter' && selectTitle(titleOptions[2] || "[Your Name] and the Space Adventure")}
-                tabindex="0"
-                role="button"
-                aria-label="Select Space Adventure title"
-              >
-                <div class="frame-1410103940_02">
-                  <div class="frame-1410103939_02">
-                    <div>
-                      <span class="yournameandthespaceadventure_span"
-                        >{titleOptions[2] || "[Your Name] and the Space Adventure"}</span
-                      >
-                    </div>
+              {#if selectedTitle === (titleOptions[1] || "The Amazing of Journey [Your Name]")}
+                <div class="frame-1410104043">
+                  <div class="ellipse-14"></div>
+                  <div class="ellipse-13_01"></div>
+                </div>
+              {:else}
+                <div class="ellipse-13_02"></div>
+              {/if}
+            </div>
+            <div 
+              class="selected_02" 
+              class:selected={selectedTitle === (titleOptions[2] || "[Your Name] and the Space Adventure")}
+              class:selected_02={selectedTitle !== (titleOptions[2] || "[Your Name] and the Space Adventure")}
+              on:click={() => selectTitle(titleOptions[2] || "[Your Name] and the Space Adventure")}
+              on:keydown={(e) => e.key === 'Enter' && selectTitle(titleOptions[2] || "[Your Name] and the Space Adventure")}
+              tabindex="0"
+              role="button"
+              aria-label="Select Space Adventure title"
+            >
+              <div class="frame-1410103940_02">
+                <div class="frame-1410103939_02">
+                  <div>
+                    <span class="yournameandthespaceadventure_span"
+                      >{titleOptions[2] || "[Your Name] and the Space Adventure"}</span
+                    >
                   </div>
                 </div>
-                {#if selectedTitle === (titleOptions[2] || "[Your Name] and the Space Adventure")}
-                  <div class="frame-1410104043">
-                    <div class="ellipse-14"></div>
-                    <div class="ellipse-13_01"></div>
-                  </div>
-                {:else}
-                  <div class="ellipse-13_03"></div>
-                {/if}
               </div>
-              <div 
-                class="selected_03" 
-                class:selected={selectedTitle === "Custom Title"}
-                class:selected_03={selectedTitle !== "Custom Title"}
-                on:click={() => selectTitle("Custom Title")}
-                on:keydown={(e) => e.key === 'Enter' && selectTitle("Custom Title")}
-                tabindex="0"
-                role="button"
-                aria-label="Select Custom Title"
-              >
-                <div class="frame-1410104084">
-                  <div class="frame-1410103940_03">
-                    <div class="frame-1410103939_03">
-                      <div>
-                        <span class="customtitle_span">Custom Title</span>
-                      </div>
-                    </div>
+              {#if selectedTitle === (titleOptions[2] || "[Your Name] and the Space Adventure")}
+                <div class="frame-1410104043">
+                  <div class="ellipse-14"></div>
+                  <div class="ellipse-13_01"></div>
+                </div>
+              {:else}
+                <div class="ellipse-13_03"></div>
+              {/if}
+            </div>
+          </div>
+        </div>
+        <div class="form_01">
+          <div><span class="customstorytitle_span">Custom Story Title</span></div>
+          <div class="frame-1410103942_01">
+            <div 
+              class="selected_04" 
+              class:selected-custom={selectedTitle === "Custom Title"}
+              on:click={() => selectTitle("Custom Title")}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (selectTitle("Custom Title"), e.preventDefault())}
+              tabindex="0"
+              role="button"
+              aria-label="Select Custom Title"
+            >
+              <div class="frame-1410104084">
+                <div class="frame-1410103940_04">
+                  <div class="frame-1410103939_04">
+                    <div><span class="customtitle_span">Custom Title</span></div>
                   </div>
                 </div>
-                {#if selectedTitle === "Custom Title"}
-                  <div class="frame-1410104043">
-                    <div class="ellipse-14"></div>
-                    <div class="ellipse-13_01"></div>
-                  </div>
-                {:else}
-                  <div class="ellipse-13_04"></div>
-                {/if}
+              </div>
+              <div class="frame-1410104043">
+                <div class="ellipse-14"></div>
+                <div class="ellipse-13_01" class:hidden={selectedTitle !== "Custom Title"}></div>
               </div>
             </div>
+            {#if selectedTitle === "Custom Title"}
+              <div class="input-form title-input-form">
+                <div class="input-placeholder title-input-placeholder">
+                  <input
+                    type="text"
+                    class="custom-title-input"
+                    bind:value={customTitleText}
+                    placeholder="Enter your custom story title..."
+                    aria-label="Custom story title"
+                  />
+                </div>
+              </div>
+            {/if}
           </div>
         </div>
       </div>
@@ -965,11 +976,48 @@
     word-wrap: break-word;
   }
 
-  .ellipse-13_04 {
-    width: 24px;
-    height: 24px;
-    border-radius: 9999px;
-    border: 2px #ededed solid;
+  /* Custom title input (aligned with Information Dedication Pages on dedication/creation-link) */
+  .title-input-form,
+  .input-form.title-input-form {
+    align-self: stretch;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 4px;
+    display: flex;
+  }
+
+  .title-input-placeholder,
+  .input-placeholder.title-input-placeholder {
+    align-self: stretch;
+    min-height: 48px;
+    padding: 12px;
+    background: white;
+    overflow: hidden;
+    border-radius: 12px;
+    outline: 1px #EDEDED solid;
+    outline-offset: -1px;
+    justify-content: flex-start;
+    align-items: center;
+    display: inline-flex;
+  }
+
+  .custom-title-input {
+    flex: 1 1 0;
+    width: 100%;
+    color: #141414;
+    font-size: 16px;
+    font-family: DM Sans;
+    font-weight: 400;
+    line-height: 22.4px;
+    word-wrap: break-word;
+    border: none;
+    outline: none;
+    background: transparent;
+  }
+
+  .custom-title-input::placeholder {
+    color: #727272;
   }
 
   .frame-1410104034 {
@@ -1000,15 +1048,6 @@
   }
 
   .frame-1410103939_02 {
-    flex: 1 1 0;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 2px;
-    display: inline-flex;
-  }
-
-  .frame-1410103939_03 {
     flex: 1 1 0;
     flex-direction: column;
     justify-content: center;
@@ -1060,14 +1099,6 @@
     align-items: center;
     gap: 12px;
     display: flex;
-  }
-
-  .frame-1410103940_03 {
-    align-self: stretch;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 12px;
-    display: inline-flex;
   }
 
   .selected {
@@ -1142,25 +1173,9 @@
     display: inline-flex;
   }
 
-  .selected_03 {
-    align-self: stretch;
-    padding: 12px;
-    border-radius: 12px;
-    outline: 1px #ededed solid;
-    outline-offset: -1px;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 12px;
-    display: inline-flex;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .selected_03:hover {
-    background: #f8f9fa;
-    outline: 1px #c0c0c0 solid;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  .selected-custom {
+    background: #EEF6FF !important;
+    outline: 1px #173DB6 solid !important;
   }
 
   .frame-1410103942 {
@@ -1183,6 +1198,64 @@
     align-items: flex-start;
     gap: 8px;
     display: flex;
+  }
+
+  .customstorytitle_span {
+    color: #141414;
+    font-size: 18px;
+    font-family: DM Sans;
+    font-weight: 600;
+    line-height: 25.2px;
+    word-wrap: break-word;
+  }
+
+  .frame-1410103942_01 {
+    align-self: stretch;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 12px;
+    display: flex;
+  }
+
+  .selected_04 {
+    align-self: stretch;
+    padding: 12px;
+    border-radius: 12px;
+    outline: 1px #EDEDED solid;
+    outline-offset: -1px;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+    display: inline-flex;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .selected_04:hover {
+    background: #f8f9fa;
+    outline: 1px #c0c0c0 solid;
+  }
+
+  .frame-1410103940_04 {
+    align-self: stretch;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+    display: inline-flex;
+  }
+
+  .frame-1410103939_04 {
+    flex: 1 1 0;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 2px;
+    display: inline-flex;
+  }
+
+  .ellipse-13_01.hidden {
+    display: none;
   }
 
   .form {
@@ -1298,7 +1371,7 @@
     .selected,
     .selected_01,
     .selected_02,
-    .selected_03 {
+    .selected_04 {
       padding: 8px;
     }
 
@@ -1308,6 +1381,16 @@
     .customtitle_span {
       font-size: 14px;
       line-height: 19.6px;
+    }
+
+    .custom-title-input {
+      font-size: 14px;
+      line-height: 19.6px;
+    }
+
+    .customstorytitle_span {
+      font-size: 16px;
+      line-height: 22.4px;
     }
 
     .star-container {

@@ -1,9 +1,11 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { get } from "svelte/store";
     import { browser } from "$app/environment";
     import { storyCreation } from "../../../lib/stores/storyCreation";
     import { user } from "../../../lib/stores/auth";
     import { getUserProfile } from "../../../lib/auth";
+    import { env } from "../../../lib/env";
     import drawtopia from "../../../assets/logo.png";
     import shieldstar from "../../../assets/ShieldStar.svg";
     import arrowleft from "../../../assets/ArrowLeft.svg";
@@ -23,6 +25,8 @@
     let isMobile = false;
     let showCreditErrorNotification = false;
     let creditErrorNotificationMessage = "";
+    let showCreditErrorModal = false;
+    let creditErrorModalMessage = "";
 
     function formatRenewalDate(isoDate: string): string {
         try {
@@ -33,10 +37,80 @@
         }
     }
 
+    /** Save current story as draft via backend API (before any other action). Returns story uid or null. */
+    async function saveStoryDraft(): Promise<string | null> {
+        const currentUser = $user;
+        if (!currentUser?.id) return null;
+        storyCreation.init();
+        const state = get(storyCreation);
+        const childProfileId = state.selectedChildProfileId || (browser && sessionStorage.getItem("selectedChildProfileId")) || "";
+        const characterName = state.characterName || (browser && sessionStorage.getItem("characterName")) || "";
+        const characterType = state.characterType || (browser && sessionStorage.getItem("selectedCharacterType")) || "person";
+        const characterStyle = state.characterStyle || (browser && sessionStorage.getItem("selectedStyle")) || "cartoon";
+        const storyWorld = state.storyWorld || (browser && sessionStorage.getItem("selectedWorld")) || "forest";
+        const adventureType = state.adventureType || (browser && sessionStorage.getItem("selectedAdventure")) || "treasure_hunt";
+        const originalImageUrl = state.originalImageUrl || (browser && (sessionStorage.getItem("characterImageUrl") || sessionStorage.getItem("selectedCharacterEnhancedImage"))) || "";
+        if (!childProfileId || childProfileId === "undefined" || !characterName || !characterType || !characterStyle || !storyWorld || !adventureType || !originalImageUrl) {
+            console.warn("Missing required story data for draft");
+            return null;
+        }
+        const characterIdStr = browser ? sessionStorage.getItem("characterId") : null;
+        const characterId = characterIdStr ? parseInt(characterIdStr, 10) : undefined;
+        const storyTitle = state.storyTitle || (browser && sessionStorage.getItem("storyTitle")) || undefined;
+        const storyCover = state.storyCover || (browser && (sessionStorage.getItem("storyCover") || sessionStorage.getItem("selectedImage_step6"))) || undefined;
+        const API_BASE = (env.API_BASE_URL || "").replace(/\/api\/?$/, "") || "https://image-edit-five.vercel.app";
+        const body = {
+            user_id: currentUser.id,
+            child_profile_id: childProfileId,
+            character_id: characterId,
+            character_name: characterName,
+            character_type: characterType,
+            special_ability: state.specialAbility || "",
+            character_style: characterStyle,
+            story_world: storyWorld,
+            adventure_type: adventureType,
+            original_image_url: originalImageUrl.split("?")[0],
+            enhanced_images: state.enhancedImages || [],
+            story_title: storyTitle,
+            story_cover: storyCover ? storyCover.split("?")[0] : undefined,
+            cover_design: state.coverDesign || undefined,
+            story_type: state.selectedFormat || "story",
+            purchased: false
+        };
+        try {
+            const res = await fetch(`${API_BASE}/api/story/save-draft`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                console.error("Save draft failed:", await res.text());
+                return null;
+            }
+            const data = await res.json();
+            const uid = data?.uid ?? data?.id ?? null;
+            if (uid && browser) {
+                sessionStorage.setItem("currentStoryId", String(uid));
+                storyCreation.setStoryId(String(uid));
+            }
+            return uid ? String(uid) : null;
+        } catch (e) {
+            console.error("Save draft error:", e);
+            return null;
+        }
+    }
+
+    async function handleSaveAsDraft() {
+        await saveStoryDraft();
+        // goto("/dashboard");
+    }
+
     async function handleContinueToStory() {
         const currentUser = $user;
-        if (!currentUser?.id) {
-            return;
+        if (!currentUser?.id) return;
+        const savedUid = await saveStoryDraft();
+        if (!savedUid) {
+            console.warn("Could not save story draft before continuing");
         }
         try {
             const profileResult = await getUserProfile(currentUser.id);
@@ -48,11 +122,12 @@
                 const credit = isNaN(currentCredit) ? 0 : currentCredit;
 
                 if (credit <= 0) {
-                    const subscriptionStatus = (profile?.subscription_status || "free").toLowerCase();
-                    const isFreePlan = subscriptionStatus === "free";
+                    const subscriptionStatus = (profile?.subscription_status || "free plan").toLowerCase();
+                    const isFreePlan = subscriptionStatus === "free plan";
 
                     if (isFreePlan) {
-                        creditErrorNotificationMessage = "You need more stories to create this one. Check your subscription or add credits.";
+                        creditErrorModalMessage = "You need more stories to create this one. Check your subscription or add credits.";
+                        showCreditErrorModal = true;
                     } else {
                         const renewalDate = profile?.subscription_expires
                             ? formatRenewalDate(profile.subscription_expires)
@@ -60,11 +135,11 @@
                         creditErrorNotificationMessage = renewalDate
                             ? `You've used all your monthly stories. Your next set of stories renews on ${renewalDate}.`
                             : "You've used all your monthly stories. Your next set of stories renews next month.";
+                        showCreditErrorNotification = true;
+                        setTimeout(() => {
+                            showCreditErrorNotification = false;
+                        }, 5000);
                     }
-                    showCreditErrorNotification = true;
-                    setTimeout(() => {
-                        showCreditErrorNotification = false;
-                    }, 5000);
                     return;
                 }
             }
@@ -121,12 +196,32 @@
         return styleMap[style.toLowerCase()] || style;
     }
 
-    // Initialize store on mount (restore from sessionStorage on refresh)
+    // Initialize store on mount (restore from sessionStorage on refresh or return from payment)
     onMount(() => {
         if (browser) {
             storyCreation.init();
+            const currentStoryId = sessionStorage.getItem("currentStoryId");
+            if (currentStoryId) {
+                storyCreation.setStoryId(currentStoryId);
+            }
         }
     });
+
+    function closeCreditErrorModal() {
+        showCreditErrorModal = false;
+    }
+
+    function handleCreditErrorModalPurchase() {
+        if (browser) {
+            sessionStorage.setItem("postPaymentReturnUrl", "/adventure-story/story-preview");
+        }
+        closeCreditErrorModal();
+        goto("/pricing");
+    }
+
+    function handleCreditErrorModalBackdropClick(e: MouseEvent) {
+        if (e.target === e.currentTarget) closeCreditErrorModal();
+    }
 
     // Reactive store subscription
     $: storyState = $storyCreation;
@@ -158,7 +253,7 @@
 </script>
 
 <div class="story-preview-summary-default">
-    <!-- Credit Error Notification Toast -->
+    <!-- Credit Error Notification Toast (premium, 0 credits) -->
     {#if showCreditErrorNotification}
         <div class="credit-error-toast">
             <div class="credit-error-toast-content">
@@ -171,6 +266,38 @@
             </div>
         </div>
     {/if}
+
+    <!-- Credit Error Modal (free plan, 0 credits) -->
+    {#if showCreditErrorModal}
+        <div
+            class="credit-error-modal-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="credit-error-modal-title"
+            on:click={handleCreditErrorModalBackdropClick}
+            on:keydown={(e) => e.key === "Escape" && closeCreditErrorModal()}
+            tabindex="-1"
+        >
+            <div class="credit-error-modal-container" role="document">
+                <div class="credit-error-modal-content">
+                    <div class="credit-error-modal-icon">
+                        <img src={warningIcon} alt="warning" class="warning-icon" />
+                    </div>
+                    <h2 id="credit-error-modal-title" class="credit-error-modal-title">No credits left</h2>
+                    <p class="credit-error-modal-message">{creditErrorModalMessage}</p>
+                    <div class="credit-error-modal-actions">
+                        <button type="button" class="credit-error-modal-button credit-error-modal-button-cancel" on:click={closeCreditErrorModal}>
+                            Cancel
+                        </button>
+                        <button type="button" class="credit-error-modal-button credit-error-modal-button-purchase" on:click={handleCreditErrorModalPurchase}>
+                            Buy credits
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {/if}
+
     <div class="navbar">
         <div class="logo-text-full">
             <img src={drawtopia} alt="drawtopia logo" class="img-logo" />
@@ -508,7 +635,7 @@
                 </div>
             </div>
             <div class="frame-2147227646">
-                <div class="button_01" on:click={() => {goto('/dashboard')}} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && goto('/dashboard')}>
+                <div class="button_01" on:click={handleSaveAsDraft} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && handleSaveAsDraft()}>
                     <div class="save-as-draft">
                         <span class="saveasdraft_span">Save as Draft</span>
                     </div>
@@ -598,6 +725,106 @@
         font-weight: 600;
         line-height: 22.4px;
         word-wrap: break-word;
+    }
+
+    /* Credit Error Modal (free plan, 0 credits) */
+    .credit-error-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1100;
+    }
+
+    .credit-error-modal-container {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        outline: 2px #DF1C41 solid;
+        outline-offset: -2px;
+        max-width: 420px;
+        width: calc(100% - 32px);
+    }
+
+    .credit-error-modal-content {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        text-align: center;
+    }
+
+    .credit-error-modal-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .credit-error-modal-icon .warning-icon {
+        width: 48px;
+        height: 48px;
+        filter: brightness(0) invert(27%) sepia(98%) saturate(2476%) hue-rotate(330deg) brightness(87%) contrast(91%);
+    }
+
+    .credit-error-modal-title {
+        color: #DF1C41;
+        font-size: 20px;
+        font-family: Quicksand;
+        font-weight: 600;
+        line-height: 1.3;
+        margin: 0;
+    }
+
+    .credit-error-modal-message {
+        color: #141414;
+        font-size: 16px;
+        font-family: DM Sans;
+        font-weight: 400;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .credit-error-modal-actions {
+        display: flex;
+        gap: 12px;
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .credit-error-modal-button {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-family: Quicksand;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .credit-error-modal-button-cancel {
+        background: transparent;
+        color: #727272;
+        border: 2px solid #d0d0d0;
+    }
+
+    .credit-error-modal-button-cancel:hover {
+        background: #f5f5f5;
+        border-color: #b0b0b0;
+    }
+
+    .credit-error-modal-button-purchase {
+        background: #DF1C41;
+        color: white;
+        border: none;
+    }
+
+    .credit-error-modal-button-purchase:hover {
+        background: #c01838;
     }
 
     .hereyourpreviewstory_span {

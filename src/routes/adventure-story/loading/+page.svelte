@@ -629,13 +629,17 @@
             };
             
             console.log('Saving interactive story to database:', storyData);
+
+            const currentStoryIdInter = browser ? sessionStorage.getItem('currentStoryId') : null;
+            let result: { success: boolean; data?: any; error?: string };
             
-            const result = await createStory(storyData);
+            // Always create/insert story data (no updating existing draft)
+            result = await createStory(storyData);
             
             if (result.success && result.data) {
                 console.log('Interactive story saved successfully:', result.data);
-                if (browser && result.data.uid) {
-                    const storyId = result.data.uid.toString();
+                const storyId = (result.data.uid ?? result.data.id ?? currentStoryIdInter)?.toString();
+                if (browser && storyId) {
                     sessionStorage.setItem('currentStoryId', storyId);
                     // Clear any error flag since story was saved successfully
                     sessionStorage.removeItem('storyGenerationError');
@@ -849,7 +853,7 @@
             // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
-            // Prepare story data
+            // Prepare story data (for create or for update payload)
             const storyData = {
                 user_id: $user?.id,
                 child_profile_id: storyState.selectedChildProfileId,
@@ -874,15 +878,19 @@
                 purchased: isGiftStory
             };
 
-            console.log('Saving story to database:', storyData);
+            const currentStoryId = browser ? sessionStorage.getItem('currentStoryId') : null;
+            let result: { success: boolean; data?: any; error?: string };
 
-            const result = await createStory(storyData);
+            // Always create/insert story data (no updating existing draft)
+            result = await createStory(storyData);
+
+            console.log(currentStoryId ? 'Story updated (completed):' : 'Saving story to database:', currentStoryId || storyData);
 
             if (result.success && result.data) {
                 console.log('Story saved successfully:', result.data);
-                // Store story ID in session storage and story creation store
-                if (browser && result.data.uid) {
-                    const storyId = result.data.uid.toString();
+                // Store story ID in session storage and story creation store (use existing uid when we updated)
+                const storyId = (result.data.uid ?? result.data.id ?? currentStoryId)?.toString();
+                if (browser && storyId) {
                     sessionStorage.setItem('currentStoryId', storyId);
                     // Clear any error flag since story was saved successfully
                     sessionStorage.removeItem('storyGenerationError');
@@ -1243,7 +1251,7 @@
     }
 
 
-    onMount(() => {
+    onMount(async () => {
         // Initialize story creation store
         if (browser) {
             storyCreation.init();
@@ -1261,12 +1269,32 @@
                 previewImage2 = characterImage.split('?')[0];
             }
         }
+
+        // Set current story status to "generating" in Supabase before starting generation
+        const storyGenerationEndpoint = 'https://image-edit-five.vercel.app';
+        const currentStoryId = browser ? sessionStorage.getItem('currentStoryId') : null;
+        if (currentStoryId) {
+            try {
+                const setGenRes = await fetch(`${storyGenerationEndpoint}/api/books/update-state`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: currentStoryId })
+                });
+                if (setGenRes.ok) {
+                    console.log('Story status set to generating');
+                } else {
+                    console.warn('Failed to set story generating status:', setGenRes.status);
+                }
+            } catch (e) {
+                console.warn('Error setting story generating status:', e);
+            }
+        }
         
         // Generate story immediately when page loads based on story type
         if (storyType === 'interactive') {
-            generateIntersearchStory();
+            await generateIntersearchStory();
         } else {
-            generateStory();
+            await generateStory();
         }
         
         // Fallback timer - only used if generation takes too long
