@@ -75,6 +75,11 @@
   <slot />
 </main>
 
+<!-- Footer with Privacy Policy link (required for Google OAuth branding verification) -->
+<footer class="app-footer">
+  <a href="/privacy">Privacy Policy</a>
+</footer>
+
 <!-- Global notification container -->
 <NotificationContainer />
 
@@ -96,5 +101,18 @@
   main {
     width: 100%;
     min-height: 100vh;
+  }
+
+  .app-footer {
+    padding: 0.5rem 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+  }
+  .app-footer a {
+    color: #555;
+    text-decoration: none;
+  }
+  .app-footer a:hover {
+    text-decoration: underline;
   }
 </style>
