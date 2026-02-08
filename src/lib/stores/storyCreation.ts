@@ -176,6 +176,66 @@ const createStoryCreationStore = () => {
     // Set story ID after creation
     setStoryId: (id: string) => {
       update(state => ({ ...state, storyId: id }));
+      if (browser) sessionStorage.setItem('currentStoryId', id);
+    },
+
+    /** Hydrate store and sessionStorage from a Supabase story row (e.g. when editing a draft from dashboard). */
+    hydrateFromStory: (row: Record<string, any>) => {
+      if (!row || !browser) return;
+      const s = row;
+      const childProfileId = s.child_profile_id ?? s.childProfileId ?? '';
+      const characterId = s.character_id ?? s.characterId;
+      const characterName = s.character_name ?? s.characterName ?? '';
+      const characterType = (s.character_type ?? s.characterType ?? 'person') as 'person' | 'animal' | 'magical_creature';
+      const specialAbility = s.special_ability ?? s.specialAbility ?? '';
+      const characterStyle = (s.character_style ?? s.characterStyle ?? 'cartoon') as '3d' | 'cartoon' | 'anime';
+      const storyWorld = (s.story_world ?? s.storyWorld ?? 'forest') as 'forest' | 'space' | 'underwater';
+      const adventureType = (s.adventure_type ?? s.adventureType ?? 'treasure_hunt') as 'treasure_hunt' | 'helping_friend';
+      const originalImageUrl = (s.original_image_url ?? s.originalImageUrl ?? '').split('?')[0];
+      const enhancedImages: string[] = Array.isArray(s.enhanced_images) ? s.enhanced_images.map((u: string) => (u || '').split('?')[0]) : (s.enhancedImages ?? []);
+      const storyTitle = s.story_title ?? s.storyTitle ?? '';
+      const coverDesign = s.cover_design ?? s.coverDesign ?? '';
+      const storyCover = (s.story_cover ?? s.storyCover ?? '').split('?')[0];
+      const storyType = s.story_type ?? s.storyType ?? 'story';
+      const selectedFormat = (storyType === 'search' || storyType === 'interactive_search' ? 'interactive' : 'story') as 'interactive' | 'story';
+      const storyId = s.uid ?? s.id ?? s.storyId ?? '';
+
+      sessionStorage.setItem('selectedChildProfileId', String(childProfileId));
+      sessionStorage.setItem('characterId', characterId != null ? String(characterId) : '');
+      sessionStorage.setItem('characterName', characterName);
+      sessionStorage.setItem('selectedCharacterType', characterType);
+      sessionStorage.setItem('specialAbility', specialAbility);
+      sessionStorage.setItem('selectedStyle', characterStyle);
+      sessionStorage.setItem('selectedWorld', storyWorld);
+      sessionStorage.setItem('selectedAdventure', adventureType);
+      sessionStorage.setItem('characterImageUrl', originalImageUrl);
+      sessionStorage.setItem('selectedCharacterEnhancedImage', originalImageUrl);
+      sessionStorage.setItem('storyTitle', storyTitle);
+      sessionStorage.setItem('coverDesign', coverDesign);
+      if (storyCover) {
+        sessionStorage.setItem('storyCover', storyCover);
+        sessionStorage.setItem('selectedImage_step6', storyCover);
+      }
+      sessionStorage.setItem('selectedFormat', selectedFormat);
+      sessionStorage.setItem('currentStoryId', String(storyId));
+
+      set({
+        selectedChildProfileId: String(childProfileId),
+        characterId: characterId != null ? Number(characterId) : undefined,
+        characterName: characterName || undefined,
+        characterType,
+        specialAbility: specialAbility || undefined,
+        characterStyle,
+        storyWorld,
+        adventureType,
+        originalImageUrl: originalImageUrl || undefined,
+        enhancedImages: enhancedImages.length > 0 ? enhancedImages : undefined,
+        storyTitle: storyTitle || undefined,
+        coverDesign: coverDesign || undefined,
+        storyCover: storyCover || undefined,
+        selectedFormat,
+        storyId: storyId ? String(storyId) : undefined
+      });
     },
 
     // Clear all data

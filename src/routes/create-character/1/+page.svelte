@@ -390,6 +390,11 @@
     }
   };
 
+  // Enhance uploaded photo with AI (placeholder — add feature logic later)
+  const handleEnhanceWithAI = () => {
+    // TODO: implement AI enhancement
+  };
+
   // Click handler for upload area
   const handleUploadClick = () => {
     if (dailyLimitReached) {
@@ -640,6 +645,15 @@
             {/if}
             <div class="upload-character">
               <span class="uploadcharacter_span">Upload Character</span>
+              <button
+                type="button"
+                class="enhance-with-ai-btn"
+                disabled={!uploadedImageUrl}
+                on:click={handleEnhanceWithAI}
+                title={uploadedImageUrl ? "Enhance photo with AI" : "Upload a photo first to enable"}
+              >
+              ✨ AI Enhance
+              </button>
             </div>
             {#if isFreePlan && !loadingLimitCheck}
               <div class="free-tier-limit-message">
@@ -1173,6 +1187,32 @@
 
   .upload-character {
     align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .enhance-with-ai-btn {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-family: Quicksand, sans-serif;
+    font-weight: 500;
+    color: #121212;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .enhance-with-ai-btn:hover:not(:disabled) {
+    background: #e5e5e5;
+    border-color: #ccc;
+  }
+  .enhance-with-ai-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .free-tier-limit-message {

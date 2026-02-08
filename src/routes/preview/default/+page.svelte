@@ -956,7 +956,7 @@
                       </div>
                     {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'DEDICATION_PAGE'}
                       <!-- Dedication Page: Left blank, Right with dedication image and text -->
-                      <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh;' : ''}>
+                      <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh; width: 70dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left dedication-blank">
                           <div class="image dedication-blank-page">
                             <!-- White blank page -->
@@ -1036,7 +1036,7 @@
                       </div>
                     {:else if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'DEDICATION_PAGE'}
                       <!-- Two-page mode: Split into left and right halves (same image; left half shows left 50%, right half shows right 50%) -->
-                      <div class="mobile-image-split" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh;' : ''}>
+                      <div class="mobile-image-split" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 70dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image">
                             <img
@@ -1541,13 +1541,52 @@
   }
 
   .fullscreen-nav-btn .arrow-right {
-    transform: rotate(180deg);
+    /* transform: rotate(180deg); */
   }
 
   .btn-icon-fullscreen {
     width: 24px;
     height: 24px;
     display: block;
+  }
+
+  /* Fullscreen: keep book spread side-by-side (left half = left page, right half = right page) */
+  .mobile-image-split.fullscreen-split {
+    flex-direction: row;
+    display: flex;
+    width: 100%;
+    gap: 2px;
+    align-items: stretch;
+  }
+  .mobile-image-split.fullscreen-split .mobile-image-half {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    height: 100% !important;
+  }
+  .mobile-image-split.fullscreen-split .mobile-image-half .image,
+  .mobile-image-split.fullscreen-split .mobile-image-half .image_01 {
+    height: 100%;
+    min-height: 0;
+    display: block;
+    overflow: hidden;
+  }
+  .mobile-image-split.fullscreen-split .mobile-image-half .image .scene-main-image,
+  .mobile-image-split.fullscreen-split .mobile-image-half .image_01 .scene-main-image {
+    width: 200% !important;
+    max-width: none !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    object-fit: cover !important;
+    display: block;
+  }
+  .mobile-image-split.fullscreen-split .mobile-image-left .image .scene-main-image {
+    object-position: left center !important;
+    margin-left: 0 !important;
+  }
+  .mobile-image-split.fullscreen-split .mobile-image-right .image_01 .scene-main-image {
+    object-position: right center !important;
+    margin-left: -100% !important;
   }
 
   .previous_span {
@@ -2528,6 +2567,7 @@
     flex-direction: column;
     gap: 20px;
     width: 100%;
+    align-items: center;
   }
 
   .book-container-wrapper {
@@ -2545,7 +2585,6 @@
     justify-content: flex-start;
     align-items: flex-start;
     gap: 12px;
-    display: inline-flex;
   }
 
   .book-container {
@@ -2560,7 +2599,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
+    /* width: 100%; */
     padding: 0;
   }
 
@@ -2571,7 +2610,7 @@
   }
 
   .cover-image-container.fullscreen-cover .cover-image {
-    height: 100%;
+    /* height: 100%; */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -2895,7 +2934,6 @@
     .mobile-image-split {
       display: flex;
       flex-direction: column;
-      gap: 24px;
     }
     .mobile-image-half {
       width: 100%;
@@ -2903,7 +2941,7 @@
     
     /* Cover image mobile styles */
     .cover-image-container {
-      width: 100%;
+      /* width: 100%; */
       padding: 0;
     }
     
@@ -2937,6 +2975,16 @@
     }
   }
 
+  @media (max-width: 600px) {
+    .mobile-image-split.fullscreen-split {
+      flex-direction: column;
+    }
+    
+    .cover-image-container.fullscreen-cover {
+      height: auto;
+    }
+  }
+  
   /* Dedication Page Styles */
   .dedication-blank {
     background: white;

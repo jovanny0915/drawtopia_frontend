@@ -56,14 +56,46 @@ export interface DatabaseResult {
 }
 
 /**
- * Create a new story
- * @param story - The story data to insert
+ * Build the story row payload (shared for insert and update).
+ */
+function buildStoryRowPayload(story: Story, uid: string, storyContentValue: string | null) {
+  return {
+    uid,
+    user_id: story.user_id,
+    child_profile_id: story.child_profile_id,
+    character_id: story.character_id || null,
+    character_name: story.character_name,
+    character_type: story.character_type,
+    special_ability: story.special_ability,
+    character_style: story.character_style,
+    story_world: story.story_world,
+    adventure_type: story.adventure_type,
+    original_image_url: story.original_image_url,
+    enhanced_images: story.enhanced_images || [],
+    story_title: story.story_title,
+    story_cover: story.story_cover,
+    cover_design: story.cover_design,
+    story_content: storyContentValue,
+    scene_images: story.scene_images || [],
+    audio_url: story.audio_urls || [],
+    dedication_text: story.dedication_text || null,
+    dedication_image: story.dedication_image || null,
+    status: story.status || 'generating',
+    story_type: story.story_type || 'story',
+    hints: story.story_type === 'search' ? (story.hints !== undefined ? story.hints : 3) : null,
+    gift_id: story.gift_id || null,
+    purchased: story.purchased ?? false
+  };
+}
+
+/**
+ * Create a new story, or update existing if story.uid is provided and already exists (e.g. continued from draft).
+ * @param story - The story data to insert or update (if story.uid is set and exists in DB, we update)
  * @returns Promise with operation result
  */
 export async function createStory(story: Story): Promise<DatabaseResult> {
   console.log('Creating story:', story);
   try {
-    // Prepare story_content - convert to JSON string if it's an object
     let storyContentValue: string | null = null;
     if (story.story_content) {
       if (typeof story.story_content === 'string') {
@@ -73,36 +105,34 @@ export async function createStory(story: Story): Promise<DatabaseResult> {
       }
     }
 
-    const uid: string = crypto.randomUUID();
+    const existingUid = (story.uid || '').trim() || null;
+    if (existingUid) {
+      const { data: existing } = await supabase
+        .from('stories')
+        .select('uid')
+        .eq('uid', existingUid)
+        .maybeSingle();
+      if (existing) {
+        const payload = buildStoryRowPayload(story, existingUid, storyContentValue);
+        const { data, error } = await supabase
+          .from('stories')
+          .update(payload)
+          .eq('uid', existingUid)
+          .select('*')
+          .single();
+        if (error) {
+          console.error('Error updating story (existing draft):', error);
+          return { success: false, error: error.message };
+        }
+        return { success: true, data };
+      }
+    }
+
+    const uid = crypto.randomUUID();
+    const payload = buildStoryRowPayload(story, uid, storyContentValue);
     const { data, error } = await supabase
       .from('stories')
-      .insert([{
-        uid: uid,
-        user_id: story.user_id,
-        child_profile_id: story.child_profile_id,
-        character_id: story.character_id || null,
-        character_name: story.character_name,
-        character_type: story.character_type,
-        special_ability: story.special_ability,
-        character_style: story.character_style,
-        story_world: story.story_world,
-        adventure_type: story.adventure_type,
-        original_image_url: story.original_image_url,
-        enhanced_images: story.enhanced_images || [],
-        story_title: story.story_title,
-        story_cover: story.story_cover,
-        cover_design: story.cover_design,
-        story_content: storyContentValue,
-        scene_images: story.scene_images || [],
-        audio_url: story.audio_urls || [],
-        dedication_text: story.dedication_text || null,
-        dedication_image: story.dedication_image || null,
-        status: story.status || 'generating',
-        story_type: story.story_type || 'story',
-        hints: story.story_type === 'search' ? (story.hints !== undefined ? story.hints : 3) : null,
-        gift_id: story.gift_id || null,
-        purchased: story.purchased ?? false
-      }])
+      .insert([payload])
       .select('*')
       .single();
 
@@ -118,7 +148,6 @@ export async function createStory(story: Story): Promise<DatabaseResult> {
       success: true,
       data: data
     };
-
   } catch (error) {
     console.error('Unexpected error creating story:', error);
     return {

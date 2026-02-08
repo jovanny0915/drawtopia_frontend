@@ -97,7 +97,19 @@
     return formatDate(item?.created_at || item?.createdDate) || "Unknown";
   };
 
-  // Handle view book button click
+  // Handle main action button: "Edit Book" (draft) -> story-preview; "View Book" / "Re-generate" -> preview or intersearch
+  const handleMainAction = () => {
+    const isEditBook = item?.status === "draft" && (actionButton.text === "Edit Book");
+    if (isEditBook && (item?.story_type === "story" || cardType === "story")) {
+      // Edit: go to adventure-story/story-preview with story ID (page will load story from Supabase)
+      const storyId = item?.uid || item?.id;
+      if (storyId) goto(`/adventure-story/story-preview?storyId=${encodeURIComponent(storyId)}`);
+      return;
+    }
+    handleViewBook();
+  };
+
+  // Handle view book button click (preview / view only)
   const handleViewBook = () => {
     if (item?.status === "completed" || item?.status === "generating") {
       dispatch("viewBook", item);
@@ -320,8 +332,8 @@
   <div class="frame-1410104166">
     <div 
       class="frame-1410104245"
-      on:click={handleViewBook}
-      on:keydown={(e) => (e.key === "Enter" || e.key === " ") && handleViewBook()}
+      on:click={handleMainAction}
+      on:keydown={(e) => (e.key === "Enter" || e.key === " ") && handleMainAction()}
       role="button"
       tabindex="0"
     >

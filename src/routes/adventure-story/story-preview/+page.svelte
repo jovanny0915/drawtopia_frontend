@@ -2,8 +2,10 @@
     import { onMount } from "svelte";
     import { get } from "svelte/store";
     import { browser } from "$app/environment";
+    import { page } from "$app/stores";
     import { storyCreation } from "../../../lib/stores/storyCreation";
     import { user } from "../../../lib/stores/auth";
+    import { getStoryById } from "../../../lib/database/stories";
     import { getUserProfile } from "../../../lib/auth";
     import { env } from "../../../lib/env";
     import drawtopia from "../../../assets/logo.png";
@@ -59,7 +61,9 @@
         const storyTitle = state.storyTitle || (browser && sessionStorage.getItem("storyTitle")) || undefined;
         const storyCover = state.storyCover || (browser && (sessionStorage.getItem("storyCover") || sessionStorage.getItem("selectedImage_step6"))) || undefined;
         const API_BASE = (env.API_BASE_URL || "").replace(/\/api\/?$/, "") || "https://image-edit-five.vercel.app";
+        const currentStoryId = state.storyId || (browser ? sessionStorage.getItem("currentStoryId") : null);
         const body = {
+            ...(currentStoryId ? { story_uid: currentStoryId } : {}),
             user_id: currentUser.id,
             child_profile_id: childProfileId,
             character_id: characterId,
@@ -102,7 +106,7 @@
 
     async function handleSaveAsDraft() {
         await saveStoryDraft();
-        // goto("/dashboard");
+        goto("/dashboard");
     }
 
     async function handleContinueToStory() {
@@ -197,12 +201,26 @@
     }
 
     // Initialize store on mount (restore from sessionStorage on refresh or return from payment)
-    onMount(() => {
+    // If URL has storyId (e.g. from dashboard "Edit Book"), load that story from Supabase and hydrate store
+    onMount(async () => {
         if (browser) {
-            storyCreation.init();
-            const currentStoryId = sessionStorage.getItem("currentStoryId");
-            if (currentStoryId) {
-                storyCreation.setStoryId(currentStoryId);
+            const editStoryId = $page.url.searchParams.get("storyId");
+            if (editStoryId) {
+                try {
+                    const result = await getStoryById(editStoryId);
+                    if (result.success && result.data) {
+                        const row = Array.isArray(result.data) ? result.data[0] : result.data;
+                        if (row) storyCreation.hydrateFromStory(row);
+                    }
+                } catch (e) {
+                    console.error("Failed to load story for edit:", e);
+                }
+            } else {
+                storyCreation.init();
+                const currentStoryId = sessionStorage.getItem("currentStoryId");
+                if (currentStoryId) {
+                    storyCreation.setStoryId(currentStoryId);
+                }
             }
         }
     });
@@ -250,6 +268,9 @@
     $: worldDisplay = getWorldDisplayName(storyWorld);
     $: adventureDisplay = getAdventureTypeDisplayName(adventureType);
     $: styleDisplay = getStyleDisplayName(characterStyle);
+
+    // Adventure story = show audio version; interactive search story = hide it
+    $: isAdventureStory = (storyState?.selectedFormat || (browser && sessionStorage.getItem('selectedFormat')) || 'story') === 'story';
 </script>
 
 <div class="story-preview-summary-default">
@@ -550,6 +571,7 @@
                                     </div>
                                 </div>
                             </div>
+                            {#if isAdventureStory}
                             <div class="frame-1410104093_03">
                                 <div class="frame-1410104100_01">
                                     <div class="min-audio">
@@ -562,6 +584,7 @@
                                     </div>
                                 </div>
                             </div>
+                            {/if}
                         </div>
                     </div>
                 </div>
@@ -587,6 +610,7 @@
                                 >
                             </div>
                         </div>
+                        {#if isAdventureStory}
                         <div class="checklist_01">
                             <div class="check_02">
                                 <div class="check_03">
@@ -599,6 +623,7 @@
                                 >
                             </div>
                         </div>
+                        {/if}
                         <div class="checklist_02">
                             <div class="check_04">
                                 <div class="check_05">

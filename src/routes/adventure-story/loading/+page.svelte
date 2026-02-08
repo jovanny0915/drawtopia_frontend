@@ -603,8 +603,10 @@
             // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
-            // Prepare story data
+            const currentStoryIdInter = browser ? sessionStorage.getItem('currentStoryId') : null;
+            // Prepare story data. Include uid when continued from draft so we update instead of insert.
             const storyData = {
+                ...(currentStoryIdInter ? { uid: currentStoryIdInter } : {}),
                 user_id: $user?.id,
                 child_profile_id: storyState.selectedChildProfileId,
                 character_id: characterId,
@@ -630,10 +632,7 @@
             
             console.log('Saving interactive story to database:', storyData);
 
-            const currentStoryIdInter = browser ? sessionStorage.getItem('currentStoryId') : null;
             let result: { success: boolean; data?: any; error?: string };
-            
-            // Always create/insert story data (no updating existing draft)
             result = await createStory(storyData);
             
             if (result.success && result.data) {
@@ -853,8 +852,10 @@
             // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
-            // Prepare story data (for create or for update payload)
+            const currentStoryId = browser ? sessionStorage.getItem('currentStoryId') : null;
+            // Prepare story data (for create or for update payload). Include uid when continued from draft so we update instead of insert.
             const storyData = {
+                ...(currentStoryId ? { uid: currentStoryId } : {}),
                 user_id: $user?.id,
                 child_profile_id: storyState.selectedChildProfileId,
                 character_id: characterId,
@@ -878,10 +879,7 @@
                 purchased: isGiftStory
             };
 
-            const currentStoryId = browser ? sessionStorage.getItem('currentStoryId') : null;
             let result: { success: boolean; data?: any; error?: string };
-
-            // Always create/insert story data (no updating existing draft)
             result = await createStory(storyData);
 
             console.log(currentStoryId ? 'Story updated (completed):' : 'Saving story to database:', currentStoryId || storyData);
@@ -1109,111 +1107,112 @@
                 dedication_scene_prompt: dedicationScenePrompt || undefined
             };
             
-            // Progress: storyTextProgress 0–20% (step 1), sceneImageProgress 0–80% (steps 2–4). Total 100%.
-            storyTextProgress = 2;
-
-            const storyGenerationEndpoint = 'https://image-edit-five.vercel.app';
+            // Backend base URL (for WebSocket + generate-with-progress, or fallback generate)
+            const backendBaseUrl = (env.API_BASE_URL || '').replace(/\/api\/?$/, '') || 'http://localhost:8000';
+            const storyGenerationEndpointFallback = 'https://image-edit-five.vercel.app';
             const headers = { 'Content-Type': 'application/json' };
 
-            // ——— Step 1: Generate story text ———
-            const textResponse = await fetch(`${storyGenerationEndpoint}/story/generate-text`, {
+            let useWebSocketProgress = false;
+            let progressWs: WebSocket | null = null;
+            let sessionIdResolved: string | null = null;
+            const wsUrl = (backendBaseUrl.startsWith('https') ? backendBaseUrl.replace(/^https/, 'wss') : backendBaseUrl.replace(/^http/, 'ws')) + '/ws/story-progress';
+
+            // Try WebSocket for real-time percentage from backend
+            try {
+                progressWs = new WebSocket(wsUrl);
+                sessionIdResolved = await new Promise<string | null>((resolve) => {
+                    const t = setTimeout(() => resolve(null), 5000);
+                    progressWs!.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data as string);
+                            if (data.session_id) {
+                                clearTimeout(t);
+                                resolve(data.session_id);
+                            }
+                        } catch (_) {}
+                    };
+                    progressWs!.onerror = () => {
+                        clearTimeout(t);
+                        resolve(null);
+                    };
+                    progressWs!.onclose = () => resolve(null);
+                });
+                if (sessionIdResolved) {
+                    useWebSocketProgress = true;
+                    progressWs!.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data as string);
+                            if (typeof data.percentage === 'number') {
+                                storyTextProgress = data.percentage;
+                                sceneImageProgress = 0;
+                            }
+                        } catch (_) {}
+                    };
+                } else {
+                    progressWs?.close();
+                    progressWs = null;
+                }
+            } catch (_) {
+                progressWs?.close();
+                progressWs = null;
+            }
+
+            if (!useWebSocketProgress) {
+                storyTextProgress = 2;
+                sceneImageProgress = 5;
+            }
+
+            const fetchUrl = useWebSocketProgress && sessionIdResolved
+                ? `${backendBaseUrl}/story/generate-with-progress`
+                : `${storyGenerationEndpointFallback}/story/generate`;
+            const requestBodyWithSession = useWebSocketProgress && sessionIdResolved
+                ? { ...requestBody, session_id: sessionIdResolved }
+                : requestBody;
+
+            // ——— Single combined call: story text + audio + scenes (with optional WebSocket progress) ———
+            const fullResponse = await fetch(fetchUrl, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBodyWithSession)
             });
-            if (!textResponse.ok) {
-                throw new Error(`Failed to generate story text: ${textResponse.status} ${textResponse.statusText}`);
+            if (progressWs) {
+                progressWs.close();
+                progressWs = null;
             }
-            const textResult = await textResponse.json();
-            const storyPageTexts: string[] = textResult.pages || [];
-            storyTextProgress = 20; // 20% after story text
+            if (!fullResponse.ok) {
+                throw new Error(`Failed to generate story: ${fullResponse.status} ${fullResponse.statusText}`);
+            }
+            const fullResult = await fullResponse.json();
+            const resultPages = fullResult.pages || [];
+            const audioUrls: (string | null)[] = fullResult.audio_urls || [];
 
-            if (storyPageTexts.length === 0) {
+            if (resultPages.length === 0) {
                 throw new Error('No story pages generated');
             }
 
-            // ——— Step 2: Generate audio with story text ———
-            sceneImageProgress = 5;
-            let audioUrls: (string | null)[] = [];
-            const audioResponse = await fetch(`${storyGenerationEndpoint}/story/generate-audio`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({ pages: storyPageTexts, age_group: ageGroup })
-            });
-            if (audioResponse.ok) {
-                const audioResult = await audioResponse.json();
-                audioUrls = audioResult.audio_urls || [];
-                console.log('Audio URLs from generate-story-audio:', audioUrls);
-            } else {
-                console.warn('Failed to generate audio:', audioResponse.status);
-            }
-            sceneImageProgress = 20; // 20% after audio (total 40%)
-
-            // ——— Step 3: Generate story scenes via /edit-image with story text and character/story characteristics ———
-            const sceneImages: string[] = [];
-            const totalSceneSteps = 5;
-            for (let i = 0; i < Math.min(5, storyPageTexts.length); i++) {
-                const pageNum = i + 1;
-                const pageText = storyPageTexts[i];
-                const scenePrompt = buildStoryScenePrompt({
-                    characterName,
-                    characterType: characterType === 'magical_creature' ? 'magical_creature' : characterType,
-                    specialAbility,
-                    characterStyle: characterStyle as '3d' | 'cartoon' | 'anime',
-                    storyWorld,
-                    adventureType,
-                    ageGroup,
-                    storyTitle,
-                    pageNumber: pageNum,
-                    pageText,
-                    characterImageUrl: selectedCharacterEnhancedImage || undefined
-                });
-                const editRes = await fetch(`${storyGenerationEndpoint}/edit-image/`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({ image_url: selectedCharacterEnhancedImage, prompt: scenePrompt })
-                });
-                if (editRes.ok) {
-                    const editResult = await editRes.json();
-                    const sceneUrl = editResult?.storage_info?.url;
-                    if (sceneUrl) {
-                        sceneImages.push(sceneUrl.split('?')[0]);
-                    }
-                }
-                // ~12% per scene: 20 → 32 → 44 → 56 → 68 → 75
-                sceneImageProgress = 20 + Math.round(((i + 1) / totalSceneSteps) * 55);
-            }
-            sceneImageProgress = 75; // 75% after all scenes (95% total); remaining 5% for save
-
-            // Optional: dedication image via edit-image
-            let dedicationImageUrl: string | null = null;
-            if (dedicationText && dedicationScenePrompt) {
-                const dedEditRes = await fetch(`${storyGenerationEndpoint}/edit-image/`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({ image_url: selectedCharacterEnhancedImage, prompt: dedicationScenePrompt })
-                });
-                if (dedEditRes.ok) {
-                    const dedEditResult = await dedEditRes.json();
-                    const dedUrl = dedEditResult?.storage_info?.url;
-                    if (dedUrl) {
-                        const cleanDedUrl = dedUrl.split('?')[0];
-                        dedicationImageUrl = cleanDedUrl;
-                        if (browser) {
-                            sessionStorage.setItem('dedication_image', cleanDedUrl);
-                        }
-                    }
-                }
+            if (!useWebSocketProgress) {
+                storyTextProgress = 20;
+                sceneImageProgress = 75;
             }
 
-            // Build storyPages with text and scene URLs
-            const storyPages: Array<{ pageNumber: number; text: string; scene?: string }> = storyPageTexts.slice(0, 5).map((text: string, index: number) => ({
-                pageNumber: index + 1,
-                text,
-                scene: sceneImages[index] || undefined
-            }));
+            // Dedication image from combined response
+            let dedicationImageUrl: string | null = fullResult.dedication_image_url || null;
+            if (dedicationImageUrl && browser) {
+                const cleanDedUrl = dedicationImageUrl.split('?')[0];
+                sessionStorage.setItem('dedication_image', cleanDedUrl);
+            }
 
-            let cleanSceneImages: string[] = sceneImages.map(url => url.split('?')[0]);
+            // Build storyPages and scene list from combined response
+            const storyPages: Array<{ pageNumber: number; text: string; scene?: string }> = resultPages.map(
+                (p: { text: string; scene?: string | null }, index: number) => ({
+                    pageNumber: index + 1,
+                    text: p.text,
+                    scene: p.scene ? String(p.scene).split('?')[0] : undefined
+                })
+            );
+            const cleanSceneImages: string[] = resultPages
+                .map((p: { scene?: string | null }) => (p.scene ? String(p.scene).split('?')[0] : null))
+                .filter((url: string | null): url is string => url != null);
 
             if (browser && storyPages.length > 0) {
                 sessionStorage.setItem('storyPages', JSON.stringify(storyPages));
@@ -1232,8 +1231,10 @@
             // ——— Step 4 & 5: Save story to Supabase (current schema) then mark complete ———
             await saveStoryToDatabase(storyPages, cleanSceneImages, audioUrls);
 
-            storyTextProgress = 20;
-            sceneImageProgress = 80; // 100% total after save
+            if (!useWebSocketProgress) {
+                storyTextProgress = 20;
+                sceneImageProgress = 80; // 100% total after save
+            }
             storyGenerated = true;
         } catch (error) {
             console.error('Error generating story:', error);
