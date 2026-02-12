@@ -5,7 +5,7 @@
 
 import { env } from '$lib/env';
 
-const API_URL = env.PUBLIC_BACKEND_URL;
+const API_URL = "https://image-edit-five.vercel.app/api";
 
 export interface BookTemplate {
   id: string;
@@ -32,7 +32,7 @@ export interface ApiResponse<T> {
  */
 export async function getTemplates(): Promise<ApiResponse<BookTemplate[]>> {
   try {
-    const response = await fetch(`${API_URL}/api/admin/templates`, {
+    const response = await fetch(`${API_URL}/admin/templates`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -65,7 +65,7 @@ export async function getTemplates(): Promise<ApiResponse<BookTemplate[]>> {
  */
 export async function createTemplate(name: string, storyWorld?: 'forest' | 'underwater' | 'outerspace'): Promise<ApiResponse<BookTemplate>> {
   try {
-    const response = await fetch(`${API_URL}/api/admin/templates`, {
+    const response = await fetch(`${API_URL}/admin/templates`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -99,7 +99,7 @@ export async function createTemplate(name: string, storyWorld?: 'forest' | 'unde
  */
 export async function deleteTemplate(templateId: string): Promise<ApiResponse<void>> {
   try {
-    const response = await fetch(`${API_URL}/api/admin/templates/${templateId}`, {
+    const response = await fetch(`${API_URL}/admin/templates/${templateId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'
@@ -142,7 +142,7 @@ export async function uploadTemplateImage(
     formData.append('field_key', fieldKey);
     formData.append('template_name', templateName);
 
-    const response = await fetch(`${API_URL}/api/admin/templates/${templateId}/upload-image`, {
+    const response = await fetch(`${API_URL}/admin/templates/${templateId}/upload-image`, {
       method: 'POST',
       body: formData
     });
@@ -183,7 +183,7 @@ export async function uploadStoryPage(
     formData.append('template_name', templateName);
     formData.append('page_index', pageIndex.toString());
 
-    const response = await fetch(`${API_URL}/api/admin/templates/${templateId}/upload-story-page`, {
+    const response = await fetch(`${API_URL}/admin/templates/${templateId}/upload-story-page`, {
       method: 'POST',
       body: formData
     });
@@ -268,7 +268,7 @@ export async function updateTemplate(
   }
 ): Promise<ApiResponse<BookTemplate>> {
   try {
-    const response = await fetch(`${API_URL}/api/admin/templates/${templateId}`, {
+    const response = await fetch(`${API_URL}/admin/templates/${templateId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
