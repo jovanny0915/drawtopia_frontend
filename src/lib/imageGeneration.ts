@@ -653,7 +653,8 @@ export interface StoryAdventureCoverOptions {
 
 /**
  * Generate story adventure cover image
- * Uses the character image and builds a prompt using buildStoryAdventureCoverPrompt
+ * Uses the character image and a random book template cover image
+ * The character is inserted into the template cover using AI prompts
  */
 export async function generateStoryAdventureCover(
   options: StoryAdventureCoverOptions
@@ -729,13 +730,13 @@ export async function generateStoryAdventureCover(
       world = sessionStorage.getItem('selectedWorld') || 'forest';
     }
 
-    // Map world names to prompt1.json format
-    const worldMapping: { [key: string]: string } = {
-      'forest': 'enchantedForest',
-      'outerspace': 'outerSpace',
-      'underwater': 'underwaterKingdom'
+    // Map world names to match book_templates.story_world format
+    const worldMapping: { [key: string]: 'forest' | 'underwater' | 'outerspace' } = {
+      'forest': 'forest',
+      'outerspace': 'outerspace',
+      'underwater': 'underwater'
     };
-    const mappedWorld = worldMapping[world.toLowerCase()] || 'enchantedForest';
+    const mappedWorld = worldMapping[world.toLowerCase()] || 'forest';
 
     // Get adventure type
     if (!adventure) {
@@ -752,27 +753,101 @@ export async function generateStoryAdventureCover(
       title = sessionStorage.getItem('storyTitle') || 'Adventure Story';
     }
 
-    // Build the cover prompt
-    const prompt = buildStoryAdventureCoverPrompt({
-      characterName: charName,
-      characterType: charType === 'magical' ? 'magical' : charType === 'animal' ? 'animal' : 'person',
-      characterStyle: charStyle,
-      storyWorld: mappedWorld,
-      adventureType: adventure,
-      ageGroup: age,
-      storyTitle: title,
-      characterImageUrl: characterImageUrl
-    });
+    // Import the function to get random template
+    const { getRandomTemplateByStoryWorld } = await import('./database/bookTemplates');
+    
+    // Get a random book template for the story world
+    const templateResult = await getRandomTemplateByStoryWorld(mappedWorld);
+    
+    if (templateResult.error || !templateResult.data?.cover_image) {
+      console.warn(`No template found for ${mappedWorld}, falling back to direct generation`);
+      
+      // Fallback: Generate cover without template (original behavior)
+      const worldMappingPrompt: { [key: string]: string } = {
+        'forest': 'enchantedForest',
+        'outerspace': 'outerSpace',
+        'underwater': 'underwaterKingdom'
+      };
+      const mappedWorldPrompt = worldMappingPrompt[world.toLowerCase()] || 'enchantedForest';
 
-    // Call the image editing API
+      const prompt = buildStoryAdventureCoverPrompt({
+        characterName: charName,
+        characterType: charType === 'magical' ? 'magical' : charType === 'animal' ? 'animal' : 'person',
+        characterStyle: charStyle,
+        storyWorld: mappedWorldPrompt,
+        adventureType: adventure,
+        ageGroup: age,
+        storyTitle: title,
+        characterImageUrl: characterImageUrl
+      });
+
+      const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          image_url: characterImageUrl,
+          prompt: prompt
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate cover image: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.storage_info?.uploaded && data.storage_info?.url) {
+        const cleanUrl = data.storage_info.url.split('?')[0];
+
+        if (saveToStorage) {
+          const key = storageKey || 'storyCover';
+          sessionStorage.setItem(key, data.storage_info.url);
+        }
+
+        return { success: true, url: cleanUrl };
+      } else {
+        throw new Error('No image URL received from the API');
+      }
+    }
+
+    // Use the template cover image as the base
+    const templateCoverUrl = templateResult.data.cover_image;
+    
+    // Build a prompt to insert the character into the template cover
+    const insertCharacterPrompt = `You are compositing a character into a book cover template.
+
+TEMPLATE COVER: The base image is a book cover template for a ${mappedWorld} themed storybook.
+
+CHARACTER TO INSERT: Insert the character from the reference image into this book cover scene.
+- Character Name: ${charName}
+- Character Type: ${charType}
+- Art Style: ${charStyle}
+
+INSTRUCTIONS:
+1. Place the character naturally into the scene, making them the focal point
+2. The character should look like they belong in the ${mappedWorld} environment
+3. Maintain the character's original design, style, and features from the reference image
+4. Ensure the character is well-integrated with the background (proper lighting, shadows, scale)
+5. Keep the overall composition balanced and appealing for a children's book cover
+6. The character should be prominent but not overwhelming
+7. Preserve any text or decorative elements from the template if present
+
+Style: ${charStyle} illustration style
+Target Age Group: ${age}
+Book Title: "${title}"`;
+
+    // Call the image editing API with the template as base and character as reference
     const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        image_url: characterImageUrl,
-        prompt: prompt
+        image_url: templateCoverUrl,
+        prompt: insertCharacterPrompt,
+        reference_image_url: characterImageUrl // Pass character as reference
       })
     });
 
@@ -798,6 +873,110 @@ export async function generateStoryAdventureCover(
   } catch (err) {
     console.error('Error generating story adventure cover:', err);
     const errorMessage = err instanceof Error ? err.message : 'Failed to generate story adventure cover. Please try again.';
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Generate cover image using template and character image via backend API
+ * This function is used on create-character/7 page to generate the final cover
+ */
+export async function generateCoverImageWithTemplate(options: {
+  templateCoverUrl: string;
+  characterImageUrl: string;
+  storyWorld: string;
+  characterName?: string;
+  characterType?: string;
+  characterStyle?: string;
+  ageGroup?: string;
+  storyTitle?: string;
+  saveToStorage?: boolean;
+  storageKey?: string;
+}): Promise<ImageGenerationResult> {
+  if (!browser) {
+    return { success: false, error: 'Browser environment required' };
+  }
+
+  try {
+    const {
+      templateCoverUrl,
+      characterImageUrl,
+      storyWorld,
+      characterName,
+      characterType,
+      characterStyle,
+      ageGroup,
+      storyTitle,
+      saveToStorage = true,
+      storageKey
+    } = options;
+
+    // Get values from sessionStorage if not provided
+    const charName = characterName || sessionStorage.getItem('characterName') || 'Character';
+    const charType = characterType || sessionStorage.getItem('selectedCharacterType') || 'person';
+    const charStyle = characterStyle || sessionStorage.getItem('selectedStyle') || 'cartoon';
+    const age = ageGroup || sessionStorage.getItem('ageGroup') || '7-10';
+    const title = storyTitle || sessionStorage.getItem('storyTitle') || 'Adventure Story';
+
+    // Build the prompt for cover generation
+    const coverPrompt = `TASK: Create a unified book cover by compositing a character onto a background template. Maintain the template's exact image dimensions.
+
+INPUTS:
+1.  BACKGROUND TEMPLATE IMAGE: A ${storyWorld} themed book cover background (sets scene, mood, style).
+2.  CHARACTER IMAGE: Character for integration.
+    *   Name: ${charName}
+    *   Type: ${charType}
+    *   Art Style: ${charStyle} (Must be strictly preserved for character.)
+
+OUTPUT REQUIREMENTS:
+1.  Character Integration:
+    *   Place character as focal point.
+    *   Seamlessly adapt character's pose, lighting, shadows, and scale to fit the ${storyWorld} environment. The character must look natural and belong in the scene, not just placed on it.
+    *   Maintain character's precise ${charStyle} and design, but with environmental rendering (lighting, color) matching the background.
+2.  Visual Cohesion: The final cover must have a consistent ${charStyle} and be visually balanced, appealing for an ${age} children's book.
+3.  Title Overlay:
+    *   Add title "${title}" prominently top.
+    *   Style title legibly, fitting ${charStyle} children's book aesthetic, integrated into design.
+4.  Template Elements: Preserve non-conflicting template decorations and atmospheric effects.
+5.  Dimensions: Final image must match exact width and height of the background template.
+
+GENERATE THE BOOK COVER.`;
+
+    // Call the backend API endpoint with three parts: prompt, character image URL, and template cover URL
+    const response = await fetch('https://image-edit-five.vercel.app/generate-cover-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt: coverPrompt,
+        character_image_url: characterImageUrl,
+        template_cover_url: templateCoverUrl
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to generate cover image: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.success && data.url) {
+      const cleanUrl = data.url.split('?')[0];
+
+      // Save to sessionStorage if requested
+      if (saveToStorage) {
+        const key = storageKey || 'storyCover';
+        sessionStorage.setItem(key, data.url);
+      }
+
+      return { success: true, url: cleanUrl };
+    } else {
+      throw new Error(data.message || 'Failed to generate cover image');
+    }
+  } catch (err) {
+    console.error('Error generating cover image with template:', err);
+    const errorMessage = err instanceof Error ? err.message : 'Failed to generate cover image. Please try again.';
     return { success: false, error: errorMessage };
   }
 }

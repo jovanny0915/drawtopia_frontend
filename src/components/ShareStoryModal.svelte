@@ -116,7 +116,14 @@
   }
 </script>
 
-<div class="modal-overlay" role="dialog" aria-modal="true" on:click={handleOverlayClick}>
+<div 
+  class="modal-overlay" 
+  role="dialog" 
+  aria-modal="true" 
+  tabindex="-1"
+  on:click={handleOverlayClick}
+  on:keydown={(e) => e.key === 'Escape' && handleClose()}
+>
   <div class="modal-box">
     <div class="pop-up">
       <div class="frame-1410103845">
@@ -124,15 +131,14 @@
           <div class="logo-text-full">
             <div class="logo-img"></div>
           </div>
-          <img 
+          <button 
             class="x" 
-            src={x} 
-            alt="x" 
+            type="button"
             on:click={handleClose}
-            on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleClose()}
-            role="button"
-            tabindex="0"
-          />
+            aria-label="Close modal"
+          >
+            <img src={x} alt="" />
+          </button>
         </div>
         <div class="stroke"></div>
       </div>
@@ -335,6 +341,18 @@
     overflow: hidden;
     cursor: pointer;
     transition: all 0.2s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .x img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   .x:hover {

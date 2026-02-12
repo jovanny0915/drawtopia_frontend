@@ -16,7 +16,9 @@
     '/otp-email',
     '/otp-phone',
     '/share',
-    '/consent-send'
+    '/consent-send',
+    '/admin', // Admin routes have their own auth check
+    '/admin-test' // Admin test page (requires auth but not admin role)
   ];
 
   // Check if the current route is public

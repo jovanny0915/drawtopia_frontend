@@ -32,6 +32,7 @@
 		"@supabase/supabase-js": "^2.53.1",
 		"country-flag-icons": "^1.5.21",
 		"cropperjs": "^2.1.0",
+		"lucide-svelte": "^0.563.0",
 		"qrcode": "^1.5.4",
 		"svelte-datepicker": "^1.0.0",
 		"svelte-tel-input": "^3.6.0"

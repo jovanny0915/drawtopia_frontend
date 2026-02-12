@@ -12,9 +12,10 @@
   import classic from "../../../assets/classic.png";
   import spinner from "../../../assets/Spinner.svg";
   import { storyCreation } from "../../../lib/stores/storyCreation";
-  import { generateIntersearchCover, generateStoryAdventureCover, generateStyledImage, saveSelectedImageUrl } from "../../../lib/imageGeneration";
+  import { generateIntersearchCover, saveSelectedImageUrl, generateCoverImageWithTemplate } from "../../../lib/imageGeneration";
   import { generateStoryTitles } from "../../../lib/api/storyTitles";
   import { user } from "../../../lib/stores/auth";
+  import { getRandomTemplateByStoryWorld } from "../../../lib/database/bookTemplates";
 
   let isMobile = false;
   let characterName = "";
@@ -27,13 +28,15 @@
   let enhancedCharacterImage = "";
   let isGeneratingImage = false;
   let isGeneratingTitles = false;
+  let isInitialLoadComplete = false; // Track if initial load is done
   let selectedCharacterEnhancedImage = "";
   let intersearchWorld = "";
   let intersearchDifficulty = "";
   // Selection state variables - these will be updated with the character name
-  let selectedTitle = "The Great Addventure ";
+  let selectedTitle = "";
   let selectedCoverDesign = "Classic Storybook";
   let customTitleText = "";
+  let customTitleDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   // Title options with character name
   let titleOptions: string[] = [];
@@ -78,7 +81,7 @@
       const characterType = sessionStorage.getItem('selectedCharacterType') || 'person';
       const ageGroup = sessionStorage.getItem('ageGroup') || '7-10';
 
-      // Step 1: Generate story titles via backend API (before cover image)
+      // STEP 1: Generate story titles first (show only loading during this)
       isGeneratingTitles = true;
       const titlesResult = await generateStoryTitles({
         characterName: characterName || 'Character',
@@ -93,116 +96,108 @@
 
       if (titlesResult.success && titlesResult.titles && titlesResult.titles.length >= 3) {
         titleOptions = titlesResult.titles;
-        selectedTitle = titleOptions[0];
+        // Don't auto-select any title
       } else {
         // Fallback to default titles
         titleOptions = getFallbackTitles();
-        selectedTitle = titleOptions[0];
+        // Don't auto-select any title
         if (titlesResult.error) {
           console.warn('Story titles API failed, using fallback:', titlesResult.error);
         }
       }
       isGeneratingTitles = false;
-
-      // Step 2: Generate cover images (environment, then adventure)
-      if (enhancedCharacterImage && selectedWorld && selectedAdventure) {
-        await generateImages();
-      } else if (selectedFormat === "interactive") {
-        await generateInteractiveSearchCover();
-      }
+      
+      // Mark initial load as complete
+      isInitialLoadComplete = true;
     }
   });
 
-  // Generate environment image first, then adventure image
-  const generateImages = async () => {
+  // Generate cover image using template and character image (no environment generation)
+  const generateImages = async (title?: string) => {
     if (!enhancedCharacterImage || !selectedWorld || !selectedAdventure || isGeneratingImage) return;
     
     isGeneratingImage = true;
     
     try {
-      // Step 1: Generate environment image
-      const environmentMapping: { [key: string]: string } = {
+      // Generate cover image using template and character image
+      const worldMapping: { [key: string]: 'forest' | 'underwater' | 'outerspace' } = {
         'forest': 'forest',
         'outerspace': 'outerspace',
         'underwater': 'underwater'
       };
+      const mappedWorld = worldMapping[selectedWorld] || 'forest';
       
-      const environmentKey = environmentMapping[selectedWorld] || selectedWorld;
-      const environmentCacheKey = `environmentImage_${selectedStyle}_${selectedEnhancement}_${environmentKey}`;
+      // Use the title parameter or effective title
+      const titleToUse = title || effectiveTitle || selectedTitle;
       
-      // Remove old cached environment image to force regeneration
-      sessionStorage.removeItem(environmentCacheKey);
-      
-      // Check cache first
-      let environmentImageUrl = sessionStorage.getItem(environmentCacheKey);
-      
-      if (!environmentImageUrl) {
-        const environmentResult = await generateStyledImage({
-          imageUrl: enhancedCharacterImage,
-          style: 'environment',
-          quality: environmentKey as 'forest' | 'underwater' | 'outerspace',
-          saveToStorage: true,
-          storageKey: environmentCacheKey
-        });
-        
-        if (environmentResult.success && environmentResult.url) {
-          environmentImageUrl = environmentResult.url;
-          saveSelectedImageUrl('5', environmentImageUrl);
-        } else {
-          console.error('Failed to generate environment image:', environmentResult.error);
-          isGeneratingImage = false;
-          return;
-        }
-      } else {
-        environmentImageUrl = environmentImageUrl.split('?')[0];
+      // Skip if title is empty or just "Custom Title" without actual text
+      if (!titleToUse || titleToUse.trim().length === 0 || titleToUse === "Custom Title") {
+        console.log('Skipping cover generation - no valid title');
+        isGeneratingImage = false;
+        return;
       }
       
-      // Step 2: Generate adventure image
-      const adventureMapping: { [key: string]: string } = {
-        'treasure': 'treasurehunt',
-        'helping': 'helpfriend'
-      };
+      const coverCacheKey = `coverImage_${selectedWorld}_${selectedAdventure}_${titleToUse}`;
       
-      const adventureKey = adventureMapping[selectedAdventure] || selectedAdventure;
-      const adventureCacheKey = `adventureImage_${selectedWorld}_${selectedAdventure}`;
+      // Check cache first (don't clear it!)
+      let coverImageUrl = sessionStorage.getItem(coverCacheKey);
       
-      // Remove old cached adventure image and story cover to force regeneration
-      sessionStorage.removeItem(adventureCacheKey);
-      sessionStorage.removeItem('storyCover');
-      sessionStorage.removeItem('selectedImage_step6');
-      
-      // Check cache first
-      let adventureImageUrl = sessionStorage.getItem(adventureCacheKey);
-      
-      if (!adventureImageUrl) {
+      if (!coverImageUrl) {
+        // Only clear these when we're about to generate a new image
+        sessionStorage.removeItem('storyCover');
+        sessionStorage.removeItem('selectedImage_step6');
+        
         // Get character image for cover generation
-        const characterImageUrl = sessionStorage.getItem('selectedCharacterEnhancedImage') || environmentImageUrl;
+        const characterImageUrl = sessionStorage.getItem('selectedCharacterEnhancedImage');
         
         if (!characterImageUrl) {
           console.error('No character image available for cover generation');
+          isGeneratingImage = false;
           return;
         }
         
-        const coverResult = await generateStoryAdventureCover({
+        // Get a random book template for the story world
+        const templateResult = await getRandomTemplateByStoryWorld(mappedWorld);
+        
+        if (templateResult.error || !templateResult.data?.cover_image) {
+          console.warn(`No template found for ${mappedWorld}, cannot generate cover`);
+          isGeneratingImage = false;
+          alert('No book template available for the selected story world. Please contact support.');
+          return;
+        }
+        
+        // Save book template ID to sessionStorage for later use
+        if (templateResult.data.id) {
+          sessionStorage.setItem('bookTemplateId', templateResult.data.id);
+          console.log(`Saved book template ID: ${templateResult.data.id}`);
+        }
+        
+        // Use the new API with template
+        console.log(`Using template cover: ${templateResult.data.cover_image}`);
+        console.log(`Generating cover with title: ${titleToUse}`);
+        
+        const coverResult = await generateCoverImageWithTemplate({
+          templateCoverUrl: templateResult.data.cover_image,
           characterImageUrl: characterImageUrl,
-          storyWorld: selectedWorld,
-          adventureType: adventureKey,
+          storyWorld: mappedWorld,
+          storyTitle: titleToUse,
           saveToStorage: true,
-          storageKey: adventureCacheKey
+          storageKey: coverCacheKey
         });
         
         if (coverResult.success && coverResult.url) {
-          adventureImageUrl = coverResult.url;
+          coverImageUrl = coverResult.url;
           selectedImageFromStep6 = coverResult.url;
-          saveSelectedImageUrl('6', adventureImageUrl);
-          storyCreation.setOriginalImageUrl(adventureImageUrl);
+          saveSelectedImageUrl('6', coverImageUrl);
+          storyCreation.setOriginalImageUrl(coverImageUrl);
         } else {
-          console.error('Failed to generate story adventure cover:', coverResult.error);
+          console.error('Failed to generate cover with template:', coverResult.error);
         }
       } else {
-        adventureImageUrl = adventureImageUrl.split('?')[0];
-        selectedImageFromStep6 = adventureImageUrl;
-        storyCreation.setOriginalImageUrl(adventureImageUrl);
+        console.log(`Using cached cover for title: ${titleToUse}`);
+        coverImageUrl = coverImageUrl.split('?')[0];
+        selectedImageFromStep6 = coverImageUrl;
+        storyCreation.setOriginalImageUrl(coverImageUrl);
       }
     } catch (error) {
       console.error('Error generating images:', error);
@@ -235,9 +230,32 @@
     }
   };
 
-  // Title selection handler
+  // Title selection handler - regenerate cover when title changes (only after initial load)
   function selectTitle(title: string) {
     selectedTitle = title;
+    
+    // Only regenerate if initial load is complete and it's NOT custom title
+    // (custom title will regenerate via reactive statement)
+    if (isInitialLoadComplete && selectedFormat !== "interactive" && title !== "Custom Title") {
+      generateImages(title);
+    }
+  }
+
+  // Handle custom title text changes with debounce (only after initial load)
+  let previousCustomTitleText = '';
+  $: if (browser && isInitialLoadComplete && selectedTitle === "Custom Title" && customTitleText && customTitleText.trim().length > 0 && customTitleText !== previousCustomTitleText) {
+    // Clear existing timer
+    if (customTitleDebounceTimer) {
+      clearTimeout(customTitleDebounceTimer);
+    }
+    
+    // Set new timer to regenerate cover after user stops typing
+    customTitleDebounceTimer = setTimeout(() => {
+      if (selectedFormat !== "interactive" && customTitleText.trim().length > 0) {
+        previousCustomTitleText = customTitleText;
+        generateImages(customTitleText);
+      }
+    }, 1000); // Wait 1 second after user stops typing
   }
 
   // Handle preview story button click (continue generation)
@@ -323,27 +341,39 @@
         </div>
       </div>
     </div>
-    <div class="frame-1410104031">
-      <div class="frame-8">
-        <div class="frame-1410104034">
-          <div class="cover-book-preview">
-            <span class="coverbookpreview_span">Cover Book Preview</span>
-          </div>
-        </div>
-        {#if isGeneratingImage || isGeneratingTitles}
-          <div class="generating-overlay">
-            <img src={spinner} alt="Loading" class="spinner" />
-            <div class="generating-text">{isGeneratingTitles ? 'Generating story titles...' : 'Generating adventure image...'}</div>
-          </div>
-        {:else}
-          <img
-            class="image"
-            src={selectedImageFromStep6 || small}
-            alt="image_card_1"
-          />
-        {/if}
+    {#if isGeneratingTitles}
+      <!-- Show only loading spinner while generating titles -->
+      <div class="initial-loading-container">
+        <img src={spinner} alt="Loading" class="spinner" />
+        <div class="generating-text">Generating story titles...</div>
       </div>
-      <div class="frame-9">
+    {:else}
+      <!-- Show main content after titles are generated -->
+      <div class="frame-1410104031">
+        <div class="frame-8">
+          <div class="frame-1410104034">
+            <div class="cover-book-preview">
+              <span class="coverbookpreview_span">Cover Book Preview</span>
+            </div>
+          </div>
+          {#if isGeneratingImage}
+            <div class="generating-overlay">
+              <img src={spinner} alt="Loading" class="spinner" />
+              <div class="generating-text">Generating cover image...</div>
+            </div>
+          {:else if selectedImageFromStep6}
+            <img
+              class="image"
+              src={selectedImageFromStep6}
+              alt="image_card_1"
+            />
+          {:else}
+            <div class="no-cover-placeholder">
+              <span class="no-cover-text">No Cover</span>
+            </div>
+          {/if}
+        </div>
+        <div class="frame-9">
         <div class="information-cover">
           <span class="informationcover_span">Information Cover</span>
         </div>
@@ -505,6 +535,7 @@
         </div>
       </button>
     </div>
+    {/if}
   </div>
   <div class="frame-1410103821">
     <div class="contact-us-hellodrawtopiacom">
@@ -1071,7 +1102,7 @@
     outline-offset: -1px;
     flex-direction: column;
     justify-content: flex-start;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
     display: inline-flex;
     position: relative;
@@ -1419,6 +1450,17 @@
     gap: 16px;
   }
 
+  .initial-loading-container {
+    width: 100%;
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    padding: 48px;
+  }
+
   .spinner {
     width: 48px;
     height: 48px;
@@ -1436,5 +1478,34 @@
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+  }
+
+  .no-cover-placeholder {
+    width: 700px;
+    height: 837px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px dashed #dcdcdc;
+    border-radius: 12px;
+    background: #f9f9f9;
+  }
+
+  .no-cover-text {
+    color: #999999;
+    font-size: 24px;
+    font-family: Quicksand;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  @media (max-width: 800px) {
+    .no-cover-placeholder {
+      height: 400px;
+    }
+
+    .no-cover-text {
+      font-size: 18px;
+    }
   }
 </style>

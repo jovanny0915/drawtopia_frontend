@@ -6,6 +6,7 @@
 export const env = {
 	// API Configuration
 	API_BASE_URL: 'https://image-edit-five.vercel.app/api',
+	PUBLIC_BACKEND_URL: import.meta.env.VITE_API_BASE_URL || 'https://image-edit-five.vercel.app',
 	APP_NAME: import.meta.env.VITE_APP_NAME || 'Drawtopia',
 	
 	ENABLE_DEBUG: import.meta.env.VITE_ENABLE_DEBUG === 'true',
@@ -20,6 +21,7 @@ export const env = {
 if (env.isDevelopment() && env.ENABLE_DEBUG) {
 	console.log('Environment Variables:', {
 		API_BASE_URL: env.API_BASE_URL,
+		PUBLIC_BACKEND_URL: env.PUBLIC_BACKEND_URL,
 		APP_NAME: env.APP_NAME,
 		DEV_MODE: env.DEV_MODE,
 		ENABLE_DEBUG: env.ENABLE_DEBUG,

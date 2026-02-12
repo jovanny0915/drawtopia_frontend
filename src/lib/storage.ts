@@ -268,3 +268,182 @@ export function getOptimizedImageUrl(url: string, width: number = 40, height: nu
   }
   return url;
 }
+
+/**
+ * Upload book template image to Supabase storage
+ * @param file - The file to upload
+ * @param imageType - Type of image (cover, copyright, dedication, story, last_story, back_cover)
+ * @param templateId - Template ID for organizing files
+ * @param onProgress - Optional progress callback
+ * @returns Promise with upload result
+ */
+export async function uploadBookTemplateImage(
+  file: File, 
+  imageType: 'cover' | 'copyright' | 'dedication' | 'story' | 'last_story' | 'back_cover',
+  templateId?: string, 
+  onProgress?: (progress: number) => void
+): Promise<UploadResult> {
+  try {
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        success: false,
+        error: 'Invalid file type. Please upload a JPEG, PNG, WebP, or GIF image.'
+      };
+    }
+
+    // Validate file size (15MB max for book template images)
+    const maxSize = 15 * 1024 * 1024; // 15MB in bytes
+    if (file.size > maxSize) {
+      return {
+        success: false,
+        error: 'File size too large. Please upload an image smaller than 15MB.'
+      };
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 15);
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `template_${imageType}_${templateId || 'new'}_${timestamp}_${randomString}.${fileExtension}`;
+
+    // Simulate progress for better UX
+    if (onProgress) {
+      onProgress(10);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      onProgress(30);
+    }
+
+    // Upload to Supabase storage in 'book-templates' bucket
+    const { data, error } = await supabase.storage
+      .from('book-templates')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (onProgress) {
+      onProgress(80);
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    if (error) {
+      console.error('Book template image upload error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to upload book template image'
+      };
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('book-templates')
+      .getPublicUrl(data.path);
+
+    if (onProgress) {
+      onProgress(100);
+    }
+
+    return {
+      success: true,
+      url: urlData.publicUrl
+    };
+
+  } catch (error) {
+    console.error('Book template image upload error:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred while uploading the book template image'
+    };
+  }
+}
+
+/**
+ * Delete book template image from Supabase storage
+ * @param filePath - The file path or URL to delete
+ * @returns Promise with deletion result
+ */
+export async function deleteBookTemplateImage(filePath: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Extract filename from URL if full URL is provided
+    let fileName = filePath;
+    if (filePath.includes('/book-templates/')) {
+      fileName = filePath.split('/book-templates/').pop() || filePath;
+    }
+
+    const { error } = await supabase.storage
+      .from('book-templates')
+      .remove([fileName]);
+
+    if (error) {
+      console.error('Delete error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to delete book template image'
+      };
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Book template image deletion error:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred while deleting the book template image'
+    };
+  }
+}
+
+/**
+ * Upload multiple book template story page images
+ * @param files - Array of files to upload
+ * @param templateId - Template ID for organizing files
+ * @param onProgress - Optional progress callback (receives overall progress)
+ * @returns Promise with array of upload results
+ */
+export async function uploadBookTemplateStoryPages(
+  files: File[],
+  templateId?: string,
+  onProgress?: (progress: number) => void
+): Promise<{ success: boolean; urls?: string[]; errors?: string[] }> {
+  try {
+    const results: UploadResult[] = [];
+    const totalFiles = files.length;
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const result = await uploadBookTemplateImage(
+        file,
+        'story',
+        templateId,
+        (fileProgress) => {
+          // Calculate overall progress
+          if (onProgress) {
+            const overallProgress = ((i / totalFiles) * 100) + ((fileProgress / totalFiles));
+            onProgress(Math.min(overallProgress, 100));
+          }
+        }
+      );
+      results.push(result);
+    }
+
+    // Check if all uploads succeeded
+    const allSucceeded = results.every(r => r.success);
+    const urls = results.filter(r => r.success && r.url).map(r => r.url!);
+    const errors = results.filter(r => !r.success && r.error).map(r => r.error!);
+
+    return {
+      success: allSucceeded,
+      urls: urls.length > 0 ? urls : undefined,
+      errors: errors.length > 0 ? errors : undefined
+    };
+
+  } catch (error) {
+    console.error('Story pages upload error:', error);
+    return {
+      success: false,
+      errors: ['An unexpected error occurred while uploading story page images']
+    };
+  }
+}

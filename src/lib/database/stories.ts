@@ -27,6 +27,9 @@ export interface Story {
   audio_urls?: (string | null)[]; // Array of audio URLs (one per page, null if failed)
   dedication_text?: string; // Dedication message text
   dedication_image?: string; // Dedication page image URL
+  copyright_image?: string; // Copyright page image URL (displayed on left half)
+  last_word_page_image?: string; // Last word page image URL
+  back_cover_image?: string; // Back cover image URL
   status?: 'generating' | 'completed' | 'failed';
   story_type?: string; // Type of story: adventure story book or search adventure
   reading_state?: ReadingState; // Reading statistics
@@ -80,6 +83,9 @@ function buildStoryRowPayload(story: Story, uid: string, storyContentValue: stri
     audio_url: story.audio_urls || [],
     dedication_text: story.dedication_text || null,
     dedication_image: story.dedication_image || null,
+    copyright_image: story.copyright_image || null,
+    last_word_page_image: story.last_word_page_image || null,
+    back_cover_image: story.back_cover_image || null,
     status: story.status || 'generating',
     story_type: story.story_type || 'story',
     hints: story.story_type === 'search' ? (story.hints !== undefined ? story.hints : 3) : null,

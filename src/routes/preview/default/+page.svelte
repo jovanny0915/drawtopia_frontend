@@ -54,10 +54,15 @@
   let pageCounterText = ""; // Page counter display text
   let currentPageText = ""; // Current page text content
 
-  // Dedication data
+  // Dedication and copyright data
   let dedicationText = '';
   let dedicationImage = '';
+  let copyrightImage = '';
   let hasDedication = false;
+  
+  // Last word page and back cover
+  let lastWordPageImage = '';
+  let backCoverImage = '';
 
   // Audio playback state
   let audioUrls: string[] = []; // Array of audio URLs from database
@@ -197,17 +202,20 @@
               console.log('[preview] Added story cover:', coverUrl);
             }
             
-            // Check for dedication and insert after cover if it exists
-            if (story[0].dedication_text || story[0].dedication_image) {
-              dedicationText = story[0].dedication_text || '';
-              dedicationImage = story[0].dedication_image ? story[0].dedication_image.split("?")[0] : '';
+            // Check for copyright and dedication images, and insert after cover if they exist
+            copyrightImage = story[0].copyright_image ? story[0].copyright_image.split("?")[0] : '';
+            dedicationText = story[0].dedication_text || '';
+            dedicationImage = story[0].dedication_image ? story[0].dedication_image.split("?")[0] : '';
+            
+            // If we have copyright or dedication, add the copyright/dedication page
+            if (copyrightImage || dedicationImage || dedicationText) {
               hasDedication = true;
               
-              // Insert dedication scene after cover (at index 1)
-              // We'll use a special marker for dedication
+              // Insert copyright/dedication scene after cover (at index 1)
+              // We'll use a special marker for this combined page
               if (loadedScenes.length > 0) {
-                loadedScenes.splice(1, 0, 'DEDICATION_PAGE');
-                console.log('[preview] Added dedication page after cover');
+                loadedScenes.splice(1, 0, 'COPYRIGHT_DEDICATION_PAGE');
+                console.log('[preview] Added copyright/dedication page after cover');
               }
             }
             
@@ -251,6 +259,26 @@
             
             if (storyPages.length > 0) {
               pagesRead = storyPages.length;
+            }
+            
+            // Add last word page and/or back cover
+            // If both exist, they will be shown as a two-page spread
+            // If only last word exists, it's shown as single page
+            // If only back cover exists, it's shown as single page
+            if (story[0].last_word_page_image || story[0].back_cover_image) {
+              if (story[0].last_word_page_image) {
+                lastWordPageImage = story[0].last_word_page_image.split("?")[0];
+                console.log('[preview] Loaded last word page image:', lastWordPageImage);
+              }
+              if (story[0].back_cover_image) {
+                backCoverImage = story[0].back_cover_image.split("?")[0];
+                console.log('[preview] Loaded back cover image:', backCoverImage);
+              }
+              
+              // Add a single placeholder for the final page(s)
+              // The rendering logic will determine if it's single or two-page spread
+              loadedScenes.push('FINAL_PAGE');
+              console.log('[preview] Added final page(s) - last word and/or back cover');
             }
           } catch (error) {
             console.error('Error parsing story content:', error);
@@ -364,7 +392,8 @@
       // Calculate story page index
       const getStoryPageIndex = (sceneIndex: number) => {
         if (sceneIndex === 0) return -1; // Cover
-        if (hasDedication && sceneIndex === 1) return -1; // Dedication
+        if (hasDedication && sceneIndex === 1) return -1; // Copyright/Dedication
+        if (storyScenes[sceneIndex] === 'FINAL_PAGE') return -1; // Final page (last word/back cover)
         return hasDedication ? sceneIndex - 2 : sceneIndex - 1;
       };
       const currentStoryPageIndex = getStoryPageIndex(currentSceneIndex);
@@ -377,7 +406,7 @@
       // If we're on left page, go to previous scene's right page
       if (currentSceneIndex > 1) {
         currentSceneIndex--;
-        // If previous scene is a story page (not cover/dedication), go to its right page
+        // If previous scene is a story page (not special page), go to its right page
         const prevStoryPageIndex = getStoryPageIndex(currentSceneIndex);
         if (prevStoryPageIndex >= 0) {
           currentSubPage = 'right';
@@ -390,7 +419,7 @@
         currentSubPage = 'left';
       }
     } else {
-      // Two-page mode or on cover/dedication - just go back one scene
+      // Two-page mode or on special pages - just go back one scene
       if (currentSceneIndex > 0) {
         currentSceneIndex--;
         currentSubPage = 'left';
@@ -399,10 +428,11 @@
   }
 
   function nextScene() {
-    // Calculate the actual story page index (excluding cover and dedication)
+    // Calculate the actual story page index (excluding special pages)
     const getStoryPageIndex = (sceneIndex: number) => {
       if (sceneIndex === 0) return -1; // Cover
-      if (hasDedication && sceneIndex === 1) return -1; // Dedication
+      if (hasDedication && sceneIndex === 1) return -1; // Copyright/Dedication
+      if (storyScenes[sceneIndex] === 'FINAL_PAGE') return -1; // Final page (last word/back cover)
       return hasDedication ? sceneIndex - 2 : sceneIndex - 1;
     };
     
@@ -430,12 +460,12 @@
         currentSubPage = 'left';
       }
     } else {
-      // Two-page mode or on cover/dedication - just advance one scene
+      // Two-page mode or on special pages - just advance one scene
       if (currentSceneIndex < storyScenes.length - 1) {
         currentSceneIndex++;
         currentSubPage = 'left';
       } else if (currentSceneIndex === 0) {
-        // Moving from cover to next page (dedication or first scene)
+        // Moving from cover to next page (copyright/dedication or first scene)
         currentSceneIndex = 1;
         currentSubPage = 'left';
       }
@@ -462,8 +492,12 @@
   }
 
   function goToScene(index: number) {
-    // Allow navigation to cover (index 0) and dedication (index 1 if hasDedication) for everyone
-    if (index === 0 || (hasDedication && index === 1)) {
+    // Allow navigation to cover (index 0), copyright/dedication (index 1 if hasDedication), and final page for everyone
+    const isSpecialPage = index === 0 || 
+                          (hasDedication && index === 1) || 
+                          storyScenes[index] === 'FINAL_PAGE';
+    
+    if (isSpecialPage) {
       if (index >= 0 && index < storyScenes.length) {
         currentSceneIndex = index;
         currentSubPage = 'left';
@@ -471,7 +505,7 @@
       return;
     }
     
-    // Calculate the actual story page index (excluding cover and dedication)
+    // Calculate the actual story page index (excluding cover, copyright/dedication, last word page, and back cover)
     const storyPageIndex = hasDedication ? index - 2 : index - 1;
     
     // Prevent navigation to pages beyond page 2 for free plan users who haven't purchased
@@ -500,7 +534,9 @@
           id: currentStoryId,
           title: storyTitle,
           unlockTitle: storyTitle,
-          coverImageUrl: typeof storyScenes[0] === "string" && storyScenes[0] !== "DEDICATION_PAGE"
+          coverImageUrl: typeof storyScenes[0] === "string" && 
+                        storyScenes[0] !== "COPYRIGHT_DEDICATION_PAGE" && 
+                        storyScenes[0] !== "LAST_WORD_PAGE"
             ? storyScenes[0]
             : "https://placehold.co/100x100",
           pagesAvailable: 2,
@@ -544,13 +580,15 @@
     duration = 0;
     isAudioAvailable = false;
     
-    // Cover page (index 0) and dedication pages (index 1 if hasDedication) don't have audio
-    if (sceneIndex === 0 || (hasDedication && sceneIndex === 1)) {
-      console.log("[audio] Cover or dedication page - no audio");
+    // Special pages don't have audio: cover, copyright/dedication, final page
+    if (sceneIndex === 0 || 
+        (hasDedication && sceneIndex === 1) || 
+        storyScenes[sceneIndex] === 'FINAL_PAGE') {
+      console.log("[audio] Special page - no audio");
       return;
     }
     
-    // Calculate audio index: account for cover and dedication
+    // Calculate audio index: account for cover and copyright/dedication
     // If hasDedication: scene index 2 = audio[0], scene index 3 = audio[1], etc.
     // If no dedication: scene index 1 = audio[0], scene index 2 = audio[1], etc.
     const audioIndex = sceneIndex - (hasDedication ? 2 : 1);
@@ -693,10 +731,14 @@
     }
   }
   
-  // Load audio when scene changes (skip cover and dedication)
+  // Load audio when scene changes (skip special pages)
   $: if (browser && currentSceneIndex !== undefined) {
-    // Skip audio for cover (index 0) and dedication (index 1 if hasDedication)
-    if (currentSceneIndex > 0 && !(hasDedication && currentSceneIndex === 1)) {
+    // Skip audio for special pages: cover, copyright/dedication, last word page, back cover
+    const isSpecialPage = currentSceneIndex === 0 || 
+                          (hasDedication && currentSceneIndex === 1) || 
+                          storyScenes[currentSceneIndex] === 'FINAL_PAGE';
+    
+    if (!isSpecialPage) {
       loadAudio(currentSceneIndex);
     }
   }
@@ -727,33 +769,46 @@
     } else if (currentSceneIndex === 0) {
       pageCounterText = `Cover (FREE PREVIEW)`;
     } else if (hasDedication && currentSceneIndex === 1) {
-      pageCounterText = `Dedication Page (FREE PREVIEW)`;
+      pageCounterText = `Copyright & Dedication (FREE PREVIEW)`;
+    } else if (storyScenes[currentSceneIndex] === 'FINAL_PAGE') {
+      pageCounterText = `Last Word Page (FREE PREVIEW)`;
     } else if (viewMode === 'one-page') {
       // In one-page mode, show which half of the page we're viewing
-      // Account for dedication page
+      // Account for copyright/dedication page, last word page, and back cover
       const adjustedIndex = hasDedication ? currentSceneIndex - 2 : currentSceneIndex - 1;
       const pageNum = adjustedIndex * 2 + (currentSubPage === 'left' ? 1 : 2);
-      const totalStoryPages = storyScenes.length - (hasDedication ? 2 : 1);
+      // Calculate total story pages (exclude cover, copyright/dedication, final page)
+      let totalStoryPages = storyScenes.length - 1; // Exclude cover
+      if (hasDedication) totalStoryPages--; // Exclude copyright/dedication
+      if (storyScenes[storyScenes.length - 1] === 'FINAL_PAGE') totalStoryPages--; // Exclude final page
       const totalPages = totalStoryPages * 2;
       pageCounterText = `Page ${pageNum} of ${totalPages} (FREE PREVIEW)`;
     } else {
       // Two-page mode
       const adjustedIndex = hasDedication ? currentSceneIndex - 1 : currentSceneIndex;
-      const totalStoryPages = storyScenes.length - (hasDedication ? 2 : 1);
+      // Calculate total story pages (exclude cover, copyright/dedication, final page)
+      let totalStoryPages = storyScenes.length - 1; // Exclude cover
+      if (hasDedication) totalStoryPages--; // Exclude copyright/dedication
+      if (storyScenes[storyScenes.length - 1] === 'FINAL_PAGE') totalStoryPages--; // Exclude final page
       pageCounterText = `Page ${adjustedIndex} of ${totalStoryPages} (FREE PREVIEW)`;
     }
   }
   
   // Get current page text
-  // Adjust index for story pages since cover is index 0 and dedication (if exists) is index 1
-  $: currentPageText = (currentSceneIndex === 0 || (hasDedication && currentSceneIndex === 1))
-    ? ''
-    : (() => {
-        const pageIndex = currentSceneIndex - (hasDedication ? 2 : 1);
-        return storyPages.length > 0 && pageIndex >= 0 && pageIndex < storyPages.length
-          ? storyPages[pageIndex].text
-          : '';
-      })();
+  // Adjust index for story pages since cover is index 0, copyright/dedication is index 1 (if exists)
+  $: currentPageText = (() => {
+    // Special pages don't have text
+    if (currentSceneIndex === 0 || 
+        (hasDedication && currentSceneIndex === 1) || 
+        storyScenes[currentSceneIndex] === 'FINAL_PAGE') {
+      return '';
+    }
+    
+    const pageIndex = currentSceneIndex - (hasDedication ? 2 : 1);
+    return storyPages.length > 0 && pageIndex >= 0 && pageIndex < storyPages.length
+      ? storyPages[pageIndex].text
+      : '';
+  })();
   
   // Toggle fullscreen mode (same as /intersearch/1: fullscreen the story container only)
   function toggleFullscreen() {
@@ -954,18 +1009,28 @@
                           <div class="inner-shadow"></div>
                         </div>
                       </div>
-                    {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'DEDICATION_PAGE'}
-                      <!-- Dedication Page: Left blank, Right with dedication image and text -->
+                    {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'COPYRIGHT_DEDICATION_PAGE'}
+                      <!-- Copyright/Dedication Page: Left copyright, Right dedication image and text -->
                       <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh; width: 70dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left dedication-blank">
                           <div class="image dedication-blank-page">
-                            <!-- White blank page -->
-                            <img
-                              src={dedicationLeft}
-                              alt="Dedication"
-                              class="dedication-image"
-                              draggable="false"
-                            />
+                            {#if copyrightImage}
+                              <!-- Copyright image on left page -->
+                              <img
+                                src={copyrightImage}
+                                alt="Copyright"
+                                class="dedication-image"
+                                draggable="false"
+                              />
+                            {:else}
+                              <!-- Fallback to blank page if no copyright image -->
+                              <img
+                                src={dedicationLeft}
+                                alt="Copyright"
+                                class="dedication-image"
+                                draggable="false"
+                              />
+                            {/if}
                           </div>
                         </div>
                         <div class="mobile-image-half mobile-image-right dedication-page">
@@ -987,7 +1052,61 @@
                           </div>
                         </div>
                       </div>
-                    {:else if viewMode === 'one-page' && storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'DEDICATION_PAGE'}
+                    {:else if storyScenes[currentSceneIndex] === 'FINAL_PAGE'}
+                      <!-- Final Page(s): Last word page and/or back cover -->
+                      {#if lastWordPageImage && backCoverImage}
+                        <!-- Two-page spread: left = last word, right = back cover -->
+                        <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh; width: 70dvw;' : ''}>
+                          <div class="mobile-image-half mobile-image-left dedication-blank">
+                            <div class="image dedication-blank-page">
+                              <img
+                                src={lastWordPageImage}
+                                alt="Last Word Page"
+                                class="dedication-image"
+                                draggable="false"
+                              />
+                            </div>
+                          </div>
+                          <div class="mobile-image-half mobile-image-right dedication-page">
+                            <div class="image dedication-content">
+                              <img
+                                src={backCoverImage}
+                                alt="Back Cover"
+                                class="dedication-image"
+                                draggable="false"
+                              />
+                              <div class="inner-shadow"></div>
+                            </div>
+                          </div>
+                        </div>
+                      {:else if lastWordPageImage}
+                        <!-- Only last word page: Single image display -->
+                        <div class="cover-image-container" class:fullscreen-cover={isFullscreen}>
+                          <div class="image cover-image">
+                            <img
+                              src={lastWordPageImage}
+                              alt="Last Word Page"
+                              class="scene-main-image cover-main-image"
+                              draggable="false"
+                            />
+                            <div class="inner-shadow"></div>
+                          </div>
+                        </div>
+                      {:else if backCoverImage}
+                        <!-- Only back cover: Single image display -->
+                        <div class="cover-image-container" class:fullscreen-cover={isFullscreen}>
+                          <div class="image cover-image">
+                            <img
+                              src={backCoverImage}
+                              alt="Back Cover"
+                              class="scene-main-image cover-main-image"
+                              draggable="false"
+                            />
+                            <div class="inner-shadow"></div>
+                          </div>
+                        </div>
+                      {/if}
+                    {:else if viewMode === 'one-page' && storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'FINAL_PAGE'}
                       <!-- One-page mode: Show only left OR right page -->
                       <div class="mobile-image-split" class:single-page-mode={true} style={isFullscreen ? 'height: 90dvh;' : ''}>
                         {#if currentSubPage === 'left'}
@@ -1034,7 +1153,7 @@
                           </div>
                         {/if}
                       </div>
-                    {:else if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'DEDICATION_PAGE'}
+                    {:else if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'FINAL_PAGE'}
                       <!-- Two-page mode: Split into left and right halves (same image; left half shows left 50%, right half shows right 50%) -->
                       <div class="mobile-image-split" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 70dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left" style={isFullscreen ? 'height: 100%;' : ''}>
@@ -1216,8 +1335,9 @@
             </div>
             <div class="frame-1410104065">
               {#if storyScenes.length > 0}
-                {#each storyScenes as _, idx}
+                {#each storyScenes as scene, idx}
                   {#if idx === 0}
+                    <!-- Cover -->
                     <div 
                       class="number" 
                       class:active={currentSceneIndex === idx} 
@@ -1228,7 +1348,8 @@
                     >
                       <img src={Book} alt="Cover" />
                     </div>
-                  {:else if idx === 1 && hasDedication && storyScenes[idx] === 'DEDICATION_PAGE'}
+                  {:else if scene === 'COPYRIGHT_DEDICATION_PAGE'}
+                    <!-- Copyright/Dedication Page -->
                     <div 
                       class="number_01" 
                       class:active={currentSceneIndex === idx} 
@@ -1237,9 +1358,10 @@
                       role="button" 
                       tabindex="0"
                     >
-                      <img src={EnvelopeSimple} alt="Dedication Page" />
+                      <img src={EnvelopeSimple} alt="Copyright & Dedication" />
                     </div>
-                  {:else if idx === 1 && !hasDedication}
+                  {:else if scene === 'FINAL_PAGE'}
+                    <!-- Last Word Page -->
                     <div 
                       class="number_01" 
                       class:active={currentSceneIndex === idx} 
@@ -1248,20 +1370,59 @@
                       role="button" 
                       tabindex="0"
                     >
-                      <img src={EnvelopeSimple} alt="Page 1" />
+                      <img src={EnvelopeSimple} alt="Last Word Page" />
+                    </div>
+                  {:else if scene === 'FINAL_PAGE'}
+                    <!-- Final Page (Last Word & Back Cover) -->
+                    <div 
+                      class="number" 
+                      class:active={currentSceneIndex === idx} 
+                      on:click={() => goToScene(idx)} 
+                      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && goToScene(idx)}
+                      role="button" 
+                      tabindex="0"
+                    >
+                      <img src={Book} alt="Last Word & Back Cover" />
+                    </div>
+                  {:else if idx === storyScenes.length - 1 && backCoverImage}
+                    <!-- Back Cover -->
+                    <div 
+                      class="number" 
+                      class:active={currentSceneIndex === idx} 
+                      on:click={() => goToScene(idx)} 
+                      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && goToScene(idx)}
+                      role="button" 
+                      tabindex="0"
+                    >
+                      <img src={Book} alt="Back Cover" />
                     </div>
                   {:else}
-                    <div 
-                      class="number_02" 
-                      class:active={currentSceneIndex === idx}
-                      on:click={() => goToScene(idx)}
-                      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && goToScene(idx)}
-                      class:locked={idx > 1 && isFreePlan && !isPurchased}
-                      role="button" 
-                      tabindex="0"
-                    >
-                      <div class="text-1"><span class="f_span">{idx-1}</span></div>
-                    </div>
+                    <!-- Story Pages -->
+                    {#if hasDedication}
+                      <div 
+                        class="number_02" 
+                        class:active={currentSceneIndex === idx}
+                        on:click={() => goToScene(idx)}
+                        on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && goToScene(idx)}
+                        class:locked={idx > 2 && isFreePlan && !isPurchased}
+                        role="button" 
+                        tabindex="0"
+                      >
+                        <div class="text-1"><span class="f_span">{idx - 1}</span></div>
+                      </div>
+                    {:else}
+                      <div 
+                        class="number_02" 
+                        class:active={currentSceneIndex === idx}
+                        on:click={() => goToScene(idx)}
+                        on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && goToScene(idx)}
+                        class:locked={idx > 1 && isFreePlan && !isPurchased}
+                        role="button" 
+                        tabindex="0"
+                      >
+                        <div class="text-1"><span class="f_span">{idx}</span></div>
+                      </div>
+                    {/if}
                   {/if}
                 {/each}
               {:else}
@@ -1360,7 +1521,9 @@
     <ShareStoryModal 
       storyTitle={storyTitle} 
       storyId={currentStoryId || ""}
-      storyCoverUrl={typeof storyScenes[0] === "string" && storyScenes[0] !== "DEDICATION_PAGE" ? storyScenes[0] : ""}
+      storyCoverUrl={typeof storyScenes[0] === "string" && 
+                    storyScenes[0] !== "COPYRIGHT_DEDICATION_PAGE" && 
+                    storyScenes[0] !== "LAST_WORD_PAGE" ? storyScenes[0] : ""}
       on:close={() => showShareStoryModal = false} 
     />
   {/if}
@@ -2494,6 +2657,7 @@
   .mobile-image-left .image .scene-main-image {
     object-position: left center;
     margin-left: 0;
+    height: 100%;
   }
   
   /* Right half: show right 50% of the image */

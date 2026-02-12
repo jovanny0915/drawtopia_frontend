@@ -1035,6 +1035,7 @@
       class="modal-container character-modal-container" 
       role="document"
       on:click|stopPropagation
+      on:keydown={() => {}}
     >
       <CharacterDetailsModal
         character={selectedCharacter}

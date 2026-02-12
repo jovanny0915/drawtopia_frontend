@@ -12,6 +12,9 @@
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
     import { buildStoryTextPrompt, buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt } from '../../../lib/promptBuilder';
+    import { generateAllBookPages, type GenerateBookPagesOptions } from '../../../lib/storyGenerationHelpers';
+    import { getBookTemplates } from '../../../lib/database/bookTemplates';
+    import type { BookTemplate } from '../../../lib/database/bookTemplates';
     import drawtopia from "../../../assets/logo.png";
     import shieldstar from "../../../assets/ShieldStar.svg";
     import arrowleft from "../../../assets/ArrowLeft.svg";
@@ -47,7 +50,7 @@
     // <30%: first asset only; <60%: first + second; >=90%: all three
     $: displayImage1 = firstGeneration;
     $: displayImage2 = completionPercent < 30 ? BLANK_WHITE_IMAGE : secondGeneration;
-    $: displayImage3 = completionPercent < 90 ? BLANK_WHITE_IMAGE : thirdGeneration;
+    $: displayImage3 = completionPercent < 60 ? BLANK_WHITE_IMAGE : thirdGeneration;
 
     // Spinner visibility: <30% slot1, <60% slot2, >60% slot3
     $: showSpinnerSlot1 = completionPercent < 30;
@@ -849,6 +852,17 @@
             const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
             const dedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
 
+            // Get copyright, last word, and back cover images from sessionStorage
+            const copyrightImage = browser ? sessionStorage.getItem('copyright_image') : null;
+            const lastWordImage = browser ? sessionStorage.getItem('last_word_image') : null;
+            const backCoverImage = browser ? sessionStorage.getItem('back_cover_image') : null;
+
+            console.log('Additional page images retrieved from sessionStorage:', {
+                copyrightImage: copyrightImage ? 'Found' : 'Not found',
+                lastWordImage: lastWordImage ? 'Found' : 'Not found',
+                backCoverImage: backCoverImage ? 'Found' : 'Not found'
+            });
+
             // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
@@ -875,9 +889,20 @@
                 audio_urls: audioUrls && audioUrls.length > 0 ? audioUrls.map(url => url ? url.split('?')[0] : null) : [],
                 dedication_text: dedicationText || undefined,
                 dedication_image: dedicationImage ? dedicationImage.split('?')[0] : undefined,
+                copyright_image: copyrightImage ? copyrightImage.split('?')[0] : undefined,
+                last_word_page_image: lastWordImage ? lastWordImage.split('?')[0] : undefined,
+                back_cover_image: backCoverImage ? backCoverImage.split('?')[0] : undefined,
                 status: 'completed' as const,
                 purchased: isGiftStory
             };
+
+            console.log('Saving story to database with images:', {
+                dedication_image: !!storyData.dedication_image,
+                copyright_image: !!storyData.copyright_image,
+                last_word_page_image: !!storyData.last_word_page_image,
+                back_cover_image: !!storyData.back_cover_image,
+                scene_images_count: storyData.scene_images?.length || 0
+            });
 
             let result: { success: boolean; data?: any; error?: string };
             result = await createStory(storyData);
@@ -977,21 +1002,28 @@
             storyCreation.init();
             const storyState = get(storyCreation);
             
-            // Fetch child profile to get age_group
+            // Fetch child profile to get age_group and child name
             let ageGroup = '7-10'; // Default age group
+            let childName = storyState.characterName || 'Character'; // Fallback to character name
+            
             if (storyState.selectedChildProfileId && storyState.selectedChildProfileId !== 'undefined') {
                 try {
                     const { data: childProfile, error: profileError } = await supabase
                     .from('child_profiles')
-                    .select('age_group')
+                    .select('age_group, first_name')
                     .eq('id', parseInt(storyState.selectedChildProfileId))
                     .single();
                     
-                    if (!profileError && childProfile?.age_group) {
-                        ageGroup = normalizeAgeGroup(childProfile.age_group);
+                    if (!profileError && childProfile) {
+                        if (childProfile.age_group) {
+                            ageGroup = normalizeAgeGroup(childProfile.age_group);
+                        }
+                        if (childProfile.first_name) {
+                            childName = childProfile.first_name;
+                        }
                     }
                 } catch (error) {
-                    console.warn('Could not fetch child profile age group, using default:', error);
+                    console.warn('Could not fetch child profile, using defaults:', error);
                 }
             }
             
@@ -1049,44 +1081,16 @@
                 pageNumber: 1 // Main prompt for the whole story
             });
             
-            // Build scene prompts for each of the 5 pages
-            // Note: The backend will replace the placeholder text with actual story text after generation
-            const scenePrompts: string[] = [];
-            for (let pageNum = 1; pageNum <= 5; pageNum++) {
-                const scenePrompt = buildStoryScenePrompt({
-                    characterName,
-                    characterType: characterType === 'magical_creature' ? 'magical_creature' : characterType,
-                    specialAbility,
-                    characterStyle: characterStyle as '3d' | 'cartoon' | 'anime',
-                    storyWorld,
-                    adventureType,
-                    ageGroup,
-                    storyTitle,
-                    pageNumber: pageNum,
-                    // Placeholder text - backend will replace with actual story text after generation
-                    pageText: `[Story text for page ${pageNum} will be inserted here by the backend after story generation]`,
-                    characterImageUrl: selectedCharacterEnhancedImage || undefined
-                });
-                scenePrompts.push(scenePrompt);
-            }
+            // ——— Step 1: Generate Story Text Only (No Images) ———
+            storyTextProgress = 5;
+            console.log('Step 1: Generating story text...');
             
-            // Get current user ID for email notification
-            const { data: { user } } = await supabase.auth.getUser();
-            const userId = user?.id;
+            // Backend base URL for story text generation
+            const backendBaseUrl = (env.API_BASE_URL || '').replace(/\/api\/?$/, '') || 'http://localhost:8000';
+            const headers = { 'Content-Type': 'application/json' };
             
-            // Get dedication text and build dedication scene prompt
-            let dedicationText: string | null = null;
-            let dedicationScenePrompt: string | null = null;
-            if (browser) {
-                dedicationText = sessionStorage.getItem('dedication_text');
-                if (dedicationText) {
-                    // Build dedication scene prompt based on story world
-                    dedicationScenePrompt = buildDedicationScenePrompt(storyWorld);
-                }
-            }
-            
-            // Prepare request body matching backend StoryRequest model
-            const requestBody: any = {
+            // Prepare request body for text-only generation
+            const textOnlyRequestBody = {
                 character_name: characterName,
                 character_type: mapCharacterType(characterType),
                 special_ability: specialAbility,
@@ -1094,148 +1098,225 @@
                 story_world: storyWorld,
                 adventure_type: adventureType,
                 occasion_theme: occasionTheme,
-                character_image_url: selectedCharacterEnhancedImage,
-                story_text_prompt: storyTextPrompt,
-                scene_prompts: scenePrompts,
                 reading_level: readingLevel,
                 story_title: storyTitle,
-                user_id: userId, // For book completion email
-                child_profile_id: storyState.selectedChildProfileId, // For database record
-                character_style: storyState.characterStyle,
-                enhanced_images: storyState.enhancedImages,
-                dedication_text: dedicationText || undefined,
-                dedication_scene_prompt: dedicationScenePrompt || undefined
+                story_text_prompt: storyTextPrompt,
+                generate_images: false, // Request text only
+                generate_audio: false // No audio for now
             };
             
-            // Backend base URL (for WebSocket + generate-with-progress, or fallback generate)
-            const backendBaseUrl = (env.API_BASE_URL || '').replace(/\/api\/?$/, '') || 'http://localhost:8000';
-            const storyGenerationEndpointFallback = 'https://image-edit-five.vercel.app';
-            const headers = { 'Content-Type': 'application/json' };
-
-            let useWebSocketProgress = false;
-            let progressWs: WebSocket | null = null;
-            let sessionIdResolved: string | null = null;
-            const wsUrl = (backendBaseUrl.startsWith('https') ? backendBaseUrl.replace(/^https/, 'wss') : backendBaseUrl.replace(/^http/, 'ws')) + '/ws/story-progress';
-
-            // Try WebSocket for real-time percentage from backend
-            try {
-                progressWs = new WebSocket(wsUrl);
-                sessionIdResolved = await new Promise<string | null>((resolve) => {
-                    const t = setTimeout(() => resolve(null), 5000);
-                    progressWs!.onmessage = (event) => {
-                        try {
-                            const data = JSON.parse(event.data as string);
-                            if (data.session_id) {
-                                clearTimeout(t);
-                                resolve(data.session_id);
-                            }
-                        } catch (_) {}
-                    };
-                    progressWs!.onerror = () => {
-                        clearTimeout(t);
-                        resolve(null);
-                    };
-                    progressWs!.onclose = () => resolve(null);
-                });
-                if (sessionIdResolved) {
-                    useWebSocketProgress = true;
-                    progressWs!.onmessage = (event) => {
-                        try {
-                            const data = JSON.parse(event.data as string);
-                            if (typeof data.percentage === 'number') {
-                                storyTextProgress = data.percentage;
-                                sceneImageProgress = 0;
-                            }
-                        } catch (_) {}
-                    };
-                } else {
-                    progressWs?.close();
-                    progressWs = null;
-                }
-            } catch (_) {
-                progressWs?.close();
-                progressWs = null;
-            }
-
-            if (!useWebSocketProgress) {
-                storyTextProgress = 2;
-                sceneImageProgress = 5;
-            }
-
-            const fetchUrl = useWebSocketProgress && sessionIdResolved
-                ? `${backendBaseUrl}/story/generate-with-progress`
-                : `${storyGenerationEndpointFallback}/story/generate`;
-            const requestBodyWithSession = useWebSocketProgress && sessionIdResolved
-                ? { ...requestBody, session_id: sessionIdResolved }
-                : requestBody;
-
-            // ——— Single combined call: story text + audio + scenes (with optional WebSocket progress) ———
-            const fullResponse = await fetch(fetchUrl, {
+            // Call backend to generate story text only
+            const textResponse = await fetch(`${backendBaseUrl}/story/generate-text`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(requestBodyWithSession)
+                body: JSON.stringify(textOnlyRequestBody)
             });
-            if (progressWs) {
-                progressWs.close();
-                progressWs = null;
+            
+            if (!textResponse.ok) {
+                throw new Error(`Failed to generate story text: ${textResponse.status} ${textResponse.statusText}`);
             }
-            if (!fullResponse.ok) {
-                throw new Error(`Failed to generate story: ${fullResponse.status} ${fullResponse.statusText}`);
-            }
-            const fullResult = await fullResponse.json();
-            const resultPages = fullResult.pages || [];
-            const audioUrls: (string | null)[] = fullResult.audio_urls || [];
-
+            
+            const textResult = await textResponse.json();
+            console.log('Text API Response:', textResult);
+            
+            const resultPages = textResult.pages || [];
+            console.log('Result Pages:', resultPages);
+            
             if (resultPages.length === 0) {
                 throw new Error('No story pages generated');
             }
-
-            if (!useWebSocketProgress) {
-                storyTextProgress = 20;
-                sceneImageProgress = 75;
-            }
-
-            // Dedication image from combined response
-            let dedicationImageUrl: string | null = fullResult.dedication_image_url || null;
-            if (dedicationImageUrl && browser) {
-                const cleanDedUrl = dedicationImageUrl.split('?')[0];
-                sessionStorage.setItem('dedication_image', cleanDedUrl);
-            }
-
-            // Build storyPages and scene list from combined response
-            const storyPages: Array<{ pageNumber: number; text: string; scene?: string }> = resultPages.map(
-                (p: { text: string; scene?: string | null }, index: number) => ({
-                    pageNumber: index + 1,
-                    text: p.text,
-                    scene: p.scene ? String(p.scene).split('?')[0] : undefined
-                })
+            
+            storyTextProgress = 20;
+            console.log(`Story text generated: ${resultPages.length} pages`);
+            
+            // ——— Step 2: Process Story Text ———
+            // The API returns pages as either objects with {text: "..."} or plain strings
+            const storyPagesTextOnly: Array<{ pageNumber: number; text: string }> = resultPages.map(
+                (p: any, index: number) => {
+                    // Handle both string and object formats
+                    const text = typeof p === 'string' ? p : (p.text || p.content || '');
+                    console.log(`Page ${index + 1} text length:`, text.length);
+                    return {
+                        pageNumber: index + 1,
+                        text: text
+                    };
+                }
             );
-            const cleanSceneImages: string[] = resultPages
-                .map((p: { scene?: string | null }) => (p.scene ? String(p.scene).split('?')[0] : null))
-                .filter((url: string | null): url is string => url != null);
-
-            if (browser && storyPages.length > 0) {
-                sessionStorage.setItem('storyPages', JSON.stringify(storyPages));
-                storyPages.forEach((page, index) => {
+            
+            console.log('Processed story pages:', storyPagesTextOnly);
+            
+            // Store story text in session storage
+            if (browser && storyPagesTextOnly.length > 0) {
+                storyPagesTextOnly.forEach((page, index) => {
                     sessionStorage.setItem(`storyPage${index + 1}`, page.text);
                 });
+            }
+            
+            console.log('Story text stored in sessionStorage');
+            
+            // ——— Step 3: Get Book Template ———
+            storyTextProgress = 25;
+            console.log('Step 3: Fetching book template...');
+            
+            const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
+            let bookTemplate: BookTemplate | null = null;
+            
+            if (bookTemplateId) {
+                try {
+                    const { data: templates } = await getBookTemplates();
+                    bookTemplate = templates?.find(t => t.id === bookTemplateId) || null;
+                    
+                    if (!bookTemplate) {
+                        console.warn('Book template not found, cannot generate book pages');
+                        throw new Error('Book template not found');
+                    } else {
+                        console.log('Using book template:', bookTemplate.name);
+                        console.log('Book template details:', {
+                            id: bookTemplate.id,
+                            name: bookTemplate.name,
+                            story_world: bookTemplate.story_world,
+                            has_copyright_page: !!bookTemplate.copyright_page_image,
+                            has_dedication_page: !!bookTemplate.dedication_page_image,
+                            has_last_story_page: !!bookTemplate.last_story_page_image,
+                            has_back_cover: !!bookTemplate.back_cover_image,
+                            story_pages_count: bookTemplate.story_page_images?.length || 0
+                        });
+                        
+                        // Validate that template has required images
+                        const missingFields: string[] = [];
+                        if (!bookTemplate.copyright_page_image) missingFields.push('copyright_page_image');
+                        if (!bookTemplate.dedication_page_image) missingFields.push('dedication_page_image');
+                        if (!bookTemplate.last_story_page_image) missingFields.push('last_story_page_image');
+                        if (!bookTemplate.back_cover_image) missingFields.push('back_cover_image');
+                        if (!bookTemplate.story_page_images || bookTemplate.story_page_images.length === 0) {
+                            missingFields.push('story_page_images');
+                        }
+                        
+                        if (missingFields.length > 0) {
+                            console.warn('⚠️ Book template is missing some images:', missingFields);
+                            console.warn('⚠️ These pages will not be generated:', missingFields.join(', '));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching book template:', error);
+                    throw error;
+                }
+            } else {
+                console.error('No book template ID found in sessionStorage');
+                throw new Error('No book template ID found');
+            }
+            
+            // ——— Step 4: Generate All Book Page Images Individually ———
+            storyTextProgress = 30;
+            console.log('Step 4: Generating book page images individually...');
+            
+            let copyrightImageUrl: string | null = null;
+            let dedicationImageUrl: string | null = null;
+            let cleanSceneImages: string[] = [];
+            let lastWordImageUrl: string | null = null;
+            let backCoverImageUrl: string | null = null;
+            
+            if (!selectedCharacterEnhancedImage) {
+                throw new Error('No character image available for book generation');
+            }
+            
+            // Get dedication text from session storage
+            const dedicationText = browser ? (sessionStorage.getItem('dedication_text') || `For ${childName}, with love and imagination`) : `For ${childName}, with love and imagination`;
+            
+            // Generate all book pages using the helper function
+            // This will make individual API calls for each image
+            const bookPagesResult = await generateAllBookPages({
+                bookTemplate,
+                characterImageUrl: selectedCharacterEnhancedImage,
+                childName,
+                characterName,
+                dedicationMessage: dedicationText,
+                storyPages: storyPagesTextOnly,
+                storyWorld: mapStoryWorld(storyState.storyWorld) || 'enchanted-forest',
+                onProgress: (step: string, progress: number) => {
+                    console.log(`${step} - ${progress}%`);
+                    // Update progress bar: story text is 0-30%, book pages are 30-100%
+                    storyTextProgress = 30;
+                    sceneImageProgress = (progress / 100) * 70; // Map 0-100% to 0-70%
+                }
+            });
+            
+            if (bookPagesResult.success) {
+                copyrightImageUrl = bookPagesResult.copyrightImageUrl || null;
+                dedicationImageUrl = bookPagesResult.dedicationImageUrl || null;
+                cleanSceneImages = bookPagesResult.storyPageImageUrls || [];
+                lastWordImageUrl = bookPagesResult.lastWordImageUrl || null;
+                backCoverImageUrl = bookPagesResult.backCoverImageUrl || null;
+                
+                console.log('✅ All book pages generated successfully via individual API calls');
+                console.log('Generated images summary:', {
+                    copyrightImage: copyrightImageUrl ? '✅ Generated' : '❌ Not generated',
+                    dedicationImage: dedicationImageUrl ? '✅ Generated' : '❌ Not generated',
+                    storyPages: `${cleanSceneImages.length} pages`,
+                    lastWordImage: lastWordImageUrl ? '✅ Generated' : '❌ Not generated',
+                    backCoverImage: backCoverImageUrl ? '✅ Generated' : '❌ Not generated'
+                });
+            } else {
+                console.error('Failed to generate book pages:', bookPagesResult.error);
+                throw new Error(bookPagesResult.error || 'Failed to generate book pages');
+            }
+            
+            // Store all generated images in session storage
+            if (browser) {
+                if (copyrightImageUrl) {
+                    sessionStorage.setItem('copyright_image', copyrightImageUrl);
+                    console.log('✅ Copyright image stored in sessionStorage');
+                }
+                if (dedicationImageUrl) {
+                    sessionStorage.setItem('dedication_image', dedicationImageUrl);
+                    console.log('✅ Dedication image stored in sessionStorage');
+                }
+                if (lastWordImageUrl) {
+                    sessionStorage.setItem('last_word_image', lastWordImageUrl);
+                    console.log('✅ Last word image stored in sessionStorage');
+                }
+                if (backCoverImageUrl) {
+                    sessionStorage.setItem('back_cover_image', backCoverImageUrl);
+                    console.log('✅ Back cover image stored in sessionStorage');
+                }
+                
                 if (cleanSceneImages.length > 0) {
                     sessionStorage.setItem('storyScenes', JSON.stringify(cleanSceneImages));
                     cleanSceneImages.forEach((url, index) => {
                         sessionStorage.setItem(`storyScene_${index + 1}`, url);
                         sessionStorage.setItem(`adventureScene_${index + 1}`, url);
                     });
+                    console.log(`✅ ${cleanSceneImages.length} story scene images stored in sessionStorage`);
                 }
             }
-
-            // ——— Step 4 & 5: Save story to Supabase (current schema) then mark complete ———
-            await saveStoryToDatabase(storyPages, cleanSceneImages, audioUrls);
-
-            if (!useWebSocketProgress) {
-                storyTextProgress = 20;
-                sceneImageProgress = 80; // 100% total after save
+            
+            console.log('✅ All generated images stored in sessionStorage');
+            
+            // Build final storyPages array with scenes
+            const storyPages: Array<{ pageNumber: number; text: string; scene?: string }> = storyPagesTextOnly.map(
+                (p, index) => ({
+                    pageNumber: p.pageNumber,
+                    text: p.text,
+                    scene: cleanSceneImages[index] || undefined
+                })
+            );
+            
+            if (browser && storyPages.length > 0) {
+                sessionStorage.setItem('storyPages', JSON.stringify(storyPages));
             }
+
+            // ——— Step 5: Save story to Supabase ———
+            storyTextProgress = 30;
+            sceneImageProgress = 70;
+            console.log('Step 5: Saving story to database...');
+            
+            await saveStoryToDatabase(storyPages, cleanSceneImages, []);
+
+            storyTextProgress = 30;
+            sceneImageProgress = 70;
             storyGenerated = true;
+            
+            console.log('Story generation complete!');
         } catch (error) {
             console.error('Error generating story:', error);
             // Set error flag in sessionStorage
