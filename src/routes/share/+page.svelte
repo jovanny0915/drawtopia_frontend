@@ -31,10 +31,15 @@
   let storyWorld: 'forest' | 'underwater' | 'space' | '' = '';
   let backgroundImage = '';
   
-  // Dedication data
+  // Dedication and copyright data
   let dedicationText = '';
   let dedicationImage = '';
+  let copyrightImage = '';
   let hasDedication = false;
+  
+  // Last word page and back cover
+  let lastWordPageImage = '';
+  let backCoverImage = '';
 
   // Audio playback state
   let audioUrls: (string | null)[] = [];
@@ -212,18 +217,41 @@
           }
         }
         
-        // Check for dedication and insert after cover if it exists
-        if (storyData.dedication_text || storyData.dedication_image) {
-          dedicationText = storyData.dedication_text || '';
-          dedicationImage = storyData.dedication_image ? storyData.dedication_image.split("?")[0] : '';
+        // Check for copyright and dedication images, and insert after cover if they exist
+        copyrightImage = storyData.copyright_image ? storyData.copyright_image.split("?")[0] : '';
+        dedicationText = storyData.dedication_text || '';
+        dedicationImage = storyData.dedication_image ? storyData.dedication_image.split("?")[0] : '';
+        
+        // If we have copyright or dedication, add the copyright/dedication page
+        if (copyrightImage || dedicationImage || dedicationText) {
           hasDedication = true;
           
-          // Insert dedication scene after cover (at index 1)
-          // We'll use a special marker for dedication
+          // Insert copyright/dedication scene after cover (at index 1)
+          // We'll use a special marker for this combined page
           if (loadedScenes.length > 0) {
-            loadedScenes.splice(1, 0, 'DEDICATION_PAGE');
-            console.log('[share] Added dedication page after cover');
+            loadedScenes.splice(1, 0, 'COPYRIGHT_DEDICATION_PAGE');
+            console.log('[share] Added copyright/dedication page after cover');
           }
+        }
+        
+        // Add last word page and/or back cover
+        // If both exist, they will be shown as a two-page spread
+        // If only last word exists, it's shown as single page
+        // If only back cover exists, it's shown as single page
+        if (storyData.last_word_page_image || storyData.back_cover_image) {
+          if (storyData.last_word_page_image) {
+            lastWordPageImage = storyData.last_word_page_image.split("?")[0];
+            console.log('[share] Loaded last word page image:', lastWordPageImage);
+          }
+          if (storyData.back_cover_image) {
+            backCoverImage = storyData.back_cover_image.split("?")[0];
+            console.log('[share] Loaded back cover image:', backCoverImage);
+          }
+          
+          // Add a single placeholder for the final page(s)
+          // The rendering logic will determine if it's single or two-page spread
+          loadedScenes.push('FINAL_PAGE');
+          console.log('[share] Added final page(s) - last word and/or back cover');
         }
         
         storyScenes = loadedScenes;
@@ -260,13 +288,15 @@
 
   // Audio playback functions
   function toggleAudio() {
-    // Skip audio for cover (index 0) and dedication (index 1 if hasDedication)
-    if (currentSceneIndex === 0 || (hasDedication && currentSceneIndex === 1)) {
+    // Skip audio for special pages: cover, copyright/dedication, final page
+    if (currentSceneIndex === 0 || 
+        (hasDedication && currentSceneIndex === 1) || 
+        storyScenes[currentSceneIndex] === 'FINAL_PAGE') {
       console.log("[share] No audio available for this page");
       return;
     }
     
-    // Audio index: account for cover and dedication
+    // Audio index: account for cover and copyright/dedication
     const audioIndex = currentSceneIndex - (hasDedication ? 2 : 1);
     
     if (audioIndex < 0 || audioIndex >= audioUrls.length || !audioUrls[audioIndex]) {
@@ -478,18 +508,28 @@
               <div class="inner-shadow"></div>
             </div>
           </div>
-        {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'DEDICATION_PAGE'}
-          <!-- Dedication Page: Left blank, Right with dedication image and text -->
+        {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'COPYRIGHT_DEDICATION_PAGE'}
+          <!-- Copyright/Dedication Page: Left copyright, Right dedication image and text -->
           <div class="mobile-image-split">
             <div class="mobile-image-half mobile-image-left dedication-blank">
               <div class="image dedication-blank-page">
-                <!-- White blank page -->
-                <img
-                src={dedicationLeft}
-                alt="Dedication"
-                class="dedication-image"
-                draggable="false"
-              />
+                {#if copyrightImage}
+                  <!-- Copyright image on left page -->
+                  <img
+                    src={copyrightImage}
+                    alt="Copyright"
+                    class="dedication-image"
+                    draggable="false"
+                  />
+                {:else}
+                  <!-- Fallback to blank page if no copyright image -->
+                  <img
+                    src={dedicationLeft}
+                    alt="Copyright"
+                    class="dedication-image"
+                    draggable="false"
+                  />
+                {/if}
               </div>
             </div>
             <div class="mobile-image-half mobile-image-right dedication-page">
@@ -511,12 +551,66 @@
               </div>
             </div>
           </div>
+        {:else if storyScenes[currentSceneIndex] === 'FINAL_PAGE'}
+          <!-- Final Page(s): Last word page and/or back cover -->
+          {#if lastWordPageImage && backCoverImage}
+            <!-- Two-page spread: left = last word, right = back cover -->
+            <div class="mobile-image-split">
+              <div class="mobile-image-half mobile-image-left dedication-blank">
+                <div class="image dedication-blank-page">
+                  <img
+                    src={lastWordPageImage}
+                    alt="Last Word Page"
+                    class="dedication-image"
+                    draggable="false"
+                  />
+                </div>
+              </div>
+              <div class="mobile-image-half mobile-image-right dedication-page">
+                <div class="image dedication-content">
+                  <img
+                    src={backCoverImage}
+                    alt="Back Cover"
+                    class="dedication-image"
+                    draggable="false"
+                  />
+                  <div class="inner-shadow"></div>
+                </div>
+              </div>
+            </div>
+          {:else if lastWordPageImage}
+            <!-- Only last word page: Single image display -->
+            <div class="cover-image-container">
+              <div class="cover-image">
+                <img
+                  src={lastWordPageImage}
+                  alt="Last Word Page"
+                  class="cover-main-image"
+                  draggable="false"
+                />
+                <div class="inner-shadow"></div>
+              </div>
+            </div>
+          {:else if backCoverImage}
+            <!-- Only back cover: Single image display -->
+            <div class="cover-image-container">
+              <div class="cover-image">
+                <img
+                  src={backCoverImage}
+                  alt="Back Cover"
+                  class="cover-main-image"
+                  draggable="false"
+                />
+                <div class="inner-shadow"></div>
+              </div>
+            </div>
+          {/if}
         {:else}
           <!-- Story Pages: Split into left and right halves -->
           <div class="mobile-image-split">
             <div class="mobile-image-half mobile-image-left">
               <div class="image">
-                {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'DEDICATION_PAGE'}
+                {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'FINAL_PAGE'}
                   <img
                     src={storyScenes[currentSceneIndex]}
                     alt={`Scene ${currentSceneIndex} - Left`}
@@ -529,7 +623,7 @@
             </div>
             <div class="mobile-image-half mobile-image-right">
               <div class="image">
-                {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'DEDICATION_PAGE'}
+                {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'FINAL_PAGE'}
                   <img
                     src={storyScenes[currentSceneIndex]}
                     alt={`Scene ${currentSceneIndex} - Right`}
@@ -562,8 +656,8 @@
         </div>
       {/if} -->
 
-      <!-- Audio Controls (only show if not cover page, not dedication, and audio exists) -->
-      {#if currentSceneIndex > 0 && !(hasDedication && currentSceneIndex === 1) && audioUrls[currentSceneIndex - (hasDedication ? 2 : 1)]}
+      <!-- Audio Controls (only show if not cover page, not copyright/dedication, not final page, and audio exists) -->
+      {#if currentSceneIndex > 0 && !(hasDedication && currentSceneIndex === 1) && storyScenes[currentSceneIndex] !== 'FINAL_PAGE' && audioUrls[currentSceneIndex - (hasDedication ? 2 : 1)]}
         <div class="audio-controls">
           <div class="audio-header">
             <span class="audio-label">Audio Narration</span>
