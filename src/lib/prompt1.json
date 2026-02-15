@@ -119,7 +119,7 @@
     },
     "copyrightPage": {
       "basePrompt": "You are an expert at compositing text onto book page images. You will receive a copyright page image and need to overlay the provided text content onto it in a professional, readable manner.\n\n**Task:**\n1. Take the copyright page template image provided\n2. Add the main copyright text in the center of the page with appropriate formatting\n3. Add the footer text at the bottom of the page\n4. Ensure text is readable, properly sized, and aesthetically pleasing\n5. Use a child-friendly font that matches the book's style\n6. Maintain the existing design elements of the template\n\n**Text to Insert:**\n\nMAIN TEXT (Center of page):\n\"{mainText}\"\n\nFOOTER TEXT (Bottom of page):\n\"{footerText}\"\n\n**Requirements:**\n- Font should be clear and legible for children\n- Text color should contrast well with the background\n- Center alignment for main text\n- Center alignment for footer text\n- Appropriate spacing between text elements\n- Do not obscure important template design elements",
-      "mainText": "This one-of-a-kind interactive search adventure \nwas created just for [CHILD_NAME].\n\nYour adventure awaits! Can you find [CHARACTER_NAME] \nhidden in every magical scene?\n\nThis book celebrates [CHILD_NAME]'s creativity \nand courage. Turn the page and begin your journey \ninto the darkness—where magic awaits.",
+      "mainText": "This one-of-a-kind adventure story\nwas created just for [CHILD_NAME].\n\nBeyond these pages lies a magical world\nfilled with wonder, mystery, and brave moments.\nEvery scene unfolds a new chapter in the journey.\n\nFollow [CHARACTER_NAME] through lands of shadow\nand light, where courage is tested and imagination\nguides the way forward.\n\nThis story celebrates [CHILD_NAME]'s creativity\nand courage. Turn the page and begin your adventure\ninto the unknown—where magic awaits.",
       "footerText": "© 2026 Drawtopia. All rights reserved.\nPublished by Drawtopia | drawtopia.ai"
     },
     "dedicationPage": {
@@ -131,10 +131,24 @@
       "title": "A Special Thank You",
       "message": "This magical adventure wouldn't exist without the incredible imagination of [CHILD_NAME]. Thank you for sharing your creativity with the world!\n\nEvery drawing tells a story. Yours told this one."
     },
+    "lastAdminPage": {
+      "logoText": "Drawtopia",
+      "title": "Where Every Child Becomes a Storyteller",
+      "taglineLine1": "Their imagination. Their characters. Their stories.",
+      "taglineLine2": "Enhanced, not replaced.",
+      "description": "At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance – never replace – your child's authentic artwork, turning their imagination into adventures they'll treasure forever."
+    },
     "backCover": {
       "basePrompt": "You are an expert at creating professional book back covers. You will receive a back cover template and need to add specific text elements and graphical components.\n\n**Task:**\n1. Take the back cover template image provided\n2. Add the main title text at the top\n3. Add the description text below the title\n4. Place the Drawtopia logo in the bottom-left corner\n5. Place a barcode placeholder in the bottom-right corner\n6. Ensure all elements are properly sized and positioned\n\n**Elements to Add:**\n\nTITLE (Top, prominent):\n\"Drawtopia Makes Every Child a Storyteller\"\n\nDESCRIPTION (Below title, smaller font):\n\"At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance - never replace - your child's authentic artwork, turning their imagination into adventures they'll treasure forever.\"\n\nLOGO PLACEMENT:\n- Bottom-left corner\n- Appropriate size (not too large or small)\n- Clear and recognizable\n\nBARCODE PLACEMENT:\n- Bottom-right corner\n- Standard barcode dimensions\n- Clear space around it\n\n**Requirements:**\n- Title should be bold, eye-catching, and centered at the top\n- Description text should be smaller, centered, and easy to read\n- Logo should be clearly visible in bottom-left\n- Barcode should be standard size in bottom-right\n- All text should have good contrast with background\n- Maintain existing template design elements\n- Professional, polished appearance suitable for retail",
       "title": "Drawtopia Makes Every Child a Storyteller",
-      "description": "At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance - never replace - your child's authentic artwork, turning their imagination into adventures they'll treasure forever",
+      "titleLine1": "Drawtopia Makes",
+      "titleLine2": "Every Child a",
+      "titleLine3": "Storyteller",
+      "description": "At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance – never replace – your child's authentic artwork, turning their imagination into adventures they'll treasure forever.",
+      "tagline": "Their imagination. Their characters. Their stories. Enhanced, not replaced.",
+      "website": "drawtopia.ai",
+      "isbnPlaceholder": "ISBN placeholder",
+      "ageRange": "[Age 6-12]",
       "logoPlacement": "bottom-left",
       "barcodePlacement": "bottom-right"
     },

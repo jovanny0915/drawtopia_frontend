@@ -177,6 +177,44 @@ export async function getChildProfiles(parentId: string): Promise<DatabaseResult
 }
 
 /**
+ * Get a single child profile by ID (e.g. for story preview copyright page)
+ * @param profileId - Child profile ID (string or number)
+ * @returns Promise with child profile data (e.g. first_name)
+ */
+export async function getChildProfileById(profileId: string | number): Promise<DatabaseResult> {
+  try {
+    const id = typeof profileId === 'string' ? parseInt(profileId, 10) : profileId;
+    if (isNaN(id)) {
+      return { success: false, error: 'Invalid child profile ID' };
+    }
+    const { data, error } = await supabase
+      .from('child_profiles')
+      .select('id, first_name')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching child profile:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    return {
+      success: true,
+      data: data ?? null
+    };
+  } catch (error) {
+    console.error('Unexpected error fetching child profile:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred while fetching child profile'
+    };
+  }
+}
+
+/**
  * Update a child profile by ID
  * @param profileId - The child profile ID to update
  * @param childProfile - The updated child profile data

@@ -852,15 +852,16 @@
             const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
             const dedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
 
-            // Get copyright, last word, and back cover images from sessionStorage
             const copyrightImage = browser ? sessionStorage.getItem('copyright_image') : null;
             const lastWordImage = browser ? sessionStorage.getItem('last_word_image') : null;
+            const lastAdminImage = browser ? sessionStorage.getItem('last_admin_image') : null;
             const backCoverImage = browser ? sessionStorage.getItem('back_cover_image') : null;
 
-            console.log('Additional page images retrieved from sessionStorage:', {
-                copyrightImage: copyrightImage ? 'Found' : 'Not found',
-                lastWordImage: lastWordImage ? 'Found' : 'Not found',
-                backCoverImage: backCoverImage ? 'Found' : 'Not found'
+            console.log('Additional page images from sessionStorage:', {
+                copyrightImage: !!copyrightImage,
+                lastWordImage: !!lastWordImage,
+                lastAdminImage: !!lastAdminImage,
+                backCoverImage: !!backCoverImage
             });
 
             // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
@@ -891,6 +892,7 @@
                 dedication_image: dedicationImage ? dedicationImage.split('?')[0] : undefined,
                 copyright_image: copyrightImage ? copyrightImage.split('?')[0] : undefined,
                 last_word_page_image: lastWordImage ? lastWordImage.split('?')[0] : undefined,
+                last_admin_page_image: lastAdminImage ? lastAdminImage.split('?')[0] : undefined,
                 back_cover_image: backCoverImage ? backCoverImage.split('?')[0] : undefined,
                 status: 'completed' as const,
                 purchased: isGiftStory
@@ -900,6 +902,7 @@
                 dedication_image: !!storyData.dedication_image,
                 copyright_image: !!storyData.copyright_image,
                 last_word_page_image: !!storyData.last_word_page_image,
+                last_admin_page_image: !!storyData.last_admin_page_image,
                 back_cover_image: !!storyData.back_cover_image,
                 scene_images_count: storyData.scene_images?.length || 0
             });
@@ -1175,26 +1178,22 @@
                             id: bookTemplate.id,
                             name: bookTemplate.name,
                             story_world: bookTemplate.story_world,
-                            has_copyright_page: !!bookTemplate.copyright_page_image,
-                            has_dedication_page: !!bookTemplate.dedication_page_image,
-                            has_last_story_page: !!bookTemplate.last_story_page_image,
-                            has_back_cover: !!bookTemplate.back_cover_image,
                             story_pages_count: bookTemplate.story_page_images?.length || 0
                         });
-                        
-                        // Validate that template has required images
-                        const missingFields: string[] = [];
-                        if (!bookTemplate.copyright_page_image) missingFields.push('copyright_page_image');
-                        if (!bookTemplate.dedication_page_image) missingFields.push('dedication_page_image');
-                        if (!bookTemplate.last_story_page_image) missingFields.push('last_story_page_image');
-                        if (!bookTemplate.back_cover_image) missingFields.push('back_cover_image');
-                        if (!bookTemplate.story_page_images || bookTemplate.story_page_images.length === 0) {
-                            missingFields.push('story_page_images');
+
+                        // Use template images for copyright, dedication, last words spread, and back cover (store for saveStoryToDatabase)
+                        if (browser) {
+                            if (bookTemplate.copyright_page_image) sessionStorage.setItem('copyright_image', bookTemplate.copyright_page_image);
+                            if (bookTemplate.dedication_page_image) sessionStorage.setItem('dedication_image', bookTemplate.dedication_page_image);
+                            if (bookTemplate.last_words_page_image) sessionStorage.setItem('last_word_image', bookTemplate.last_words_page_image);
+                            if (bookTemplate.last_story_page_image) sessionStorage.setItem('last_admin_image', bookTemplate.last_story_page_image);
+                            if (bookTemplate.back_cover_image) sessionStorage.setItem('back_cover_image', bookTemplate.back_cover_image);
                         }
                         
-                        if (missingFields.length > 0) {
-                            console.warn('⚠️ Book template is missing some images:', missingFields);
-                            console.warn('⚠️ These pages will not be generated:', missingFields.join(', '));
+                        // Validate that template has story page images (only story pages are generated on loading)
+                        if (!bookTemplate.story_page_images || bookTemplate.story_page_images.length === 0) {
+                            console.warn('⚠️ Book template has no story_page_images');
+                            throw new Error('Book template must have story page images');
                         }
                     }
                 } catch (error) {
@@ -1206,88 +1205,48 @@
                 throw new Error('No book template ID found');
             }
             
-            // ——— Step 4: Generate All Book Page Images Individually ———
+            // ——— Step 4: Generate story page images only (no copyright, dedication, last word, back cover) ———
             storyTextProgress = 30;
-            console.log('Step 4: Generating book page images individually...');
+            console.log('Step 4: Generating story page images...');
             
-            let copyrightImageUrl: string | null = null;
-            let dedicationImageUrl: string | null = null;
             let cleanSceneImages: string[] = [];
-            let lastWordImageUrl: string | null = null;
-            let backCoverImageUrl: string | null = null;
             
             if (!selectedCharacterEnhancedImage) {
                 throw new Error('No character image available for book generation');
             }
             
-            // Get dedication text from session storage
-            const dedicationText = browser ? (sessionStorage.getItem('dedication_text') || `For ${childName}, with love and imagination`) : `For ${childName}, with love and imagination`;
-            
-            // Generate all book pages using the helper function
-            // This will make individual API calls for each image
             const bookPagesResult = await generateAllBookPages({
                 bookTemplate,
                 characterImageUrl: selectedCharacterEnhancedImage,
                 childName,
                 characterName,
-                dedicationMessage: dedicationText,
+                dedicationMessage: '',
                 storyPages: storyPagesTextOnly,
                 storyWorld: mapStoryWorld(storyState.storyWorld) || 'enchanted-forest',
+                storyPagesOnly: true,
                 onProgress: (step: string, progress: number) => {
                     console.log(`${step} - ${progress}%`);
-                    // Update progress bar: story text is 0-30%, book pages are 30-100%
                     storyTextProgress = 30;
-                    sceneImageProgress = (progress / 100) * 70; // Map 0-100% to 0-70%
+                    sceneImageProgress = (progress / 100) * 70;
                 }
             });
             
             if (bookPagesResult.success) {
-                copyrightImageUrl = bookPagesResult.copyrightImageUrl || null;
-                dedicationImageUrl = bookPagesResult.dedicationImageUrl || null;
                 cleanSceneImages = bookPagesResult.storyPageImageUrls || [];
-                lastWordImageUrl = bookPagesResult.lastWordImageUrl || null;
-                backCoverImageUrl = bookPagesResult.backCoverImageUrl || null;
-                
-                console.log('✅ All book pages generated successfully via individual API calls');
-                console.log('Generated images summary:', {
-                    copyrightImage: copyrightImageUrl ? '✅ Generated' : '❌ Not generated',
-                    dedicationImage: dedicationImageUrl ? '✅ Generated' : '❌ Not generated',
-                    storyPages: `${cleanSceneImages.length} pages`,
-                    lastWordImage: lastWordImageUrl ? '✅ Generated' : '❌ Not generated',
-                    backCoverImage: backCoverImageUrl ? '✅ Generated' : '❌ Not generated'
-                });
+                console.log('✅ Story page images generated successfully');
+                console.log('Generated images summary:', { storyPages: `${cleanSceneImages.length} pages` });
             } else {
-                console.error('Failed to generate book pages:', bookPagesResult.error);
-                throw new Error(bookPagesResult.error || 'Failed to generate book pages');
+                console.error('Failed to generate story pages:', bookPagesResult.error);
+                throw new Error(bookPagesResult.error || 'Failed to generate story pages');
             }
             
-            // Store all generated images in session storage
-            if (browser) {
-                if (copyrightImageUrl) {
-                    sessionStorage.setItem('copyright_image', copyrightImageUrl);
-                    console.log('✅ Copyright image stored in sessionStorage');
-                }
-                if (dedicationImageUrl) {
-                    sessionStorage.setItem('dedication_image', dedicationImageUrl);
-                    console.log('✅ Dedication image stored in sessionStorage');
-                }
-                if (lastWordImageUrl) {
-                    sessionStorage.setItem('last_word_image', lastWordImageUrl);
-                    console.log('✅ Last word image stored in sessionStorage');
-                }
-                if (backCoverImageUrl) {
-                    sessionStorage.setItem('back_cover_image', backCoverImageUrl);
-                    console.log('✅ Back cover image stored in sessionStorage');
-                }
-                
-                if (cleanSceneImages.length > 0) {
-                    sessionStorage.setItem('storyScenes', JSON.stringify(cleanSceneImages));
-                    cleanSceneImages.forEach((url, index) => {
-                        sessionStorage.setItem(`storyScene_${index + 1}`, url);
-                        sessionStorage.setItem(`adventureScene_${index + 1}`, url);
-                    });
-                    console.log(`✅ ${cleanSceneImages.length} story scene images stored in sessionStorage`);
-                }
+            if (browser && cleanSceneImages.length > 0) {
+                sessionStorage.setItem('storyScenes', JSON.stringify(cleanSceneImages));
+                cleanSceneImages.forEach((url, index) => {
+                    sessionStorage.setItem(`storyScene_${index + 1}`, url);
+                    sessionStorage.setItem(`adventureScene_${index + 1}`, url);
+                });
+                console.log(`✅ ${cleanSceneImages.length} story scene images stored in sessionStorage`);
             }
             
             console.log('✅ All generated images stored in sessionStorage');

@@ -37,9 +37,10 @@
   let copyrightImage = '';
   let hasDedication = false;
   
-  // Last word page and back cover
   let lastWordPageImage = '';
+  let lastAdminPageImage = '';
   let backCoverImage = '';
+  let hasLastWordsAdmin = false;
 
   // Audio playback state
   let audioUrls: (string | null)[] = [];
@@ -234,24 +235,17 @@
           }
         }
         
-        // Add last word page and/or back cover
-        // If both exist, they will be shown as a two-page spread
-        // If only last word exists, it's shown as single page
-        // If only back cover exists, it's shown as single page
-        if (storyData.last_word_page_image || storyData.back_cover_image) {
-          if (storyData.last_word_page_image) {
-            lastWordPageImage = storyData.last_word_page_image.split("?")[0];
-            console.log('[share] Loaded last word page image:', lastWordPageImage);
-          }
-          if (storyData.back_cover_image) {
-            backCoverImage = storyData.back_cover_image.split("?")[0];
-            console.log('[share] Loaded back cover image:', backCoverImage);
-          }
-          
-          // Add a single placeholder for the final page(s)
-          // The rendering logic will determine if it's single or two-page spread
-          loadedScenes.push('FINAL_PAGE');
-          console.log('[share] Added final page(s) - last word and/or back cover');
+        if (storyData.last_word_page_image)
+          lastWordPageImage = storyData.last_word_page_image.split("?")[0];
+        if (storyData.last_admin_page_image)
+          lastAdminPageImage = storyData.last_admin_page_image.split("?")[0];
+        if (lastWordPageImage || lastAdminPageImage) {
+          hasLastWordsAdmin = true;
+          loadedScenes.push('LAST_WORDS_ADMIN_PAGE');
+        }
+        if (storyData.back_cover_image) {
+          backCoverImage = storyData.back_cover_image.split("?")[0];
+          loadedScenes.push(backCoverImage);
         }
         
         storyScenes = loadedScenes;
@@ -286,18 +280,26 @@
     }
   }
 
-  // Audio playback functions
+  function isSpecialSceneIndex(idx: number): boolean {
+    if (idx < 0 || !Array.isArray(storyScenes) || idx >= storyScenes.length) return true;
+    if (idx === 0) return true;
+    if (hasDedication && idx === 1) return true;
+    if (storyScenes[idx] === 'LAST_WORDS_ADMIN_PAGE') return true;
+    if (backCoverImage && idx === storyScenes.length - 1) return true;
+    return false;
+  }
+
+  function getStoryPageIndex(sceneIndex: number): number {
+    if (isSpecialSceneIndex(sceneIndex)) return -1;
+    return sceneIndex - (hasDedication ? 2 : 1);
+  }
+
   function toggleAudio() {
-    // Skip audio for special pages: cover, copyright/dedication, final page
-    if (currentSceneIndex === 0 || 
-        (hasDedication && currentSceneIndex === 1) || 
-        storyScenes[currentSceneIndex] === 'FINAL_PAGE') {
+    if (isSpecialSceneIndex(currentSceneIndex)) {
       console.log("[share] No audio available for this page");
       return;
     }
-    
-    // Audio index: account for cover and copyright/dedication
-    const audioIndex = currentSceneIndex - (hasDedication ? 2 : 1);
+    const audioIndex = getStoryPageIndex(currentSceneIndex);
     
     if (audioIndex < 0 || audioIndex >= audioUrls.length || !audioUrls[audioIndex]) {
       console.log("[share] No audio available for this page");
@@ -551,66 +553,30 @@
               </div>
             </div>
           </div>
-        {:else if storyScenes[currentSceneIndex] === 'FINAL_PAGE'}
-          <!-- Final Page(s): Last word page and/or back cover -->
-          {#if lastWordPageImage && backCoverImage}
-            <!-- Two-page spread: left = last word, right = back cover -->
-            <div class="mobile-image-split">
-              <div class="mobile-image-half mobile-image-left dedication-blank">
-                <div class="image dedication-blank-page">
-                  <img
-                    src={lastWordPageImage}
-                    alt="Last Word Page"
-                    class="dedication-image"
-                    draggable="false"
-                  />
-                </div>
-              </div>
-              <div class="mobile-image-half mobile-image-right dedication-page">
-                <div class="image dedication-content">
-                  <img
-                    src={backCoverImage}
-                    alt="Back Cover"
-                    class="dedication-image"
-                    draggable="false"
-                  />
-                  <div class="inner-shadow"></div>
-                </div>
-              </div>
-            </div>
-          {:else if lastWordPageImage}
-            <!-- Only last word page: Single image display -->
-            <div class="cover-image-container">
-              <div class="cover-image">
-                <img
-                  src={lastWordPageImage}
-                  alt="Last Word Page"
-                  class="cover-main-image"
-                  draggable="false"
-                />
-                <div class="inner-shadow"></div>
-              </div>
-            </div>
-          {:else if backCoverImage}
-            <!-- Only back cover: Single image display -->
-            <div class="cover-image-container">
-              <div class="cover-image">
-                <img
-                  src={backCoverImage}
-                  alt="Back Cover"
-                  class="cover-main-image"
-                  draggable="false"
-                />
-                <div class="inner-shadow"></div>
-              </div>
-            </div>
-          {/if}
-        {:else}
-          <!-- Story Pages: Split into left and right halves -->
+        {:else if hasLastWordsAdmin && storyScenes[currentSceneIndex] === 'LAST_WORDS_ADMIN_PAGE'}
           <div class="mobile-image-split">
             <div class="mobile-image-half mobile-image-left">
               <div class="image">
-                {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'FINAL_PAGE'}
+                {#if lastWordPageImage}
+                  <img src={lastWordPageImage} alt="Last Words" class="scene-main-image scene-image-left" draggable="false" />
+                {/if}
+                <div class="inner-shadow"></div>
+              </div>
+            </div>
+            <div class="mobile-image-half mobile-image-right">
+              <div class="image">
+                {#if lastAdminPageImage}
+                  <img src={lastAdminPageImage} alt="Final Scene" class="scene-main-image scene-image-right" draggable="false" />
+                {/if}
+                <div class="inner-shadow"></div>
+              </div>
+            </div>
+          </div>
+        {:else}
+          <div class="mobile-image-split">
+            <div class="mobile-image-half mobile-image-left">
+              <div class="image">
+                {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'LAST_WORDS_ADMIN_PAGE'}
                   <img
                     src={storyScenes[currentSceneIndex]}
                     alt={`Scene ${currentSceneIndex} - Left`}
@@ -623,7 +589,7 @@
             </div>
             <div class="mobile-image-half mobile-image-right">
               <div class="image">
-                {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'FINAL_PAGE'}
+                {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'LAST_WORDS_ADMIN_PAGE'}
                   <img
                     src={storyScenes[currentSceneIndex]}
                     alt={`Scene ${currentSceneIndex} - Right`}
@@ -656,8 +622,8 @@
         </div>
       {/if} -->
 
-      <!-- Audio Controls (only show if not cover page, not copyright/dedication, not final page, and audio exists) -->
-      {#if currentSceneIndex > 0 && !(hasDedication && currentSceneIndex === 1) && storyScenes[currentSceneIndex] !== 'FINAL_PAGE' && audioUrls[currentSceneIndex - (hasDedication ? 2 : 1)]}
+      {@const shareAudioIndex = getStoryPageIndex(currentSceneIndex)}
+      {#if shareAudioIndex >= 0 && audioUrls[shareAudioIndex]}
         <div class="audio-controls">
           <div class="audio-header">
             <span class="audio-label">Audio Narration</span>

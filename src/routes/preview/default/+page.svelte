@@ -14,7 +14,8 @@
   import SpeakerSimpleHigh from "../../../assets/SpeakerSimpleHigh.svg";
   import Play from "../../../assets/Play.svg";
   import CaretDown from "../../../assets/CaretDown.svg";
-  import dedicationLeft from "../../../assets/dedicationleft.png";
+  import Link from "../../../assets/Link.svg";
+  import logo from "../../../assets/logo.png";
   import MobileBackBtn from "../../../components/MobileBackBtn.svelte";
   import ShareStoryModal from "../../../components/ShareStoryModal.svelte";
   import StoryInfoModal from "../../../components/StoryInfoModal.svelte";
@@ -23,6 +24,7 @@
   import { user } from "../../../lib/stores/auth";
   import { getUserProfile } from "../../../lib/auth";
   import { getStoryById, updateReadingState } from "../../../lib/database/stories";
+  import { getChildProfileById } from "../../../lib/database/childProfiles";
 
   const goToDashboard = () => {
     goto('/dashboard');
@@ -59,10 +61,29 @@
   let dedicationImage = '';
   let copyrightImage = '';
   let hasDedication = false;
+  // Copyright page personalized names (for intro text)
+  let copyrightChildName = '[CHILD_NAME]';
+  let copyrightCharacterName = '[CHARACTER_NAME]';
   
-  // Last word page and back cover
+  // Parsed dedication: body text and signature (e.g. "— From Papa")
+  $: dedicationParsed = (() => {
+    const raw = (dedicationText || '').trim();
+    if (!raw) return { body: '', signature: '' };
+    const dashMatch = raw.match(/\s+[—–-]\s+(.+)$/);
+    if (dashMatch) {
+      return {
+        body: raw.slice(0, dashMatch.index).trim(),
+        signature: (dashMatch[1] || '').trim() ? `— ${dashMatch[1].trim()}` : ''
+      };
+    }
+    return { body: raw, signature: '' };
+  })();
+  
+  // Last words + admin last spread and back cover
   let lastWordPageImage = '';
+  let lastAdminPageImage = '';
   let backCoverImage = '';
+  let hasLastWordsAdmin = false;
 
   // Audio playback state
   let audioUrls: string[] = []; // Array of audio URLs from database
@@ -206,6 +227,15 @@
             copyrightImage = story[0].copyright_image ? story[0].copyright_image.split("?")[0] : '';
             dedicationText = story[0].dedication_text || '';
             dedicationImage = story[0].dedication_image ? story[0].dedication_image.split("?")[0] : '';
+            // Copyright page personalized names
+            copyrightCharacterName = storyData?.character_name || '[CHARACTER_NAME]';
+            const childProfileId = storyData?.child_profile_id;
+            if (childProfileId) {
+              const childResult = await getChildProfileById(childProfileId);
+              if (childResult.success && childResult.data?.first_name) {
+                copyrightChildName = childResult.data.first_name;
+              }
+            }
             
             // If we have copyright or dedication, add the copyright/dedication page
             if (copyrightImage || dedicationImage || dedicationText) {
@@ -261,24 +291,20 @@
               pagesRead = storyPages.length;
             }
             
-            // Add last word page and/or back cover
-            // If both exist, they will be shown as a two-page spread
-            // If only last word exists, it's shown as single page
-            // If only back cover exists, it's shown as single page
-            if (story[0].last_word_page_image || story[0].back_cover_image) {
-              if (story[0].last_word_page_image) {
-                lastWordPageImage = story[0].last_word_page_image.split("?")[0];
-                console.log('[preview] Loaded last word page image:', lastWordPageImage);
-              }
-              if (story[0].back_cover_image) {
-                backCoverImage = story[0].back_cover_image.split("?")[0];
-                console.log('[preview] Loaded back cover image:', backCoverImage);
-              }
-              
-              // Add a single placeholder for the final page(s)
-              // The rendering logic will determine if it's single or two-page spread
-              loadedScenes.push('FINAL_PAGE');
-              console.log('[preview] Added final page(s) - last word and/or back cover');
+            // Add last-words + admin-last spread (one scene), then back cover
+            if (story[0].last_word_page_image) {
+              lastWordPageImage = story[0].last_word_page_image.split("?")[0];
+            }
+            if (story[0].last_admin_page_image) {
+              lastAdminPageImage = story[0].last_admin_page_image.split("?")[0];
+            }
+            if (lastWordPageImage || lastAdminPageImage) {
+              hasLastWordsAdmin = true;
+              loadedScenes.push('LAST_WORDS_ADMIN_PAGE');
+            }
+            if (story[0].back_cover_image) {
+              backCoverImage = story[0].back_cover_image.split("?")[0];
+              loadedScenes.push(backCoverImage);
             }
           } catch (error) {
             console.error('Error parsing story content:', error);
@@ -386,18 +412,25 @@
     }
   }
 
+  function isSpecialSceneIndex(idx: number): boolean {
+    if (idx < 0 || !Array.isArray(storyScenes) || idx >= storyScenes.length) return true;
+    if (idx === 0) return true;
+    if (hasDedication && idx === 1) return true;
+    if (storyScenes[idx] === 'LAST_WORDS_ADMIN_PAGE') return true;
+    if (backCoverImage && idx === storyScenes.length - 1) return true;
+    return false;
+  }
+
+  function getStoryPageIndex(sceneIndex: number): number {
+    if (isSpecialSceneIndex(sceneIndex)) return -1;
+    const n = hasDedication ? 2 : 1;
+    return sceneIndex - n;
+  }
+
   function previousScene() {
-    // In one-page mode, handle sub-pages
     if (viewMode === 'one-page' && currentSceneIndex > 0) {
-      // Calculate story page index
-      const getStoryPageIndex = (sceneIndex: number) => {
-        if (sceneIndex === 0) return -1; // Cover
-        if (hasDedication && sceneIndex === 1) return -1; // Copyright/Dedication
-        if (storyScenes[sceneIndex] === 'FINAL_PAGE') return -1; // Final page (last word/back cover)
-        return hasDedication ? sceneIndex - 2 : sceneIndex - 1;
-      };
       const currentStoryPageIndex = getStoryPageIndex(currentSceneIndex);
-      
+
       // If we're on the right page, go back to left page of same scene
       if (currentSubPage === 'right' && currentStoryPageIndex >= 0) {
         currentSubPage = 'left';
@@ -428,14 +461,6 @@
   }
 
   function nextScene() {
-    // Calculate the actual story page index (excluding special pages)
-    const getStoryPageIndex = (sceneIndex: number) => {
-      if (sceneIndex === 0) return -1; // Cover
-      if (hasDedication && sceneIndex === 1) return -1; // Copyright/Dedication
-      if (storyScenes[sceneIndex] === 'FINAL_PAGE') return -1; // Final page (last word/back cover)
-      return hasDedication ? sceneIndex - 2 : sceneIndex - 1;
-    };
-    
     const currentStoryPageIndex = getStoryPageIndex(currentSceneIndex);
     const nextSceneIndex = currentSceneIndex + 1;
     const nextStoryPageIndex = getStoryPageIndex(nextSceneIndex);
@@ -492,10 +517,7 @@
   }
 
   function goToScene(index: number) {
-    // Allow navigation to cover (index 0), copyright/dedication (index 1 if hasDedication), and final page for everyone
-    const isSpecialPage = index === 0 || 
-                          (hasDedication && index === 1) || 
-                          storyScenes[index] === 'FINAL_PAGE';
+    const isSpecialPage = isSpecialSceneIndex(index);
     
     if (isSpecialPage) {
       if (index >= 0 && index < storyScenes.length) {
@@ -505,8 +527,7 @@
       return;
     }
     
-    // Calculate the actual story page index (excluding cover, copyright/dedication, last word page, and back cover)
-    const storyPageIndex = hasDedication ? index - 2 : index - 1;
+    const storyPageIndex = getStoryPageIndex(index);
     
     // Prevent navigation to pages beyond page 2 for free plan users who haven't purchased
     // Story page index 1 = page 2, so we allow index 0 (page 1) and index 1 (page 2)
@@ -534,9 +555,9 @@
           id: currentStoryId,
           title: storyTitle,
           unlockTitle: storyTitle,
-          coverImageUrl: typeof storyScenes[0] === "string" && 
-                        storyScenes[0] !== "COPYRIGHT_DEDICATION_PAGE" && 
-                        storyScenes[0] !== "LAST_WORD_PAGE"
+          coverImageUrl: typeof storyScenes[0] === "string" &&
+                        storyScenes[0] !== "COPYRIGHT_DEDICATION_PAGE" &&
+                        storyScenes[0] !== "LAST_WORDS_ADMIN_PAGE"
             ? storyScenes[0]
             : "https://placehold.co/100x100",
           pagesAvailable: 2,
@@ -580,18 +601,11 @@
     duration = 0;
     isAudioAvailable = false;
     
-    // Special pages don't have audio: cover, copyright/dedication, final page
-    if (sceneIndex === 0 || 
-        (hasDedication && sceneIndex === 1) || 
-        storyScenes[sceneIndex] === 'FINAL_PAGE') {
+    if (isSpecialSceneIndex(sceneIndex)) {
       console.log("[audio] Special page - no audio");
       return;
     }
-    
-    // Calculate audio index: account for cover and copyright/dedication
-    // If hasDedication: scene index 2 = audio[0], scene index 3 = audio[1], etc.
-    // If no dedication: scene index 1 = audio[0], scene index 2 = audio[1], etc.
-    const audioIndex = sceneIndex - (hasDedication ? 2 : 1);
+    const audioIndex = getStoryPageIndex(sceneIndex);
     
     // Check if audio exists for this scene
     if (audioIndex < 0 || audioIndex >= audioUrls.length || !audioUrls[audioIndex]) {
@@ -731,16 +745,8 @@
     }
   }
   
-  // Load audio when scene changes (skip special pages)
-  $: if (browser && currentSceneIndex !== undefined) {
-    // Skip audio for special pages: cover, copyright/dedication, last word page, back cover
-    const isSpecialPage = currentSceneIndex === 0 || 
-                          (hasDedication && currentSceneIndex === 1) || 
-                          storyScenes[currentSceneIndex] === 'FINAL_PAGE';
-    
-    if (!isSpecialPage) {
-      loadAudio(currentSceneIndex);
-    }
+  $: if (browser && currentSceneIndex !== undefined && !isSpecialSceneIndex(currentSceneIndex)) {
+    loadAudio(currentSceneIndex);
   }
   
   // Reset to left page when switching to one-page mode
@@ -770,41 +776,32 @@
       pageCounterText = `Cover (FREE PREVIEW)`;
     } else if (hasDedication && currentSceneIndex === 1) {
       pageCounterText = `Copyright & Dedication (FREE PREVIEW)`;
-    } else if (storyScenes[currentSceneIndex] === 'FINAL_PAGE') {
-      pageCounterText = `Last Word Page (FREE PREVIEW)`;
+    } else if (storyScenes[currentSceneIndex] === 'LAST_WORDS_ADMIN_PAGE') {
+      pageCounterText = `Last Words & Final Scene (FREE PREVIEW)`;
     } else if (viewMode === 'one-page') {
-      // In one-page mode, show which half of the page we're viewing
-      // Account for copyright/dedication page, last word page, and back cover
-      const adjustedIndex = hasDedication ? currentSceneIndex - 2 : currentSceneIndex - 1;
-      const pageNum = adjustedIndex * 2 + (currentSubPage === 'left' ? 1 : 2);
-      // Calculate total story pages (exclude cover, copyright/dedication, final page)
-      let totalStoryPages = storyScenes.length - 1; // Exclude cover
-      if (hasDedication) totalStoryPages--; // Exclude copyright/dedication
-      if (storyScenes[storyScenes.length - 1] === 'FINAL_PAGE') totalStoryPages--; // Exclude final page
+      const adjustedIndex = getStoryPageIndex(currentSceneIndex);
+      const pageNum = adjustedIndex >= 0 ? adjustedIndex * 2 + (currentSubPage === 'left' ? 1 : 2) : 1;
+      let totalStoryPages = storyScenes.length - 1;
+      if (hasDedication) totalStoryPages--;
+      if (hasLastWordsAdmin) totalStoryPages--;
+      if (backCoverImage) totalStoryPages--;
       const totalPages = totalStoryPages * 2;
       pageCounterText = `Page ${pageNum} of ${totalPages} (FREE PREVIEW)`;
     } else {
-      // Two-page mode
-      const adjustedIndex = hasDedication ? currentSceneIndex - 1 : currentSceneIndex;
-      // Calculate total story pages (exclude cover, copyright/dedication, final page)
-      let totalStoryPages = storyScenes.length - 1; // Exclude cover
-      if (hasDedication) totalStoryPages--; // Exclude copyright/dedication
-      if (storyScenes[storyScenes.length - 1] === 'FINAL_PAGE') totalStoryPages--; // Exclude final page
-      pageCounterText = `Page ${adjustedIndex} of ${totalStoryPages} (FREE PREVIEW)`;
+      const adjustedIndex = getStoryPageIndex(currentSceneIndex);
+      let totalStoryPages = storyScenes.length - 1;
+      if (hasDedication) totalStoryPages--;
+      if (hasLastWordsAdmin) totalStoryPages--;
+      if (backCoverImage) totalStoryPages--;
+      pageCounterText = adjustedIndex >= 0
+        ? `Page ${adjustedIndex + 1} of ${totalStoryPages} (FREE PREVIEW)`
+        : `Page (FREE PREVIEW)`;
     }
   }
-  
-  // Get current page text
-  // Adjust index for story pages since cover is index 0, copyright/dedication is index 1 (if exists)
+
   $: currentPageText = (() => {
-    // Special pages don't have text
-    if (currentSceneIndex === 0 || 
-        (hasDedication && currentSceneIndex === 1) || 
-        storyScenes[currentSceneIndex] === 'FINAL_PAGE') {
-      return '';
-    }
-    
-    const pageIndex = currentSceneIndex - (hasDedication ? 2 : 1);
+    if (isSpecialSceneIndex(currentSceneIndex)) return '';
+    const pageIndex = getStoryPageIndex(currentSceneIndex);
     return storyPages.length > 0 && pageIndex >= 0 && pageIndex < storyPages.length
       ? storyPages[pageIndex].text
       : '';
@@ -1010,103 +1007,159 @@
                         </div>
                       </div>
                     {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'COPYRIGHT_DEDICATION_PAGE'}
-                      <!-- Copyright/Dedication Page: Left copyright, Right dedication image and text -->
-                      <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh; width: 70dvw;' : ''}>
-                        <div class="mobile-image-half mobile-image-left dedication-blank">
-                          <div class="image dedication-blank-page">
-                            {#if copyrightImage}
-                              <!-- Copyright image on left page -->
-                              <img
-                                src={copyrightImage}
-                                alt="Copyright"
-                                class="dedication-image"
-                                draggable="false"
-                              />
-                            {:else}
-                              <!-- Fallback to blank page if no copyright image -->
-                              <img
-                                src={dedicationLeft}
-                                alt="Copyright"
-                                class="dedication-image"
-                                draggable="false"
-                              />
-                            {/if}
+                      <!-- Copyright/Dedication Page: Left copyright text page, Right dedication image and text -->
+                      <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
+                        <div class="mobile-image-half mobile-image-left dedication-blank copyright-page-wrapper">
+                          <div class="copyright-page-bg" style={copyrightImage ? `background-image: url(${copyrightImage});` : ''}></div>
+                          <div class="copyright-page-content">
+                            <div class="copyright-page-text-container">
+                              <p class="copyright-page-p">This one-of-a-kind adventure story<br />was created just for <b style="font-weight: 800; font-size: 1.2rem;">{copyrightChildName}</b>.</p>
+                              <p class="copyright-page-p">Beyond these pages lies a magical world<br />filled with wonder, mystery, and brave moments.<br />Every scene unfolds a new chapter in the journey.</p>
+                              <p class="copyright-page-p">Follow {copyrightCharacterName} through lands of shadow<br />and light, where courage is tested and imagination<br />guides the way forward.</p>
+                              <p class="copyright-page-p">This story celebrates <b style="font-weight: 800; font-size: 1.2rem;">{copyrightChildName}</b>'s creativity<br />and courage. Turn the page and begin your adventure<br />into the unknown—where magic awaits.</p>
+                            </div>
+                            <p class="copyright-page-footer">© 2026 Drawtopia. All rights reserved.<br />Published by Drawtopia | drawtopia.ai</p>
                           </div>
                         </div>
-                        <div class="mobile-image-half mobile-image-right dedication-page">
-                          <div class="image dedication-content">
-                            {#if dedicationImage}
-                              <img
-                                src={dedicationImage}
-                                alt="Dedication"
-                                class="dedication-image"
-                                draggable="false"
-                              />
+                        <div class="mobile-image-half mobile-image-right dedication-page dedication-page-wrapper">
+                          <div class="dedication-page-bg" style={dedicationImage ? `background-image: url(${dedicationImage});` : ''}></div>
+                          <div class="dedication-page-content">
+                            <h2 class="dedication-greeting">Dear {copyrightChildName}</h2>
+                            {#if dedicationParsed.body}
+                              <p class="dedication-body">{dedicationParsed.body}</p>
+                            {:else}
+                              <p class="dedication-body">In every tiny thing you do each day, never forget that you are loved enormously</p>
                             {/if}
-                            {#if dedicationText}
-                              <div class="dedication-text-container">
-                                <p class="dedication-text">{dedicationText}</p>
-                              </div>
+                            {#if dedicationParsed.signature}
+                              <p class="dedication-signature">{dedicationParsed.signature}</p>
                             {/if}
-                            <div class="inner-shadow"></div>
                           </div>
                         </div>
                       </div>
-                    {:else if storyScenes[currentSceneIndex] === 'FINAL_PAGE'}
-                      <!-- Final Page(s): Last word page and/or back cover -->
-                      {#if lastWordPageImage && backCoverImage}
-                        <!-- Two-page spread: left = last word, right = back cover -->
-                        <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh; width: 70dvw;' : ''}>
-                          <div class="mobile-image-half mobile-image-left dedication-blank">
-                            <div class="image dedication-blank-page">
-                              <img
-                                src={lastWordPageImage}
-                                alt="Last Word Page"
-                                class="dedication-image"
-                                draggable="false"
-                              />
+                    {:else if hasLastWordsAdmin && storyScenes[currentSceneIndex] === 'LAST_WORDS_ADMIN_PAGE'}
+                      <!-- One page: left half = last words (thank you), right half = last admin (thank you) - side by side -->
+                      <div class="mobile-image-split last-words-admin-one-page" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
+                        <!-- Last word page (left): thank-you text overlay -->
+                        <div class="mobile-image-half mobile-image-left last-words-page-wrapper" style={isFullscreen ? 'height: 100%;' : ''}>
+                          <div class="image">
+                            <div class="last-words-page-bg" style={lastWordPageImage ? `background-image: url(${lastWordPageImage});` : ''}></div>
+                            <div class="last-words-page-content">
+                              <h2 class="last-words-page-title">A Special Thank You</h2>
+                              <p class="last-words-page-body">This magical adventure wouldn't exist without the incredible imagination of {copyrightChildName}. Thank you for sharing your creativity with the world!</p>
+                              <p class="last-words-page-tagline">Every drawing tells a story. Yours told this one.</p>
                             </div>
-                          </div>
-                          <div class="mobile-image-half mobile-image-right dedication-page">
-                            <div class="image dedication-content">
-                              <img
-                                src={backCoverImage}
-                                alt="Back Cover"
-                                class="dedication-image"
-                                draggable="false"
-                              />
-                              <div class="inner-shadow"></div>
+                            <div class="frame-1410104055">
+                              <div class="tag">
+                                <div>
+                                  <span class="freepreviewpages_span">Free preview Pages</span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      {:else if lastWordPageImage}
-                        <!-- Only last word page: Single image display -->
-                        <div class="cover-image-container" class:fullscreen-cover={isFullscreen}>
-                          <div class="image cover-image">
-                            <img
-                              src={lastWordPageImage}
-                              alt="Last Word Page"
-                              class="scene-main-image cover-main-image"
-                              draggable="false"
-                            />
                             <div class="inner-shadow"></div>
                           </div>
                         </div>
-                      {:else if backCoverImage}
-                        <!-- Only back cover: Single image display -->
-                        <div class="cover-image-container" class:fullscreen-cover={isFullscreen}>
-                          <div class="image cover-image">
-                            <img
-                              src={backCoverImage}
-                              alt="Back Cover"
-                              class="scene-main-image cover-main-image"
-                              draggable="false"
-                            />
+                        <!-- Last admin page (right): Drawtopia branding (same content as image) -->
+                        <div class="mobile-image-half mobile-image-right last-admin-page-wrapper" style={isFullscreen ? 'height: 100%;' : ''}>
+                          <div class="image_01" style="position: relative;">
+                            <div class="last-admin-page-bg" style={lastAdminPageImage ? `background-image: url(${lastAdminPageImage});` : ''}></div>
+                            <div style="z-index: 1; display: flex; justify-content: center;">
+                              <img src={logo} alt="Drawtopia" class="last-admin-page-logo" style="position: absolute; top: 100px; justify-self: anchor-center;" />
+                              <div class="last-admin-page-content">
+                                <h2 class="last-admin-page-title">Where Every Child Becomes a Storyteller</h2>
+                                <p class="last-admin-page-tagline">Their imagination. Their characters. Their stories.</p>
+                                <p class="last-admin-page-tagline">Enhanced, not replaced.</p>
+                                <p class="last-admin-page-body">At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance - never replace - your child's authentic artwork, turning their imagination into adventures they'll treasure forever.</p>
+                              </div>
+                            </div>
+                            <div class="frame-1410104055_01">
+                              <div class="tag_01">
+                                <div>
+                                  <span class="freepreviewpages_01_span">Free preview Pages</span>
+                                </div>
+                              </div>
+                            </div>
                             <div class="inner-shadow"></div>
+                            <a href="https://drawtopia.ai" target="_blank" rel="noopener noreferrer" class="last-admin-page-cta last-admin-page-cta-clickable">
+                              <img src={Link} alt="" class="last-admin-page-cta-icon" />
+                              <span>Drawtopia.ai</span>
+                            </a>
                           </div>
                         </div>
-                      {/if}
-                    {:else if viewMode === 'one-page' && storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'FINAL_PAGE'}
+                      </div>
+                    {:else if backCoverImage && currentSceneIndex === storyScenes.length - 1}
+                      <!-- Back cover: single half page with text overlay (same layout as design) -->
+                      <div class="cover-image-container" class:fullscreen-cover={isFullscreen}>
+                        <div class="image cover-image back-cover-wrapper">
+                          <div class="back-cover-bg" style={backCoverImage ? `background-image: url(${backCoverImage});` : ''}></div>
+                          <div class="back-cover-content">
+                            <div>
+                            </div>
+                            <h1 class="back-cover-title">Drawtopia Makes<br />Every Child a<br />Storyteller</h1>
+                            <p class="back-cover-description">At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance - never replace - your child's authentic artwork, turning their imagination into adventures they'll treasure forever.</p>
+                            <div class="back-cover-bottom-left">
+                              <img src={logo} alt="Drawtopia" class="back-cover-logo" />
+                              <p class="back-cover-tagline">Their imagination. Their characters. </p>
+                              <p class="back-cover-tagline">Their stories. Enhanced, not replaced.</p>
+                              <p class="back-cover-website">drawtopia.ai</p>
+                            </div>
+                            <div class="back-cover-bottom-right">
+                              <p class="back-cover-isbn">ISBN placeholder</p>
+                              <div class="back-cover-barcode-wrap">
+                                <svg class="back-cover-barcode" viewBox="0 0 120 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img">
+                                <rect x="0" y="0" width="120" height="70" fill="#ffffff"/>
+                                <rect x="2" y="5" width="2" height="45" fill="#000000"/>
+                                <rect x="5" y="5" width="1" height="45" fill="#fff"/>
+                                <rect x="7" y="5" width="2" height="45" fill="#000"/>
+                                <rect x="10" y="5" width="1" height="45" fill="#fff"/>
+                                <rect x="12" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="14" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="17" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="19" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="22" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="24" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="27" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="29" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="32" y="5" width="2" height="45" fill="#000"/>
+                                <rect x="35" y="5" width="1" height="45" fill="#fff"/>
+                                <rect x="37" y="5" width="2" height="45" fill="#000"/>
+                                <rect x="40" y="5" width="1" height="45" fill="#fff"/>
+                                <rect x="42" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="44" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="47" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="49" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="52" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="54" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="57" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="59" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="62" y="5" width="2" height="45" fill="#000"/>
+                                <rect x="65" y="5" width="1" height="45" fill="#fff"/>
+                                <rect x="67" y="5" width="2" height="45" fill="#000"/>
+                                <rect x="70" y="5" width="1" height="45" fill="#fff"/>
+                                <rect x="72" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="74" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="77" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="79" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="82" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="84" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="87" y="5" width="2" height="45" fill="#000"/>
+                                <rect x="90" y="5" width="1" height="45" fill="#fff"/>
+                                <rect x="92" y="5" width="2" height="45" fill="#000"/>
+                                <rect x="95" y="5" width="1" height="45" fill="#fff"/>
+                                <rect x="97" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="99" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="102" y="5" width="1" height="45" fill="#000"/>
+                                <rect x="104" y="5" width="2" height="45" fill="#fff"/>
+                                <rect x="107" y="5" width="2" height="45" fill="#000"/>
+                                <text x="60" y="58" text-anchor="middle" fill="#000000" font-size="9" font-family="Arial, sans-serif" font-weight="400">1 234567 890128&gt;</text>
+                              </svg>
+                              </div>
+                              <p class="back-cover-age">[Age 6-12]</p>
+                            </div>
+                          </div>
+                          <div class="inner-shadow"></div>
+                        </div>
+                      </div>
+                    {:else if viewMode === 'one-page' && storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'LAST_WORDS_ADMIN_PAGE'}
                       <!-- One-page mode: Show only left OR right page -->
                       <div class="mobile-image-split" class:single-page-mode={true} style={isFullscreen ? 'height: 90dvh;' : ''}>
                         {#if currentSubPage === 'left'}
@@ -1153,9 +1206,9 @@
                           </div>
                         {/if}
                       </div>
-                    {:else if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'FINAL_PAGE'}
-                      <!-- Two-page mode: Split into left and right halves (same image; left half shows left 50%, right half shows right 50%) -->
-                      <div class="mobile-image-split" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 70dvw;' : ''}>
+                    {:else if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'LAST_WORDS_ADMIN_PAGE'}
+                      <!-- Two-page mode: Split into left and right halves (same image) -->
+                      <div class="mobile-image-split" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image">
                             <img
@@ -1349,7 +1402,6 @@
                       <img src={Book} alt="Cover" />
                     </div>
                   {:else if scene === 'COPYRIGHT_DEDICATION_PAGE'}
-                    <!-- Copyright/Dedication Page -->
                     <div 
                       class="number_01" 
                       class:active={currentSceneIndex === idx} 
@@ -1360,8 +1412,7 @@
                     >
                       <img src={EnvelopeSimple} alt="Copyright & Dedication" />
                     </div>
-                  {:else if scene === 'FINAL_PAGE'}
-                    <!-- Last Word Page -->
+                  {:else if scene === 'LAST_WORDS_ADMIN_PAGE'}
                     <div 
                       class="number_01" 
                       class:active={currentSceneIndex === idx} 
@@ -1370,19 +1421,7 @@
                       role="button" 
                       tabindex="0"
                     >
-                      <img src={EnvelopeSimple} alt="Last Word Page" />
-                    </div>
-                  {:else if scene === 'FINAL_PAGE'}
-                    <!-- Final Page (Last Word & Back Cover) -->
-                    <div 
-                      class="number" 
-                      class:active={currentSceneIndex === idx} 
-                      on:click={() => goToScene(idx)} 
-                      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && goToScene(idx)}
-                      role="button" 
-                      tabindex="0"
-                    >
-                      <img src={Book} alt="Last Word & Back Cover" />
+                      <img src={EnvelopeSimple} alt="Last Words & Final Scene" />
                     </div>
                   {:else if idx === storyScenes.length - 1 && backCoverImage}
                     <!-- Back Cover -->
@@ -1522,8 +1561,8 @@
       storyTitle={storyTitle} 
       storyId={currentStoryId || ""}
       storyCoverUrl={typeof storyScenes[0] === "string" && 
-                    storyScenes[0] !== "COPYRIGHT_DEDICATION_PAGE" && 
-                    storyScenes[0] !== "LAST_WORD_PAGE" ? storyScenes[0] : ""}
+                    storyScenes[0] !== "COPYRIGHT_DEDICATION_PAGE" &&
+                    storyScenes[0] !== "LAST_WORDS_ADMIN_PAGE" ? storyScenes[0] : ""}
       on:close={() => showShareStoryModal = false} 
     />
   {/if}
@@ -1733,6 +1772,7 @@
     min-height: 0;
     display: block;
     overflow: hidden;
+    align-content: center;
   }
   .mobile-image-split.fullscreen-split .mobile-image-half .image .scene-main-image,
   .mobile-image-split.fullscreen-split .mobile-image-half .image_01 .scene-main-image {
@@ -2738,6 +2778,7 @@
     display: flex;
     flex-direction: column;
     gap: 50px;
+    width: 100%
   }
 
   .notification-wrapper {
@@ -2816,8 +2857,18 @@
     flex-direction: row;
     gap: 2px;
     width: 100%;
+    height: 800px;
   }
-  
+
+  /* Last words + last admin: one page, left half and right half always side by side */
+  .mobile-image-split.last-words-admin-one-page {
+    flex-direction: row;
+  }
+  .mobile-image-split.last-words-admin-one-page .mobile-image-half {
+    flex: 1;
+    min-width: 0;
+  }
+
   /* Single page mode: center the single page */
   .mobile-image-split.single-page-mode {
     justify-content: center;
@@ -3098,6 +3149,16 @@
     .mobile-image-split {
       display: flex;
       flex-direction: column;
+      height: 100%;
+    }
+    /* Last words + last admin: keep one page (left | right) on all screen sizes */
+    .mobile-image-split.last-words-admin-one-page {
+      flex-direction: column;
+    }
+    .mobile-image-split.last-words-admin-one-page .mobile-image-half {
+      flex: 1;
+      width: auto;
+      min-width: 0;
     }
     .mobile-image-half {
       width: 100%;
@@ -3137,76 +3198,418 @@
     .share-dots-button-group {
       display: none;
     }
+    .copyright-page-wrapper {
+      height: 50dvh;
+    }
+    .dedication-page-wrapper {
+      height: 50dvh;
+    }
+    .last-words-page-wrapper .image,
+    .last-admin-page-wrapper .image_01 {
+      height: 50dvh;
+    }
   }
 
   @media (max-width: 600px) {
     .mobile-image-split.fullscreen-split {
       flex-direction: column;
     }
-    
+    .mobile-image-split.last-words-admin-one-page.fullscreen-split {
+      flex-direction: row;
+    }
     .cover-image-container.fullscreen-cover {
       height: auto;
     }
   }
   
-  /* Dedication Page Styles */
+  /* Dedication Page Styles – match attached image: white text, rounded sans-serif, centered */
   .dedication-blank {
-    background: white;
-  }
-
-  .dedication-blank-page {
-    background: white;
-    min-height: 100%;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: transparent;
   }
 
   .dedication-page {
-    background: white;
+    background: transparent;
   }
 
-  .dedication-content {
-    background: white;
+  .dedication-page-wrapper {
+    position: relative;
     min-height: 100%;
-    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .dedication-page-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #1a2a32;
+    background-image: linear-gradient(180deg, #1a2f38 0%, #152830 30%, #14303a 60%, #162d36 100%);
+  }
+
+  .dedication-page-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 2.5rem 2rem;
+    max-width: 88%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 30px;
-    position: relative;
-    padding: 20px;
+    gap: 1.75rem;
   }
 
-  .dedication-image {
-    max-width: 100%;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    border-radius: 12px;
-    flex-shrink: 0;
-  }
-
-  .dedication-text-container {
-    width: 70%;
-    justify-content: center;
-    margin-top: 20px;
-    padding: 20px;
-    flex-shrink: 0;
-    position: absolute;
-  }
-
-  .dedication-text {
-    font-size: 32px;
-    line-height: 1.8;
-    color: #333;
-    margin: 0;
+  .dedication-greeting {
     font-family: 'Quicksand', sans-serif;
     font-weight: 500;
-    text-align: center;
-    max-width: 100%;
+    font-size: 2rem;
+    line-height: 1.3;
+    color: #ffffff;
+    margin: 0;
     word-wrap: break-word;
+  }
+
+  .dedication-body {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: 1.25rem;
+    line-height: 1.65;
+    color: #ffffff;
+    margin: 0;
+    word-wrap: break-word;
+    max-width: 100%;
+  }
+
+  .dedication-signature {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: 1.1rem;
+    line-height: 1.4;
+    color: #ffffff;
+    margin: 0;
+    word-wrap: break-word;
+  }
+
+  /* Copyright page (intro text) – match attached image: sans-serif, light, centered */
+  .copyright-page-wrapper {
+    position: relative;
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .copyright-page-text-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .copyright-page-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #1a2f38;
+    /* Magical forest: cool blue, teal, green tones when no image */
+    background-image: linear-gradient(180deg, #1a3540 0%, #152f38 20%, #14323a 40%, #163a3e 60%, #152f36 80%, #1a3540 100%);
+  }
+
+  .copyright-page-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    max-width: 85%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8rem;
+  }
+
+  .copyright-page-p {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.92);
+    margin: 0;
+    word-wrap: break-word;
+  }
+
+  .copyright-page-footer {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+    margin-top: 0.5rem;
+    word-wrap: break-word;
+  }
+
+  /* Last words page (left) & Last admin page (right): thank-you text overlay */
+  .last-words-page-wrapper .image,
+  .last-admin-page-wrapper .image_01 {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .last-words-page-bg,
+  .last-admin-page-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #1a2f38;
+    background-image: linear-gradient(180deg, #1a3540 0%, #152f38 20%, #14323a 40%, #163a3e 60%, #152f36 80%, #1a3540 100%);
+  }
+
+  .last-words-page-content,
+  .last-admin-page-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 2rem 1.75rem;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .last-admin-page-logo {
+    width: 15rem;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: 0.25rem;
+  }
+
+  .last-admin-page-underlined {
+    text-decoration: underline;
+  }
+
+  .last-admin-page-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    background: #3b82f6;
+    color: #ffffff;
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    border-radius: 15px;
+    margin-top: 0.5rem;
+    transition: background 0.2s;
+  }
+
+  .last-admin-page-cta:hover {
+    background: #2563eb;
+  }
+
+  /* CTA moved after frame/inner-shadow so it stacks on top and remains clickable */
+  .last-admin-page-wrapper .image_01 .last-admin-page-cta-clickable {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+  }
+
+  .last-admin-page-cta-icon {
+    width: 1rem;
+    height: 1rem;
+    object-fit: contain;
+  }
+
+  .last-words-page-title,
+  .last-admin-page-title {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    font-size: 2.5rem;
+    line-height: 1.3;
+    color: #ffffff;
+    margin: 0;
+    word-wrap: break-word;
+  }
+
+  .last-words-page-body,
+  .last-admin-page-body {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+    word-wrap: break-word;
+  }
+
+  .last-words-page-tagline,
+  .last-admin-page-tagline {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: 1.05rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+    word-wrap: break-word;
+  }
+
+  /* Back cover: background image + text overlay (layout matches design) */
+  .back-cover-wrapper {
+    position: relative;
+    overflow: hidden;
+    min-height: 400px;
+    aspect-ratio: 2 / 3;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .back-cover-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #1a2f38;
+  }
+
+  .back-cover-content {
+    position: relative;
+    z-index: 1;
+    inset: 0;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 1.5rem 2rem 1.5rem;
+    box-sizing: border-box;
+  }
+
+  .back-cover-title {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1.2;
+    color: #ffffff;
+    text-align: center;
+    margin: 0.75rem 0 1.25rem;
+    letter-spacing: -0.02em;
+    text-shadow:
+    -3px -3px 0 #1f5f6b,
+    -3px  0px 0 #1f5f6b,
+    -3px  3px 0 #1f5f6b,
+     0px -3px 0 #1f5f6b,
+     0px  3px 0 #1f5f6b,
+     3px -3px 0 #1f5f6b,
+     3px  0px 0 #1f5f6b,
+     3px  3px 0 #1f5f6b;
+      /* 0 0 16px rgba(135, 206, 250, 0.7),
+      0 0 8px rgba(135, 206, 250, 0.5),
+      0 1px 0 rgba(135, 206, 250, 0.9),
+      1px 0 0 rgba(135, 206, 250, 0.9),
+      -1px 0 0 rgba(135, 206, 250, 0.9),
+      0 -1px 0 rgba(135, 206, 250, 0.9); */
+  }
+
+  .back-cover-description {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: clamp(0.9rem, 2.2vw, 1.15rem);
+    line-height: 1.55;
+    color: #ffffff;
+    text-align: center;
+    max-width: 88%;
+    margin: 0 0 auto;
+    flex: 1;
+    padding: 0.5rem 0;
+  }
+
+  .back-cover-bottom-left {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .back-cover-logo {
+    width: 8rem;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: 0.15rem;
+  }
+
+  .back-cover-tagline {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: 0.9rem;
+    font-style: italic;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+  }
+
+  .back-cover-website {
+    font-family: 'Quicksand', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .back-cover-bottom-right {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+  }
+
+  .back-cover-isbn {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+    text-align: center;
+    width: 100%;
+  }
+
+  .back-cover-barcode-wrap {
+    background: #ffffff;
+    padding: 4px 6px;
+    border-radius: 2px;
+    display: inline-block;
+    line-height: 0;
+  }
+
+  .back-cover-barcode {
+    width: 110px;
+    height: 56px;
+    display: block;
+  }
+
+  .back-cover-age {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #ffffff;
+    text-align: center;
+    width: 100%;
   }
 </style>

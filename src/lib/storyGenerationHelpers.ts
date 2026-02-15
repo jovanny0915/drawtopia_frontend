@@ -5,6 +5,19 @@
 
 import prompt2Data from './prompt1.json';
 import type { BookTemplate } from './database/bookTemplates';
+import { env, LOGO_PATH } from './env';
+
+/** Text block for overlay API: text, font_size, color_hex, y_position, alignment, shadow */
+export interface TextBlockOverlay {
+  text: string;
+  font_size?: number;
+  color_hex?: string;
+  y_position?: number;
+  alignment?: 'center' | 'left' | 'right';
+  shadow?: boolean;
+  shadow_color?: string;
+  shadow_offset?: number;
+}
 
 /**
  * Replace placeholders in text with actual values
@@ -16,30 +29,6 @@ export function replacePlaceholders(text: string, replacements: { [key: string]:
     result = result.replace(regex, value);
   }
   return result;
-}
-
-/**
- * Build copyright page prompt with child and character names
- */
-export function buildCopyrightPagePrompt(childName: string, characterName: string): string {
-  const mainText = replacePlaceholders(prompt2Data.generateStoryScene.copyrightPage.mainText, {
-    CHILD_NAME: childName,
-    CHARACTER_NAME: characterName
-  });
-  
-  const footerText = prompt2Data.generateStoryScene.copyrightPage.footerText;
-  
-  return prompt2Data.generateStoryScene.copyrightPage.basePrompt
-    .replace('{mainText}', mainText)
-    .replace('{footerText}', footerText);
-}
-
-/**
- * Build dedication page prompt with dedication message
- */
-export function buildDedicationPagePrompt(dedicationMessage: string): string {
-  return prompt2Data.generateStoryScene.dedicationPage.basePrompt
-    .replace('{dedicationMessage}', dedicationMessage);
 }
 
 /**
@@ -59,18 +48,86 @@ export function buildStoryPagePrompt(
 }
 
 /**
- * Build last word page prompt with child name
+ * Get back cover text blocks and options for overlay-back-cover API.
+ * Layout: title (top), description, then bottom-left tagline/website, bottom-right ISBN/age.
  */
-export function buildLastWordPagePrompt(childName: string): string {
-  const message = replacePlaceholders(prompt2Data.generateStoryScene.lastWordPage.message, {
-    CHILD_NAME: childName
-  });
-  
-  return prompt2Data.generateStoryScene.lastWordPage.basePrompt + '\n\nReplace [CHILD_NAME] with: ' + childName;
+export function getBackCoverTextBlocks(): TextBlockOverlay[] {
+  const bc = prompt2Data.generateStoryScene.backCover;
+  const titleLine1 = (bc as { titleLine1?: string }).titleLine1 ?? 'Drawtopia Makes';
+  const titleLine2 = (bc as { titleLine2?: string }).titleLine2 ?? 'Every Child a';
+  const titleLine3 = (bc as { titleLine3?: string }).titleLine3 ?? 'Storyteller';
+  const titleText = [titleLine1, titleLine2, titleLine3].join('\n');
+  const description = bc.description ?? '';
+  const tagline = (bc as { tagline?: string }).tagline ?? "Their imagination. Their characters. Their stories. Enhanced, not replaced.";
+  const website = (bc as { website?: string }).website ?? 'drawtopia.ai';
+  const isbnPlaceholder = (bc as { isbnPlaceholder?: string }).isbnPlaceholder ?? 'ISBN placeholder';
+  const ageRange = (bc as { ageRange?: string }).ageRange ?? '[Age 6-12]';
+
+  const lightColor = '#e8ecf0';
+  const baseStyle = { color_hex: lightColor, alignment: 'center' as const, shadow: false };
+
+  return [
+    { text: titleText, font_size: 42, ...baseStyle, y_position: 0.12, alignment: 'center' },
+    { text: description, font_size: 24, ...baseStyle, y_position: 0.34, alignment: 'center' },
+    { text: tagline, font_size: 18, color_hex: lightColor, y_position: 0.78, alignment: 'left', shadow: false },
+    { text: website, font_size: 16, color_hex: lightColor, y_position: 0.90, alignment: 'left', shadow: false },
+    { text: isbnPlaceholder, font_size: 14, color_hex: lightColor, y_position: 0.80, alignment: 'right', shadow: false },
+    { text: ageRange, font_size: 14, color_hex: lightColor, y_position: 0.94, alignment: 'right', shadow: false }
+  ];
 }
 
 /**
- * Build back cover prompt
+ * Call backend overlay-back-cover API (text + optional logo + barcode).
+ */
+export async function overlayBackCover(
+  imageUrl: string,
+  textBlocks: TextBlockOverlay[],
+  options: { logoUrl?: string; barcodeIsbn?: string; backendBaseUrl?: string }
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  const base = options.backendBaseUrl ?? env.PUBLIC_BACKEND_URL;
+  const url = `${base.replace(/\/$/, '')}/overlay-back-cover/`;
+  try {
+    const body: Record<string, unknown> = {
+      image_url: imageUrl,
+      text_blocks: textBlocks.map((b) => ({
+        text: b.text,
+        font_size: b.font_size ?? 48,
+        color_hex: b.color_hex ?? '#1a1a1a',
+        y_position: b.y_position ?? 0.5,
+        alignment: b.alignment ?? 'center',
+        shadow: b.shadow ?? false,
+        shadow_color: b.shadow_color,
+        shadow_offset: b.shadow_offset
+      }))
+    };
+    if (options.logoUrl) body.logo_url = options.logoUrl;
+    if (options.barcodeIsbn) body.barcode_isbn = options.barcodeIsbn;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || `Back cover API failed: ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.success && data.url) {
+      return { success: true, url: data.url.split('?')[0] };
+    }
+    return { success: false, error: data.message || 'No URL in back cover response' };
+  } catch (error) {
+    console.error('Error creating back cover:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Build back cover prompt (kept for legacy use)
  */
 export function buildBackCoverPrompt(): string {
   return prompt2Data.generateStoryScene.backCover.basePrompt;
@@ -235,14 +292,13 @@ export interface GenerateBookPagesOptions {
   storyPages: Array<{ pageNumber: number; text: string }>;
   storyWorld: string;
   onProgress?: (step: string, progress: number) => void;
+  /** When true, only generate story page images (skip copyright, dedication, last word, back cover). */
+  storyPagesOnly?: boolean;
 }
 
 export interface GenerateBookPagesResult {
   success: boolean;
-  copyrightImageUrl?: string;
-  dedicationImageUrl?: string;
   storyPageImageUrls?: string[];
-  lastWordImageUrl?: string;
   backCoverImageUrl?: string;
   error?: string;
 }
@@ -258,7 +314,8 @@ export async function generateAllBookPages(
     dedicationMessage,
     storyPages,
     storyWorld,
-    onProgress
+    onProgress,
+    storyPagesOnly = false
   } = options;
   
   const result: GenerateBookPagesResult = {
@@ -286,60 +343,18 @@ export async function generateAllBookPages(
       throw new Error('Story pages must have text content');
     }
     
-    console.log(`Generating book pages for ${validPages.length} story pages`);
-    console.log('Book template fields:', {
-      hasCopyrightPage: !!bookTemplate.copyright_page_image,
-      hasDedicationPage: !!bookTemplate.dedication_page_image,
-      hasLastWordPage: !!bookTemplate.last_story_page_image,
-      hasBackCover: !!bookTemplate.back_cover_image,
-      storyPagesCount: bookTemplate.story_page_images?.length || 0
-    });
-    
-    // Step 1: Generate copyright page
-    if (onProgress) onProgress('Generating copyright page...', 10);
-    if (bookTemplate.copyright_page_image) {
-      console.log('Generating copyright page with template:', bookTemplate.copyright_page_image);
-      const copyrightPrompt = buildCopyrightPagePrompt(childName, characterName);
-      const copyrightResult = await generateImageWithSingleTemplate(
-        bookTemplate.copyright_page_image,
-        copyrightPrompt
-      );
-      if (copyrightResult.success && copyrightResult.url) {
-        result.copyrightImageUrl = copyrightResult.url;
-        console.log('✅ Copyright page generated:', copyrightResult.url);
-      } else {
-        console.error('❌ Failed to generate copyright page:', copyrightResult.error);
-      }
-    } else {
-      console.warn('⚠️ Copyright page template image not found in book template');
+    console.log(`Generating book pages for ${validPages.length} story pages${storyPagesOnly ? ' (story pages only)' : ''}`);
+    if (!storyPagesOnly) {
+      console.log('Book template fields:', {
+        hasBackCover: !!bookTemplate.back_cover_image,
+        storyPagesCount: bookTemplate.story_page_images?.length || 0
+      });
     }
+
+    const logoUrl = env.PUBLIC_APP_URL ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}${LOGO_PATH}` : undefined;
     
-    // Step 2: Generate dedication page
-    if (onProgress) onProgress('Generating dedication page...', 20);
-    if (bookTemplate.dedication_page_image && dedicationMessage) {
-      console.log('Generating dedication page with template:', bookTemplate.dedication_page_image);
-      const dedicationPrompt = buildDedicationPagePrompt(dedicationMessage);
-      const dedicationResult = await generateImageWithSingleTemplate(
-        bookTemplate.dedication_page_image,
-        dedicationPrompt
-      );
-      if (dedicationResult.success && dedicationResult.url) {
-        result.dedicationImageUrl = dedicationResult.url;
-        console.log('✅ Dedication page generated:', dedicationResult.url);
-      } else {
-        console.error('❌ Failed to generate dedication page:', dedicationResult.error);
-      }
-    } else {
-      if (!bookTemplate.dedication_page_image) {
-        console.warn('⚠️ Dedication page template image not found in book template');
-      }
-      if (!dedicationMessage) {
-        console.warn('⚠️ No dedication message provided');
-      }
-    }
-    
-    // Step 3: Generate story page images
-    if (onProgress) onProgress('Generating story pages...', 30);
+    // Generate story page images
+    if (onProgress) onProgress('Generating story pages...', storyPagesOnly ? 10 : 30);
     const storyPageImages: string[] = [];
     const totalPages = validPages.length;
     
@@ -359,7 +374,9 @@ export async function generateAllBookPages(
         continue;
       }
       
-      const progress = 30 + ((i + 1) / totalPages) * 40; // 30-70%
+      const progress = storyPagesOnly
+        ? 10 + ((i + 1) / totalPages) * 90  // 10-100%
+        : 30 + ((i + 1) / totalPages) * 40; // 30-70%
       if (onProgress) onProgress(`Generating story page ${pageNumber}...`, progress);
       
       try {
@@ -388,42 +405,29 @@ export async function generateAllBookPages(
     result.storyPageImageUrls = storyPageImages;
     console.log(`Generated ${storyPageImages.length} out of ${totalPages} story page images`);
     
-    // Step 4: Generate last word page
-    if (onProgress) onProgress('Generating final page...', 75);
-    if (bookTemplate.last_story_page_image) {
-      console.log('Generating last word page with template:', bookTemplate.last_story_page_image);
-      const lastWordPrompt = buildLastWordPagePrompt(childName);
-      const lastWordResult = await generateImageWithSingleTemplate(
-        bookTemplate.last_story_page_image,
-        lastWordPrompt
-      );
-      if (lastWordResult.success && lastWordResult.url) {
-        result.lastWordImageUrl = lastWordResult.url;
-        console.log('✅ Last word page generated:', lastWordResult.url);
+    // Back cover (skipped when storyPagesOnly)
+    if (!storyPagesOnly) {
+      if (onProgress) onProgress('Creating back cover...', 85);
+      if (bookTemplate.back_cover_image) {
+        console.log('Creating back cover with text, logo and barcode:', bookTemplate.back_cover_image);
+        const backCoverBlocks = getBackCoverTextBlocks();
+        const backCoverResult = await overlayBackCover(
+          bookTemplate.back_cover_image,
+          backCoverBlocks,
+          {
+            logoUrl,
+            barcodeIsbn: '978012345678'
+          }
+        );
+        if (backCoverResult.success && backCoverResult.url) {
+          result.backCoverImageUrl = backCoverResult.url;
+          console.log('✅ Back cover created:', backCoverResult.url);
+        } else {
+          console.error('❌ Failed to create back cover:', backCoverResult.error);
+        }
       } else {
-        console.error('❌ Failed to generate last word page:', lastWordResult.error);
+        console.warn('⚠️ Back cover template image not found in book template');
       }
-    } else {
-      console.warn('⚠️ Last word page template image not found in book template');
-    }
-    
-    // Step 5: Generate back cover
-    if (onProgress) onProgress('Generating back cover...', 85);
-    if (bookTemplate.back_cover_image) {
-      console.log('Generating back cover with template:', bookTemplate.back_cover_image);
-      const backCoverPrompt = buildBackCoverPrompt();
-      const backCoverResult = await generateImageWithSingleTemplate(
-        bookTemplate.back_cover_image,
-        backCoverPrompt
-      );
-      if (backCoverResult.success && backCoverResult.url) {
-        result.backCoverImageUrl = backCoverResult.url;
-        console.log('✅ Back cover generated:', backCoverResult.url);
-      } else {
-        console.error('❌ Failed to generate back cover:', backCoverResult.error);
-      }
-    } else {
-      console.warn('⚠️ Back cover template image not found in book template');
     }
     
     if (onProgress) onProgress('Complete!', 100);

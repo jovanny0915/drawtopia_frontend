@@ -5,7 +5,7 @@
 
 import { env } from '$lib/env';
 
-const API_URL = "https://image-edit-five.vercel.app/api";
+const API_URL = env.API_BASE_URL;
 
 export interface BookTemplate {
   id: string;
@@ -15,6 +15,7 @@ export interface BookTemplate {
   copyright_page_image?: string;
   dedication_page_image?: string;
   story_page_images?: string[];
+  last_words_page_image?: string;
   last_story_page_image?: string;
   back_cover_image?: string;
   created_at?: string;
@@ -25,6 +26,34 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
+}
+
+export interface StoryCountByDay {
+  date: string;
+  count: number;
+}
+
+/**
+ * Get story generation counts per day (from stories table) for the last N days.
+ */
+export async function getStoryCountsByDay(days: number = 90): Promise<ApiResponse<StoryCountByDay[]>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/analysis/story-counts-by-day?days=${days}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    return { success: true, data: json.data ?? [] };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to fetch story counts' };
+  }
 }
 
 /**

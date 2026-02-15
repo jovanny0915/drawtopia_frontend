@@ -28,7 +28,8 @@ export interface Story {
   dedication_text?: string; // Dedication message text
   dedication_image?: string; // Dedication page image URL
   copyright_image?: string; // Copyright page image URL (displayed on left half)
-  last_word_page_image?: string; // Last word page image URL
+  last_word_page_image?: string; // Last words page image URL (left half of final spread)
+  last_admin_page_image?: string; // Last admin/scene page image URL (right half of final spread)
   back_cover_image?: string; // Back cover image URL
   status?: 'generating' | 'completed' | 'failed';
   story_type?: string; // Type of story: adventure story book or search adventure
@@ -85,6 +86,7 @@ function buildStoryRowPayload(story: Story, uid: string, storyContentValue: stri
     dedication_image: story.dedication_image || null,
     copyright_image: story.copyright_image || null,
     last_word_page_image: story.last_word_page_image || null,
+    last_admin_page_image: story.last_admin_page_image || null,
     back_cover_image: story.back_cover_image || null,
     status: story.status || 'generating',
     story_type: story.story_type || 'story',

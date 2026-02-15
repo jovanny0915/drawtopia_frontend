@@ -27,7 +27,9 @@ export interface BookTemplate {
   dedication_page_image?: string;
   /** Array of URLs to story page images stored in Supabase storage at: book-templates/[template-name]/story-page-[N].* */
   story_page_images?: string[];
-  /** URL to last story page image stored in Supabase storage at: book-templates/[template-name]/last_story_page_image.* */
+  /** URL to last words page image (left half of final spread) at: book-templates/[template-name]/last_words_page_image.* */
+  last_words_page_image?: string;
+  /** URL to last story/admin page image (right half of final spread) at: book-templates/[template-name]/last_story_page_image.* */
   last_story_page_image?: string;
   /** URL to back cover image stored in Supabase storage at: book-templates/[template-name]/back_cover_image.* */
   back_cover_image?: string;
@@ -41,6 +43,7 @@ export interface BookTemplateInsert {
   copyright_page_image?: string;
   dedication_page_image?: string;
   story_page_images?: string[];
+  last_words_page_image?: string;
   last_story_page_image?: string;
   back_cover_image?: string;
 }

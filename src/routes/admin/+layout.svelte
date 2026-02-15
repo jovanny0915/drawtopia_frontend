@@ -5,7 +5,7 @@
   import { user, isAuthenticated, authLoading } from '$lib/stores/auth';
   import { supabase } from '$lib/supabase';
   import { onMount } from 'svelte';
-  import { Book, LogOut } from 'lucide-svelte';
+  import { Book, BarChart2, LogOut } from 'lucide-svelte';
   import logo from '../../assets/logo.png';
 
   let userRole: string | null = null;
@@ -79,10 +79,10 @@
     goto('/login');
   }
 
-  // Sidebar nav items
+  // Sidebar nav items (icon component per item)
   const navItems = [
-    { label: 'Book Templates', path: '/admin' },
-    // Add more admin items as needed
+    { label: 'Analysis', path: '/admin', icon: BarChart2 },
+    { label: 'Book Templates', path: '/admin/book-templates', icon: Book },
   ];
 
   $: currentPath = $page.url.pathname;
@@ -107,10 +107,10 @@
           <a
             href={item.path}
             class="nav-item"
-            class:active={currentPath === item.path}
+            class:active={currentPath === item.path || (item.path !== '/admin' && currentPath.startsWith(item.path))}
           >
             <span class="nav-icon">
-              <Book size={20} />
+              <svelte:component this={item.icon} size={20} />
             </span>
             {#if sidebarOpen}
               <span class="nav-label">{item.label}</span>

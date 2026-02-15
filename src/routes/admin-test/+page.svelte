@@ -47,7 +47,7 @@
       if (err) {
         alert(`Error: ${err.message}`);
       } else {
-        alert('Success! You are now an admin. Refresh the page and try accessing /admin');
+        alert('Success! You are now an admin. Refresh the page and try accessing /admin/book-templates');
         await checkRole();
       }
     } catch (err: any) {
@@ -92,7 +92,7 @@
       <div class="success-box">
         <h3>✅ You are an admin!</h3>
         <p>You should be able to access the admin panel.</p>
-        <a href="/admin" class="admin-link">Go to Admin Panel →</a>
+        <a href="/admin/book-templates" class="admin-link">Go to Admin Panel →</a>
       </div>
     {/if}
   {/if}
