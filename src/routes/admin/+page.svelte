@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getStoryCountsByDay, type StoryCountByDay } from '$lib/api/admin';
+  import {
+    getStoryCountsByDay,
+    getUserAuthCountsByDay,
+    type StoryCountByDay,
+    type UserAuthCountByDay
+  } from '$lib/api/admin';
   import { Chart, registerables } from 'chart.js';
   import { BarChart } from 'lucide-svelte';
 
@@ -8,9 +13,12 @@
 
   let chartCanvas: HTMLCanvasElement;
   let chart: Chart<'bar'> | null = null;
+  let authChartCanvas: HTMLCanvasElement;
+  let authChart: Chart<'line'> | null = null;
   let loading = true;
   let error: string | null = null;
   let chartData: StoryCountByDay[] = [];
+  let userAuthData: UserAuthCountByDay[] = [];
   let days = 30;
   const dayOptions = [7, 14, 30, 90];
 
@@ -18,13 +26,25 @@
     loading = true;
     error = null;
     chartData = [];
+    userAuthData = [];
     try {
-      const res = await getStoryCountsByDay(days);
-      if (!res.success || !res.data) {
-        error = res.error ?? 'Failed to load data';
+      const [storyRes, userAuthRes] = await Promise.all([
+        getStoryCountsByDay(days),
+        getUserAuthCountsByDay(days)
+      ]);
+
+      if (!storyRes.success || !storyRes.data) {
+        error = storyRes.error ?? 'Failed to load story data';
         return;
       }
-      chartData = res.data;
+
+      if (!userAuthRes.success || !userAuthRes.data) {
+        error = userAuthRes.error ?? 'Failed to load user auth data';
+        return;
+      }
+
+      chartData = storyRes.data;
+      userAuthData = userAuthRes.data;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Unknown error';
     } finally {
@@ -63,7 +83,7 @@
           legend: { display: false },
           title: {
             display: true,
-            text: 'Story generations per day'
+            text: new Date().getUTCFullYear() + ' - ' + 'Story generations per day'
           }
         },
         scales: {
@@ -75,8 +95,75 @@
           x: {
             title: { display: true, text: 'Date' },
             ticks: {
-              maxRotation: 45,
-              minRotation: 45,
+              maxRotation: 0,
+              minRotation: 0,
+              maxTicksLimit: 20
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderUserAuthChart(counts: UserAuthCountByDay[]) {
+    if (authChart) {
+      authChart.destroy();
+      authChart = null;
+    }
+    if (!authChartCanvas || !counts.length) return;
+
+    const labels = counts.map((d) => d.date);
+    const loginValues = counts.map((d) => d.login_count);
+    const registerValues = counts.map((d) => d.register_count);
+
+    authChart = new Chart(authChartCanvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Login',
+            data: loginValues,
+            borderColor: 'rgb(16, 185, 129)',
+            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            cubicInterpolationMode: 'monotone',
+            tension: 0.35
+          },
+          {
+            label: 'Register',
+            data: registerValues,
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            cubicInterpolationMode: 'monotone',
+            tension: 0.35
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true },
+          title: {
+            display: true,
+            text: new Date().getUTCFullYear() + ' - ' + 'User login/register per day'
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            title: { display: true, text: 'Count' }
+          },
+          x: {
+            title: { display: true, text: 'Date' },
+            ticks: {
+              maxRotation: 0,
+              minRotation: 0,
               maxTicksLimit: 20
             }
           }
@@ -89,12 +176,20 @@
     renderChart(chartData);
   }
 
+  $: if (authChartCanvas && userAuthData.length > 0 && !loading) {
+    renderUserAuthChart(userAuthData);
+  }
+
   onMount(() => {
     loadAndRender();
     return () => {
       if (chart) {
         chart.destroy();
         chart = null;
+      }
+      if (authChart) {
+        authChart.destroy();
+        authChart = null;
       }
     };
   });
@@ -114,7 +209,7 @@
       <BarChart size={28} />
       Analysis
     </h1>
-    <p class="page-description">Story generation metrics from the stories table</p>
+    <p class="page-description">Story and user auth metrics</p>
   </div>
 
   <div class="controls">
@@ -135,20 +230,40 @@
     <div class="error-state">
       <p>{error}</p>
     </div>
-  {:else if chartData.length === 0}
-    <div class="empty-state">
-      <p>No story generations in the last {days} days.</p>
-    </div>
   {:else}
-    <div class="chart-container">
-      <canvas bind:this={chartCanvas}></canvas>
+    <div class="charts-grid">
+      <div class="chart-section">
+        <h2>Story generations per day</h2>
+        {#if chartData.length === 0}
+          <div class="empty-state">
+            <p>No story generations in the last {days} days.</p>
+          </div>
+        {:else}
+          <div class="chart-container">
+            <canvas bind:this={chartCanvas}></canvas>
+          </div>
+        {/if}
+      </div>
+
+      <div class="chart-section">
+        <h2>User auth history per day (login/register)</h2>
+        {#if userAuthData.length === 0}
+          <div class="empty-state">
+            <p>No login/register history in the last {days} days.</p>
+          </div>
+        {:else}
+          <div class="chart-container">
+            <canvas bind:this={authChartCanvas}></canvas>
+          </div>
+        {/if}
+      </div>
     </div>
   {/if}
 </div>
 
 <style>
   .analysis-page {
-    max-width: 960px;
+    width: 100%;
   }
 
   .page-header {
@@ -198,6 +313,26 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 1.5rem;
     height: 400px;
+    width: 100%;
+  }
+
+  .charts-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+    width: 100%;
+  }
+
+  .chart-section {
+    width: 100%;
+  }
+
+  .chart-section h2 {
+    margin: 0 0 0.75rem 0;
+    color: #111827;
+    font-size: 1rem;
+    font-weight: 600;
+    width: 100%
   }
 
   .loading-state,

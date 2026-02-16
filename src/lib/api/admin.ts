@@ -33,6 +33,43 @@ export interface StoryCountByDay {
   count: number;
 }
 
+export interface UserAuthCountByDay {
+  date: string;
+  login_count: number;
+  register_count: number;
+  total_count: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  avatar_url?: string | null;
+  role?: string | null;
+  subscription_status?: string | null;
+  credit?: number | null;
+  created_at?: string | null;
+}
+
+export interface AdminUserCreateInput {
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  subscription_status?: string;
+  credit?: number;
+}
+
+export interface AdminUserUpdateInput {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  subscription_status?: string;
+  credit?: number;
+}
+
 /**
  * Get story generation counts per day (from stories table) for the last N days.
  */
@@ -53,6 +90,123 @@ export async function getStoryCountsByDay(days: number = 90): Promise<ApiRespons
     return { success: true, data: json.data ?? [] };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Failed to fetch story counts' };
+  }
+}
+
+/**
+ * Get login/register counts per day (from user_auth_history table) for the last N days.
+ */
+export async function getUserAuthCountsByDay(days: number = 90): Promise<ApiResponse<UserAuthCountByDay[]>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/analysis/user-auth-counts-by-day?days=${days}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    return { success: true, data: json.data ?? [] };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to fetch user auth counts' };
+  }
+}
+
+/**
+ * Get users list for admin user management page
+ */
+export async function getUsers(): Promise<ApiResponse<AdminUser[]>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/users`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    return { success: true, data: json.data ?? [] };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to fetch users' };
+  }
+}
+
+/**
+ * Create user record from admin panel
+ */
+export async function createUser(payload: AdminUserCreateInput): Promise<ApiResponse<AdminUser>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    return { success: true, data: json.data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to create user' };
+  }
+}
+
+/**
+ * Update user record from admin panel
+ */
+export async function updateUser(userId: string, payload: AdminUserUpdateInput): Promise<ApiResponse<AdminUser>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    return { success: true, data: json.data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to update user' };
+  }
+}
+
+/**
+ * Delete user record from admin panel
+ */
+export async function deleteUser(userId: string): Promise<ApiResponse<void>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    return { success: true, message: json.message };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to delete user' };
   }
 }
 

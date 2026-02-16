@@ -5,6 +5,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { initAuth, isAuthenticated, authLoading } from '$lib/stores/auth';
+  import { addNotification } from '$lib/stores/notification';
   import { registerServiceWorker } from '$lib/pushNotifications';
   import NotificationContainer from '../components/NotificationContainer.svelte';
   import '../app.css';
@@ -32,9 +33,20 @@
   // Initialize authentication and push notifications on app startup
   onMount(() => {
     const unsubscribe = initAuth();
+    const originalAlert = window.alert;
     
     // Register service worker for push notifications (async, but don't block)
     if (browser) {
+      // Route legacy alert() calls through the toast UI.
+      window.alert = (message?: string) => {
+        const text = typeof message === 'string' ? message : String(message ?? '');
+        addNotification({
+          type: 'info',
+          message: text,
+          duration: 5000
+        });
+      };
+
       registerServiceWorker()
         .then(() => {
           console.log('Service worker registered successfully');
@@ -45,7 +57,10 @@
     }
     
     // Return cleanup function synchronously
-    return unsubscribe;
+    return () => {
+      window.alert = originalAlert;
+      unsubscribe();
+    };
   });
 
   // Reactive statement to check authentication status

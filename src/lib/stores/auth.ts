@@ -5,7 +5,7 @@
 
 import { writable, derived } from 'svelte/store';
 import { supabase, AUTH_STORAGE_KEY } from '../supabase';
-import { registerUser, registerGoogleOAuthUser, updateUserLastLogin } from '../auth';
+import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory } from '../auth';
 import type { User, Session } from '@supabase/supabase-js';
 
 // User with profile fields from custom users table (for display name, etc.)
@@ -28,6 +28,58 @@ const initialState: AuthState = {
   first_name: null,
   last_name: null
 };
+
+// Enforce a hard max session age regardless of token refresh.
+const SESSION_STARTED_AT_KEY = 'drawtopia_session_started_at';
+const DEFAULT_MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const maxSessionAgeMs = (() => {
+  const configured = Number(import.meta.env.VITE_MAX_SESSION_AGE_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_MAX_SESSION_AGE_MS;
+})();
+
+let hardTimeoutCheckInterval: ReturnType<typeof setInterval> | null = null;
+
+function clearSessionStartMarker(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(SESSION_STARTED_AT_KEY);
+}
+
+function setSessionStartMarker(timestampMs: number): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SESSION_STARTED_AT_KEY, String(timestampMs));
+}
+
+function ensureSessionStartMarker(): number {
+  if (typeof window === 'undefined') return Date.now();
+
+  const current = localStorage.getItem(SESSION_STARTED_AT_KEY);
+  const parsed = current ? Number(current) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  const now = Date.now();
+  setSessionStartMarker(now);
+  return now;
+}
+
+function resetSessionStartMarker(): void {
+  setSessionStartMarker(Date.now());
+}
+
+async function enforceHardSessionTimeout(session: Session | null): Promise<boolean> {
+  if (typeof window === 'undefined' || !session) return false;
+
+  const startedAtMs = ensureSessionStartMarker();
+  if (Date.now() - startedAtMs <= maxSessionAgeMs) {
+    return false;
+  }
+
+  console.warn('Session exceeded hard max age. Signing out user.');
+  await supabase.auth.signOut();
+  clearSessionStartMarker();
+  return true;
+}
 
 /** Fetch first_name and last_name from custom users table and sync to auth state + sb-auth-token */
 async function syncUserProfileToAuth(session: Session | null): Promise<void> {
@@ -159,6 +211,22 @@ export function initAuth() {
       }
     }
     
+    if (session) {
+      ensureSessionStartMarker();
+      const timedOut = await enforceHardSessionTimeout(session);
+      if (timedOut) {
+        auth.update(state => ({
+          ...state,
+          session: null,
+          user: null,
+          loading: false
+        }));
+        return;
+      }
+    } else {
+      clearSessionStartMarker();
+    }
+
     auth.update(state => ({
       ...state,
       session,
@@ -192,6 +260,29 @@ export function initAuth() {
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (event, session) => {
       console.log('Auth state changed:', event, session);
+
+      if (event === 'SIGNED_OUT' || !session) {
+        clearSessionStartMarker();
+      } else if (event === 'SIGNED_IN') {
+        resetSessionStartMarker();
+      } else {
+        ensureSessionStartMarker();
+      }
+
+      if (session) {
+        const timedOut = await enforceHardSessionTimeout(session);
+        if (timedOut) {
+          auth.update(state => ({
+            ...state,
+            session: null,
+            user: null,
+            loading: false,
+            first_name: null,
+            last_name: null
+          }));
+          return;
+        }
+      }
       
       // Update auth state for ALL events (including INITIAL_SESSION on page refresh)
       auth.update(state => ({
@@ -212,6 +303,16 @@ export function initAuth() {
         updateUserLastLogin(session.user.id).catch((err) =>
           console.warn('Failed to update last_login:', err)
         );
+
+        const isGoogleProvider =
+          session.user.app_metadata?.provider === 'google' ||
+          session.user.identities?.some(identity => identity.provider === 'google');
+
+        if (isGoogleProvider) {
+          logUserLoginHistory(session.user.id, 'google_oauth').catch((err) =>
+            console.warn('Failed to log Google login history:', err)
+          );
+        }
       }
 
       // Handle both SIGNED_IN and TOKEN_REFRESHED events
@@ -244,6 +345,7 @@ export function initAuth() {
                 email: user.email?.toLowerCase().trim(),
                 first_name: formData.firstName?.trim(),
                 last_name: formData.lastName?.trim(),
+                avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
                 role: formData.accountType,
                 google_id: user.user_metadata?.provider_id || user.id,
                 created_at: new Date(),
@@ -277,8 +379,29 @@ export function initAuth() {
     }
   );
 
+  if (typeof window !== 'undefined') {
+    if (hardTimeoutCheckInterval) {
+      clearInterval(hardTimeoutCheckInterval);
+      hardTimeoutCheckInterval = null;
+    }
+    hardTimeoutCheckInterval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        clearSessionStartMarker();
+        return;
+      }
+      await enforceHardSessionTimeout(session);
+    }, 60 * 1000);
+  }
+
   // Return unsubscribe function
-  return () => subscription.unsubscribe();
+  return () => {
+    subscription.unsubscribe();
+    if (hardTimeoutCheckInterval) {
+      clearInterval(hardTimeoutCheckInterval);
+      hardTimeoutCheckInterval = null;
+    }
+  };
 }
 
 // Derived stores for convenience

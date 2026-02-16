@@ -27,6 +27,34 @@ export interface AuthResponse {
   error?: string;
 }
 
+type AuthHistoryEventType = 'login' | 'register';
+
+async function logUserAuthHistory(
+  userId: string,
+  eventType: AuthHistoryEventType,
+  authProvider: string
+): Promise<void> {
+  try {
+    const { error } = await supabaseAdmin.from('user_auth_history').insert([
+      {
+        user_id: userId,
+        event_type: eventType,
+        auth_provider: authProvider
+      }
+    ]);
+
+    if (error) {
+      console.warn(`Failed to log ${eventType} auth history:`, error.message);
+    }
+  } catch (err) {
+    console.warn(`Unexpected error logging ${eventType} auth history:`, err);
+  }
+}
+
+export async function logUserLoginHistory(userId: string, authProvider: string): Promise<void> {
+  await logUserAuthHistory(userId, 'login', authProvider);
+}
+
 /**
  * Sign up a new user with email
  */
@@ -117,6 +145,11 @@ export async function signUpWithEmail(email: string, password: string, firstName
         emailRedirectTo: `${window.location.origin}`,
       }
     });
+
+    if (data.user?.id) {
+      await logUserAuthHistory(data.user.id, 'register', 'email_password');
+    }
+
     // console.log('OTP data:', otpData);
     // console.log('OTP error:', otpError);
     return {
@@ -230,6 +263,10 @@ export async function signUpWithPhone(phone: string, password: string, firstName
         success: false,
         error: 'Please wait 3 seconds before requesting another SMS code.'
       };
+    }
+
+    if (data.user?.id) {
+      await logUserAuthHistory(data.user.id, 'register', 'phone_password');
     }
     
     // console.log('OTP data:', otpData);
@@ -350,6 +387,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
     if (data.user?.id) {
       await updateUserLastLogin(data.user.id);
+      await logUserAuthHistory(data.user.id, 'login', 'email_password');
     }
 
     return {
@@ -384,6 +422,7 @@ export async function signInWithPhone(phone: string, password: string): Promise<
 
     if (data.user?.id) {
       await updateUserLastLogin(data.user.id);
+      await logUserAuthHistory(data.user.id, 'login', 'phone_password');
     }
 
     return {
@@ -495,6 +534,7 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
+        scopes: 'openid email profile',
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -552,6 +592,7 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
     const firstName = user.user_metadata?.given_name || user.user_metadata?.full_name?.split(' ')[0] || '';
     const lastName = user.user_metadata?.family_name || user.user_metadata?.full_name?.split(' ')[1] || '';
     const email = user.email || '';
+    const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
     console.log('Google OAuth user data:', {
       id: user.id,
@@ -573,6 +614,7 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
           email: email.toLowerCase().trim(),
           first_name: firstName.trim(),
           last_name: lastName.trim(),
+          avatar_url: avatarUrl,
           google_id: googleId,
           updated_at: new Date()
         })
@@ -597,6 +639,7 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
       email: email.toLowerCase().trim(),
       first_name: firstName.trim(),
       last_name: lastName.trim(),
+      avatar_url: avatarUrl,
       role: 'adult',
       created_at: new Date(),
       updated_at: new Date()
@@ -618,6 +661,7 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
     }
 
     console.log('Google OAuth user registered successfully:', userProfile);
+    await logUserAuthHistory(user.id, 'register', 'google_oauth');
     return { success: true };
   } catch (error) {
     console.error('Error registering Google OAuth user:', error);
@@ -904,6 +948,7 @@ export function formatGoogleUserData(user: any): any {
   const firstName = user.user_metadata?.given_name || user.user_metadata?.full_name?.split(' ')[0] || '';
   const lastName = user.user_metadata?.family_name || user.user_metadata?.full_name?.split(' ')[1] || '';
   const email = user.email || '';
+  const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
   return {
     id: user.id,
@@ -911,6 +956,7 @@ export function formatGoogleUserData(user: any): any {
     email: email.toLowerCase().trim(),
     first_name: firstName.trim(),
     last_name: lastName.trim(),
+    avatar_url: avatarUrl,
     role: 'adult',
     created_at: new Date(),
     updated_at: new Date()
@@ -950,6 +996,7 @@ export async function registerUser(userData: any): Promise<{ success: boolean; p
           email: userData.email,
           first_name: userData.first_name,
           last_name: userData.last_name,
+          avatar_url: userData.avatar_url ?? null,
           role: userData.role,
           google_id: userData.google_id,
           updated_at: new Date()
@@ -987,6 +1034,9 @@ export async function registerUser(userData: any): Promise<{ success: boolean; p
     }
 
     console.log('User registered successfully:', userProfile);
+    if (userData.id) {
+      await logUserAuthHistory(userData.id, 'register', 'google_oauth');
+    }
     return {
       success: true,
       profile: userProfile

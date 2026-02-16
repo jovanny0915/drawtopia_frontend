@@ -5,8 +5,8 @@
   import { user, isAuthenticated, authLoading } from '$lib/stores/auth';
   import { supabase } from '$lib/supabase';
   import { onMount } from 'svelte';
-  import { Book, BarChart2, LogOut } from 'lucide-svelte';
-  import logo from '../../assets/logo.png';
+  import { Book, BarChart2, Users, LogOut, MessageSquareText } from 'lucide-svelte';
+  import logo from '../../assets/white-logo.png';
 
   let userRole: string | null = null;
   let loading = true;
@@ -83,6 +83,8 @@
   const navItems = [
     { label: 'Analysis', path: '/admin', icon: BarChart2 },
     { label: 'Book Templates', path: '/admin/book-templates', icon: Book },
+    { label: 'User Manage', path: '/admin/user-manage', icon: Users },
+    { label: 'Prompts Manage', path: '/admin/prompts-manage', icon: MessageSquareText },
   ];
 
   $: currentPath = $page.url.pathname;
