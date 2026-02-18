@@ -14,8 +14,8 @@
   import { storyCreation } from "../../../lib/stores/storyCreation";
   import { generateIntersearchCover, saveSelectedImageUrl, generateCoverImageWithTemplate } from "../../../lib/imageGeneration";
   import { generateStoryTitles } from "../../../lib/api/storyTitles";
+  import { getRandomTemplateByStoryWorld } from "../../../lib/api/admin";
   import { user } from "../../../lib/stores/auth";
-  import { getRandomTemplateByStoryWorld } from "../../../lib/database/bookTemplates";
 
   let isMobile = false;
   let characterName = "";
@@ -158,9 +158,12 @@
         
         // Get a random book template for the story world
         const templateResult = await getRandomTemplateByStoryWorld(mappedWorld);
-        
-        if (templateResult.error || !templateResult.data?.cover_image) {
+
+        if (!templateResult.success || !templateResult.data?.cover_image) {
           console.warn(`No template found for ${mappedWorld}, cannot generate cover`);
+          if (templateResult.error) {
+            console.warn(`Template lookup error: ${templateResult.error}`);
+          }
           isGeneratingImage = false;
           alert('No book template available for the selected story world. Please contact support.');
           return;

@@ -245,6 +245,52 @@ export async function getTemplates(): Promise<ApiResponse<BookTemplate[]>> {
 }
 
 /**
+ * Get one random book template by story world via backend API.
+ * Uses backend service-level DB access, avoiding frontend RLS visibility issues.
+ */
+export async function getRandomTemplateByStoryWorld(
+  storyWorld: 'forest' | 'underwater' | 'outerspace'
+): Promise<ApiResponse<BookTemplate>> {
+  try {
+    const response = await fetch(
+      `${API_URL}/templates/random?story_world=${encodeURIComponent(storyWorld)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+
+    const result = await response.json();
+    if (!result?.success || !result?.data) {
+      return {
+        success: false,
+        error: result?.error || 'No template data returned'
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Network error'
+    };
+  }
+}
+
+/**
  * Create a new book template
  */
 export async function createTemplate(name: string, storyWorld?: 'forest' | 'underwater' | 'outerspace'): Promise<ApiResponse<BookTemplate>> {
