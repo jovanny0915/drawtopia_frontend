@@ -436,6 +436,79 @@ export async function uploadStoryPages(
 }
 
 /**
+ * Delete a single image field from a template.
+ * Also removes the underlying object from storage on the backend.
+ */
+export async function deleteTemplateImage(
+  templateId: string,
+  fieldKey: 'cover_image' | 'copyright_page_image' | 'dedication_page_image' | 'last_words_page_image' | 'last_story_page_image' | 'back_cover_image'
+): Promise<ApiResponse<BookTemplate>> {
+  try {
+    const response = await fetch(
+      `${API_URL}/admin/templates/${templateId}/image?field_key=${encodeURIComponent(fieldKey)}`,
+      {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+
+    const result = await response.json();
+    return {
+      success: true,
+      data: result.data
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Network error'
+    };
+  }
+}
+
+/**
+ * Delete one story page image by index.
+ * Also removes the underlying object from storage on the backend.
+ */
+export async function deleteStoryPage(
+  templateId: string,
+  pageIndex: number
+): Promise<ApiResponse<BookTemplate>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/templates/${templateId}/story-page/${pageIndex}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+
+    const result = await response.json();
+    return {
+      success: true,
+      data: result.data
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Network error'
+    };
+  }
+}
+
+/**
  * Update template metadata (e.g., remove story pages, update story_world)
  */
 export async function updateTemplate(

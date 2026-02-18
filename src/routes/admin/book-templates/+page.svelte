@@ -7,6 +7,8 @@
     deleteTemplate,
     uploadTemplateImage,
     uploadStoryPage,
+    deleteTemplateImage,
+    deleteStoryPage,
     updateTemplate,
     type BookTemplate,
   } from '$lib/api/admin';
@@ -430,12 +432,6 @@
       return;
     }
 
-    const template = templates.find((t) => t.id === currentTemplateId);
-    if (!template) {
-      alert('Template not found');
-      return;
-    }
-
     const confirmed = confirm(
       uploadModalType === 'single'
         ? 'Delete this scene image from the template?'
@@ -447,21 +443,12 @@
     try {
       let result;
       if (uploadModalType === 'single') {
-        result = await updateTemplate(currentTemplateId, {
-          [currentUploadField]: null
-        } as {
-          cover_image?: string | null;
-          copyright_page_image?: string | null;
-          dedication_page_image?: string | null;
-          last_words_page_image?: string | null;
-          last_story_page_image?: string | null;
-          back_cover_image?: string | null;
-        });
+        result = await deleteTemplateImage(
+          currentTemplateId,
+          currentUploadField as 'cover_image' | 'copyright_page_image' | 'dedication_page_image' | 'last_words_page_image' | 'last_story_page_image' | 'back_cover_image'
+        );
       } else {
-        const nextStoryImages = [...(template.story_page_images || [])].filter((_, idx) => idx !== sceneIndex);
-        result = await updateTemplate(currentTemplateId, {
-          story_page_images: nextStoryImages
-        });
+        result = await deleteStoryPage(currentTemplateId, sceneIndex);
       }
 
       if (!result.success || result.error || !result.data) {
