@@ -217,6 +217,7 @@ export async function getTemplates(): Promise<ApiResponse<BookTemplate[]>> {
   try {
     const response = await fetch(`${API_URL}/admin/templates`, {
       method: 'GET',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json'
       }
@@ -441,13 +442,14 @@ export async function updateTemplate(
   templateId: string,
   updates: {
     name?: string;
-    story_world?: 'forest' | 'underwater' | 'outerspace';
-    cover_image?: string;
-    copyright_page_image?: string;
-    dedication_page_image?: string;
+    story_world?: 'forest' | 'underwater' | 'outerspace' | null;
+    cover_image?: string | null;
+    copyright_page_image?: string | null;
+    dedication_page_image?: string | null;
     story_page_images?: string[];
-    last_story_page_image?: string;
-    back_cover_image?: string;
+    last_words_page_image?: string | null;
+    last_story_page_image?: string | null;
+    back_cover_image?: string | null;
   }
 ): Promise<ApiResponse<BookTemplate>> {
   try {

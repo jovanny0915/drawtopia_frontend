@@ -55,6 +55,9 @@
   let loadError = "";
   let pageCounterText = ""; // Page counter display text
   let currentPageText = ""; // Current page text content
+  let currentStoryPageNumber = -1; // 1-based story page number for non-special pages
+  let showStoryTextOverlay = false; // Show story text on page images (pages 1-5)
+  let isFirstStoryPage = false; // Page 1 uses bottom-right placement
 
   // Dedication and copyright data
   let dedicationText = '';
@@ -806,6 +809,19 @@
       ? storyPages[pageIndex].text
       : '';
   })();
+
+  $: currentStoryPageNumber = (() => {
+    const pageIndex = getStoryPageIndex(currentSceneIndex);
+    return pageIndex >= 0 ? pageIndex + 1 : -1;
+  })();
+
+  $: showStoryTextOverlay =
+    !isSpecialSceneIndex(currentSceneIndex) &&
+    currentStoryPageNumber >= 1 &&
+    currentStoryPageNumber <= 5 &&
+    !!currentPageText?.trim();
+
+  $: isFirstStoryPage = currentStoryPageNumber === 1;
   
   // Toggle fullscreen mode (same as /intersearch/1: fullscreen the story container only)
   function toggleFullscreen() {
@@ -1011,6 +1027,8 @@
                       <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left dedication-blank copyright-page-wrapper" style="position: relative;">
                           <div class="copyright-page-bg" style={copyrightImage ? `background-image: url(${copyrightImage});` : ''}></div>
+                          <div class="center-blur-decoration" aria-hidden="true"></div>
+                          <div class="copyright-page-right-blur" aria-hidden="true"></div>
                           <div class="copyright-page-content">
                             <div class="copyright-page-text-container">
                               <p class="copyright-page-p">This one-of-a-kind adventure story<br />was created just for <b style="font-weight: 800; font-size: 1.2rem;">{copyrightChildName}</b>.</p>
@@ -1023,6 +1041,7 @@
                         </div>
                         <div class="mobile-image-half mobile-image-right dedication-page dedication-page-wrapper">
                           <div class="dedication-page-bg" style={dedicationImage ? `background-image: url(${dedicationImage});` : ''}></div>
+                          <div class="dedication-page-left-blur" aria-hidden="true"></div>
                           <div class="dedication-page-content">
                             <h2 class="dedication-greeting">Dear {copyrightChildName}</h2>
                             {#if dedicationParsed.body}
@@ -1043,6 +1062,7 @@
                         <div class="mobile-image-half mobile-image-left last-words-page-wrapper" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image">
                             <div class="last-words-page-bg" style={lastWordPageImage ? `background-image: url(${lastWordPageImage});` : ''}></div>
+                            <div class="center-blur-decoration" aria-hidden="true"></div>
                             <div class="last-words-page-content">
                               <h2 class="last-words-page-title">A Special Thank You</h2>
                               <p class="last-words-page-body">This magical adventure wouldn't exist without the incredible imagination of {copyrightChildName}. Thank you for sharing your creativity with the world!</p>
@@ -1062,6 +1082,7 @@
                         <div class="mobile-image-half mobile-image-right last-admin-page-wrapper" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image_01" style="position: relative;">
                             <div class="last-admin-page-bg" style={lastAdminPageImage ? `background-image: url(${lastAdminPageImage});` : ''}></div>
+                            <div class="last-admin-page-left-blur" aria-hidden="true"></div>
                             <div style="z-index: 1; display: flex; justify-content: center;">
                               <img src={logo} alt="Drawtopia" class="last-admin-page-logo" style="position: absolute; top: 80px; justify-self: anchor-center;" />
                               <div class="last-admin-page-content">
@@ -1092,6 +1113,7 @@
                           <div class="back-cover-bg" style={backCoverImage ? `background-image: url(${backCoverImage});` : ''}></div>
                           <div class="back-cover-content">
                             <div class="back-cover-title-blur" aria-hidden="true"></div>
+                            <div class="back-cover-bottom-blur" aria-hidden="true"></div>
                             <h1 class="back-cover-title">Drawtopia Makes<br />Every Child a<br />Storyteller</h1>
                             <p class="back-cover-description">At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance - never replace - your child's authentic artwork, turning their imagination into adventures they'll treasure forever.</p>
                             <div class="back-cover-bottom-left">
@@ -1198,6 +1220,12 @@
                                   </div>
                                 </div>
                               </div>
+                              {#if showStoryTextOverlay}
+                                <div class="story-main-text-overlay" class:story-main-text-overlay-top={!isFirstStoryPage} class:story-main-text-overlay-bottom={isFirstStoryPage}>
+                                  <div class="story-main-text-blur-layer"></div>
+                                  <p class="story-main-text">{currentPageText}</p>
+                                </div>
+                              {/if}
                               <div class="inner-shadow"></div>
                             </div>
                           </div>
@@ -1243,6 +1271,12 @@
                                 </div>
                               </div>
                             </div>
+                            {#if showStoryTextOverlay}
+                              <div class="story-main-text-overlay" class:story-main-text-overlay-top={!isFirstStoryPage} class:story-main-text-overlay-bottom={isFirstStoryPage}>
+                                <div class="story-main-text-blur-layer"></div>
+                                <p class="story-main-text">{currentPageText}</p>
+                              </div>
+                            {/if}
                             <div class="inner-shadow"></div>
                           </div>
                         </div>
@@ -1737,10 +1771,6 @@
     width: 32px;
     height: 32px;
     display: block;
-  }
-
-  .fullscreen-nav-btn .arrow-right {
-    /* transform: rotate(180deg); */
   }
 
   .btn-icon-fullscreen {
@@ -2715,6 +2745,55 @@
     background-image: none;
   }
 
+  .story-main-text-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 24px;
+    position: absolute;
+    right: 0;
+    z-index: 3;
+    width: 70%;
+    height: 45%;
+    padding: 50px;
+    pointer-events: none;
+  }
+
+  .story-main-text-overlay-bottom {
+    bottom: 0;
+  }
+
+  .story-main-text-overlay-top {
+    top: 0;
+  }
+
+  .story-main-text-blur-layer {
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    left: calc(50% - 220px / 2);
+    top: calc(50% - 220px / 2);
+    background: #3b778b;
+    filter: blur(70px);
+    z-index: 0;
+  }
+
+  .story-main-text {
+    margin: 0;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 420px;
+    font-family: "Quicksand";
+    font-style: normal;
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 26px;
+    text-align: center;
+    color: #fddac6;
+    overflow: hidden;
+  }
+
   .frame-1410104063 {
     flex-direction: column;
     justify-content: flex-start;
@@ -3370,6 +3449,40 @@
     background-image: linear-gradient(180deg, #1a3540 0%, #152f38 20%, #14323a 40%, #163a3e 60%, #152f36 80%, #1a3540 100%);
   }
 
+  .center-blur-decoration {
+    position: absolute;
+    width: 100%;
+    height: 50%;
+    background: #44789e;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .copyright-page-right-blur {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    right: 0;
+    top: 0;
+    background: linear-gradient(270deg, #44789f 0%, rgba(68, 120, 159, 0) 100%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .dedication-page-left-blur,
+  .last-admin-page-left-blur {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    left: 0;
+    top: 0;
+    background: linear-gradient(270deg, #44789f 0%, rgba(68, 120, 159, 0) 100%);
+    transform: matrix(-1, 0, 0, 1, 0, 0);
+    pointer-events: none;
+    z-index: 1;
+  }
+
   .last-words-page-content{
     position: relative;
     z-index: 1;
@@ -3385,7 +3498,7 @@
 
   .last-admin-page-content {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     text-align: center;
     padding: 2rem 1.75rem;
     max-width: 85%;
@@ -3396,7 +3509,8 @@
   }
 
   .last-admin-page-logo {
-    width: 15rem;
+    z-index: 2;
+    width: 13.5rem;
     height: auto;
     object-fit: contain;
     margin-bottom: 0.25rem;
@@ -3406,13 +3520,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.875rem;
-    padding: 1rem 1.5rem;
+    gap: 0.3rem;
+    padding: 0.85rem 1.2rem;
     background: #438bff;
     color: #ffffff;
     font-family: 'Quicksand', sans-serif;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.95rem;
     line-height: 1.2;
     text-decoration: underline;
     text-decoration-thickness: 1.5px;
@@ -3436,8 +3550,8 @@
   }
 
   .last-admin-page-cta-icon {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.35rem;
+    height: 1.35rem;
     object-fit: contain;
   }
 
@@ -3456,7 +3570,7 @@
   .last-admin-page-title {
     font-family: 'Quicksand', sans-serif;
     font-weight: 700;
-    font-size: 2.5rem;
+    font-size: 2.25rem;
     line-height: 1.3;
     color: #ffffff;
     margin: 0;
@@ -3467,7 +3581,7 @@
   .last-admin-page-body {
     font-family: 'Quicksand', sans-serif;
     font-weight: 400;
-    font-size: 1.1rem;
+    font-size: 1rem;
     line-height: 1.6;
     color: rgba(255, 255, 255, 0.95);
     margin: 0;
@@ -3487,7 +3601,7 @@
   .last-admin-page-tagline {
     font-family: 'Quicksand', sans-serif;
     font-weight: 400;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     line-height: 1.5;
     color: rgba(255, 255, 255, 0.95);
     margin: 0;
@@ -3534,29 +3648,47 @@
 
   .back-cover-title-blur {
     position: absolute;
-    top: 0.4rem;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 88%;
-    height: 48%;
-    background: linear-gradient(180deg, rgba(91, 153, 175, 0.88) 0%, rgba(91, 153, 175, 0) 100%);
-    filter: blur(50px);
-    pointer-events: none;
     width: 100%;
-    z-index: -1;
+    height: 40%;
+    /* left: calc(50% - 2550px / 2); */
+    top: 0;
+    background: linear-gradient(180.18deg, #5b99af 0.15%, rgba(91, 153, 175, 0) 99.84%);
+    backdrop-filter: blur(0px);
+    pointer-events: none;
+    z-index: -2;
+  }
+
+  .back-cover-bottom-blur {
+    position: absolute;
+    width: 100%;
+    height: 40%;
+    /* left: calc(50% - 2550px / 2); */
+    bottom: 0;
+    background: linear-gradient(180.18deg, #5b99af 0.15%, rgba(91, 153, 175, 0) 99.84%);
+    backdrop-filter: blur(0px);
+    transform: matrix(1, 0, 0, -1, 0, 0);
+    pointer-events: none;
+    z-index: -2;
   }
 
   .back-cover-title {
     font-family: 'Quicksand', sans-serif;
-    font-weight: 800;
-    font-size: clamp(2rem, 5vw, 2.75rem);
-    line-height: 1.2;
+    font-style: normal;
+    font-weight: 700;
+    font-size: clamp(0.8rem, 3.3vw, 3.5rem);
+    line-height: 100%;
     color: #ffffff;
     text-align: center;
+    width: 100%;
+    align-self: stretch;
+    order: 0;
+    flex-grow: 0;
+    flex: none;
     margin: 0.75rem 0 1.25rem;
     letter-spacing: -0.02em;
-    -webkit-text-stroke: clamp(8px, 1.2vw, 20px) #1c596f;
+    -webkit-text-stroke: clamp(2.6px, 0.58vw, 10px) #1c596f;
     paint-order: stroke fill;
+    text-shadow: 0 0 70px rgba(255, 255, 255, 0.9), 0 0 150px rgba(255, 255, 255, 0.95), 0 9px 0 rgba(15, 10, 59, 0.5);
   }
 
   .back-cover-description {

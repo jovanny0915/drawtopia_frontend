@@ -6,6 +6,7 @@
     createTemplate,
     deleteTemplate,
     uploadTemplateImage,
+    uploadStoryPage,
     updateTemplate,
     type BookTemplate,
   } from '$lib/api/admin';
@@ -25,7 +26,11 @@
   let currentTemplateName: string = '';
   let selectedFiles: File[] = [];
   let previewUrls: string[] = [];
+  let existingUploadUrls: string[] = [];
+  let modalFileInput: HTMLInputElement | null = null;
+  let targetStoryPageIndex: number | null = null;
   let uploadInProgress = false;
+  let deletingSceneInProgress = false;
 
   // Track pending changes per template (only for story_world now)
   let pendingChanges: Map<string, {
@@ -68,23 +73,32 @@
 
   // Open upload modal for single image
   function openSingleImageUploadModal(templateId: string, fieldKey: string, templateName: string) {
+    const template = templates.find((t) => t.id === templateId);
+    const currentUrl = template?.[fieldKey as keyof BookTemplate];
+
     currentTemplateId = templateId;
     currentUploadField = fieldKey;
     currentTemplateName = templateName;
     uploadModalType = 'single';
     selectedFiles = [];
     previewUrls = [];
+    targetStoryPageIndex = null;
+    existingUploadUrls = typeof currentUrl === 'string' && currentUrl ? [currentUrl] : [];
     showUploadModal = true;
   }
 
   // Open upload modal for story pages (multiple images)
   function openMultipleImageUploadModal(templateId: string, templateName: string) {
+    const template = templates.find((t) => t.id === templateId);
+
     currentTemplateId = templateId;
     currentUploadField = 'story_page_images';
     currentTemplateName = templateName;
     uploadModalType = 'multiple';
     selectedFiles = [];
     previewUrls = [];
+    targetStoryPageIndex = null;
+    existingUploadUrls = template?.story_page_images || [];
     showUploadModal = true;
   }
 
@@ -99,6 +113,8 @@
     currentTemplateName = '';
     selectedFiles = [];
     previewUrls = [];
+    targetStoryPageIndex = null;
+    existingUploadUrls = [];
   }
 
   // Handle file selection in upload modal
@@ -106,8 +122,10 @@
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
 
-    // Clear existing selections for single mode
-    if (uploadModalType === 'single') {
+    const isReplacingStoryScene = uploadModalType === 'multiple' && targetStoryPageIndex !== null;
+
+    // Clear existing selections for single mode or replace mode
+    if (uploadModalType === 'single' || isReplacingStoryScene) {
       previewUrls.forEach(url => URL.revokeObjectURL(url));
       selectedFiles = [];
       previewUrls = [];
@@ -123,8 +141,8 @@
         continue;
       }
 
-      // For single mode, only take the first file
-      if (uploadModalType === 'single' && selectedFiles.length > 0) {
+      // For single mode or replace mode, only take the first file
+      if ((uploadModalType === 'single' || isReplacingStoryScene) && selectedFiles.length > 0) {
         break;
       }
 
@@ -140,15 +158,6 @@
     input.value = '';
   }
 
-  // Remove file from modal selection
-  function removeModalFile(index: number) {
-    URL.revokeObjectURL(previewUrls[index]);
-    selectedFiles.splice(index, 1);
-    previewUrls.splice(index, 1);
-    selectedFiles = selectedFiles;
-    previewUrls = previewUrls;
-  }
-
   // Handle upload from modal
   async function handleModalUpload() {
     if (selectedFiles.length === 0) {
@@ -161,6 +170,7 @@
     try {
       const template = templates.find(t => t.id === currentTemplateId);
       if (!template) throw new Error('Template not found');
+      let updatedTemplate: BookTemplate | undefined;
 
       if (uploadModalType === 'single') {
         // Upload single image
@@ -185,14 +195,16 @@
           throw new Error(result.error || 'Upload failed');
         }
 
+        updatedTemplate = result.data;
         alert('Image uploaded successfully!');
       } else {
         // Upload multiple story pages
         const existingImages = template.story_page_images || [];
-        
-        for (let i = 0; i < selectedFiles.length; i++) {
-          const file = selectedFiles[i];
-          const pageIndex = existingImages.length + i;
+        const isReplaceMode = targetStoryPageIndex !== null;
+
+        if (isReplaceMode) {
+          const file = selectedFiles[0];
+          const pageIndex = targetStoryPageIndex as number;
 
           // Optimize image
           const optimized = await optimizeImage(file, {
@@ -202,7 +214,6 @@
             format: 'webp'
           });
 
-          const { uploadStoryPage } = await import('$lib/api/admin');
           const result = await uploadStoryPage(
             currentTemplateId,
             optimized.file,
@@ -211,18 +222,52 @@
           );
 
           if (!result.success || result.error) {
-            throw new Error(`Failed to upload image ${i + 1}: ${result.error}`);
+            throw new Error(result.error || 'Failed to replace story scene');
           }
-        }
 
-        alert(`${selectedFiles.length} story page(s) uploaded successfully!`);
+          updatedTemplate = result.data;
+          alert(`Story scene #${pageIndex + 1} replaced successfully!`);
+        } else {
+          for (let i = 0; i < selectedFiles.length; i++) {
+            const file = selectedFiles[i];
+            const pageIndex = existingImages.length + i;
+
+            // Optimize image
+            const optimized = await optimizeImage(file, {
+              maxWidth: 2048,
+              maxHeight: 2048,
+              quality: 0.9,
+              format: 'webp'
+            });
+
+            const result = await uploadStoryPage(
+              currentTemplateId,
+              optimized.file,
+              template.name,
+              pageIndex
+            );
+
+            if (!result.success || result.error) {
+              throw new Error(`Failed to upload image ${i + 1}: ${result.error}`);
+            }
+
+            updatedTemplate = result.data;
+          }
+
+          alert(`${selectedFiles.length} story page(s) uploaded successfully!`);
+        }
       }
+
+      // Refresh uploaded row immediately for responsive UI.
+      if (updatedTemplate) {
+        refreshTemplateRow(updatedTemplate);
+      }
+
+      // Close modal first, then refresh table from server.
+      closeUploadModal();
 
       // Reload templates to show updated data
       await loadTemplates();
-      
-      // Close modal
-      closeUploadModal();
     } catch (err: any) {
       console.error('Upload error:', err);
       alert(`Upload failed: ${err.message}`);
@@ -327,6 +372,118 @@
       return changes.story_world || undefined;
     }
     return actualWorld;
+  }
+
+  function getUploadFieldDisplayName(fieldKey: string): string {
+    return fieldKey.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function triggerModalFilePicker(storyPageIndex: number | null = null) {
+    if (uploadInProgress || deletingSceneInProgress) return;
+    if (uploadModalType === 'multiple') {
+      targetStoryPageIndex = storyPageIndex;
+    }
+    modalFileInput?.click();
+  }
+
+  function getModalSceneUrls(): string[] {
+    if (previewUrls.length === 0) {
+      return existingUploadUrls;
+    }
+
+    if (uploadModalType === 'multiple' && targetStoryPageIndex !== null && previewUrls[0]) {
+      const merged = [...existingUploadUrls];
+      merged[targetStoryPageIndex] = previewUrls[0];
+      return merged;
+    }
+
+    return previewUrls;
+  }
+
+  function addCacheBuster(url?: string, stamp: number = Date.now()): string | undefined {
+    if (!url) return undefined;
+    return `${url}${url.includes('?') ? '&' : '?'}v=${stamp}`;
+  }
+
+  function withRefreshedImageUrls(template: BookTemplate, stamp: number = Date.now()): BookTemplate {
+    return {
+      ...template,
+      cover_image: addCacheBuster(template.cover_image, stamp),
+      copyright_page_image: addCacheBuster(template.copyright_page_image, stamp),
+      dedication_page_image: addCacheBuster(template.dedication_page_image, stamp),
+      last_words_page_image: addCacheBuster(template.last_words_page_image, stamp),
+      last_story_page_image: addCacheBuster(template.last_story_page_image, stamp),
+      back_cover_image: addCacheBuster(template.back_cover_image, stamp),
+      story_page_images: (template.story_page_images || []).map((url) => addCacheBuster(url, stamp) || '')
+    };
+  }
+
+  function refreshTemplateRow(updatedTemplate: BookTemplate) {
+    const refreshed = withRefreshedImageUrls(updatedTemplate);
+    templates = templates.map((template) => (template.id === refreshed.id ? refreshed : template));
+  }
+
+  async function handleDeleteScene(sceneIndex: number) {
+    if (uploadInProgress || deletingSceneInProgress) return;
+    if (previewUrls.length > 0) {
+      alert('Please upload or clear your new selection first before deleting current scene.');
+      return;
+    }
+
+    const template = templates.find((t) => t.id === currentTemplateId);
+    if (!template) {
+      alert('Template not found');
+      return;
+    }
+
+    const confirmed = confirm(
+      uploadModalType === 'single'
+        ? 'Delete this scene image from the template?'
+        : `Delete story scene #${sceneIndex + 1} from this template?`
+    );
+    if (!confirmed) return;
+
+    deletingSceneInProgress = true;
+    try {
+      let result;
+      if (uploadModalType === 'single') {
+        result = await updateTemplate(currentTemplateId, {
+          [currentUploadField]: null
+        } as {
+          cover_image?: string | null;
+          copyright_page_image?: string | null;
+          dedication_page_image?: string | null;
+          last_words_page_image?: string | null;
+          last_story_page_image?: string | null;
+          back_cover_image?: string | null;
+        });
+      } else {
+        const nextStoryImages = [...(template.story_page_images || [])].filter((_, idx) => idx !== sceneIndex);
+        result = await updateTemplate(currentTemplateId, {
+          story_page_images: nextStoryImages
+        });
+      }
+
+      if (!result.success || result.error || !result.data) {
+        throw new Error(result.error || 'Failed to delete scene image');
+      }
+
+      refreshTemplateRow(result.data);
+      if (uploadModalType === 'single') {
+        existingUploadUrls = [];
+      } else {
+        existingUploadUrls = result.data.story_page_images || [];
+      }
+
+      closeUploadModal();
+      await loadTemplates();
+      alert('Scene deleted successfully!');
+    } catch (err: any) {
+      console.error('Delete scene error:', err);
+      alert(`Delete failed: ${err.message}`);
+    } finally {
+      deletingSceneInProgress = false;
+    }
   }
 </script>
 
@@ -609,80 +766,107 @@
       <div class="modal-header">
         <h2>
           {#if uploadModalType === 'single'}
-            Upload Image
+            Enchanted Image Chamber
           {:else}
-            Upload Story Page Images
+            Story Gallery Portal
           {/if}
         </h2>
-        <button class="close-btn" on:click={closeUploadModal} disabled={uploadInProgress}>
+        <button class="close-btn" on:click={closeUploadModal} disabled={uploadInProgress || deletingSceneInProgress}>
           <X size={24} />
         </button>
       </div>
       <div class="modal-body upload-modal-body">
         <div class="upload-info">
           <p><strong>Template:</strong> {currentTemplateName}</p>
-          <p><strong>Field:</strong> {currentUploadField.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+          <p><strong>Field:</strong> {getUploadFieldDisplayName(currentUploadField)}</p>
+          <p class="upload-hint">
+            {#if uploadModalType === 'single'}
+              Replace the current image or choose a new one to begin.
+            {:else}
+              Add more story pages in order. Existing pages remain untouched.
+            {/if}
+          </p>
         </div>
 
-        <!-- File Input -->
-        <div class="file-input-wrapper">
-          <input
-            type="file"
-            accept="image/*"
-            multiple={uploadModalType === 'multiple'}
-            on:change={handleModalFileSelect}
-            disabled={uploadInProgress}
-            id="modal-file-input"
-            style="display: none;"
-          />
-          <label for="modal-file-input" class="file-input-label" class:disabled={uploadInProgress}>
-            <Plus size={24} />
-            Select Image{uploadModalType === 'multiple' ? 's' : ''}
-          </label>
+        <div class="current-upload-section">
+          <div class="section-title">
+            {#if previewUrls.length > 0}
+              New Scene Preview
+            {:else}
+              Current Uploaded Image{uploadModalType === 'multiple' ? 's' : ''}
+            {/if}
+          </div>
+          {#if getModalSceneUrls().length > 0}
+            <div class="preview-grid current-grid" class:single={uploadModalType === 'single'}>
+              {#each getModalSceneUrls() as url, index}
+                <div class="preview-item current-preview-item">
+                  <img src={url} alt="Scene image {index + 1}" class="preview-image" />
+                  {#if !(uploadInProgress || deletingSceneInProgress)}
+                    <button
+                      class="scene-change-btn on-image"
+                      on:click={() => triggerModalFilePicker(uploadModalType === 'multiple' ? index : null)}
+                      title="Change scene image"
+                    >
+                      Change Scene
+                    </button>
+                  {/if}
+                  {#if !(uploadInProgress || deletingSceneInProgress) && previewUrls.length === 0}
+                    <button
+                      class="scene-delete-btn on-image-delete"
+                      on:click={() => handleDeleteScene(index)}
+                      title="Delete this scene image"
+                    >
+                      Delete Scene
+                    </button>
+                  {/if}
+                  {#if uploadModalType === 'multiple'}
+                    <div class="preview-number current-number">#{index + 1}</div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="no-selection current-empty-state scene-empty-card">
+              <p>No image uploaded yet for this slot.</p>
+              <button
+                class="scene-change-btn"
+                on:click={() => triggerModalFilePicker(null)}
+                disabled={uploadInProgress || deletingSceneInProgress}
+              >
+                Change Scene
+              </button>
+            </div>
+          {/if}
         </div>
 
-        <!-- Preview Grid -->
-        {#if previewUrls.length > 0}
-          <div class="preview-grid" class:single={uploadModalType === 'single'}>
-            {#each previewUrls as url, index}
-              <div class="preview-item">
-                <img src={url} alt="Preview {index + 1}" class="preview-image" />
-                {#if !uploadInProgress}
-                  <button
-                    class="remove-preview-btn"
-                    on:click={() => removeModalFile(index)}
-                    title="Remove image"
-                  >
-                    <X size={20} />
-                  </button>
-                {/if}
-                {#if uploadModalType === 'multiple'}
-                  <div class="preview-number">{index + 1}</div>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <div class="no-selection">
-            <p>No images selected yet</p>
-          </div>
-        {/if}
+        <!-- Hidden File Input -->
+        <input
+          bind:this={modalFileInput}
+          type="file"
+          accept="image/*"
+          multiple={uploadModalType === 'multiple' && targetStoryPageIndex === null}
+          on:change={handleModalFileSelect}
+          disabled={uploadInProgress || deletingSceneInProgress}
+          style="display: none;"
+        />
       </div>
       <div class="modal-footer">
         <button 
           class="btn btn-secondary" 
           on:click={closeUploadModal}
-          disabled={uploadInProgress}
+          disabled={uploadInProgress || deletingSceneInProgress}
         >
           Cancel
         </button>
         <button 
           class="btn btn-primary upload-btn" 
           on:click={handleModalUpload}
-          disabled={uploadInProgress || selectedFiles.length === 0}
+          disabled={uploadInProgress || deletingSceneInProgress || selectedFiles.length === 0}
         >
           {#if uploadInProgress}
             Uploading...
+          {:else if deletingSceneInProgress}
+            Deleting...
           {:else}
             Upload ({selectedFiles.length})
           {/if}
@@ -1127,6 +1311,14 @@
   /* Upload Modal Styles */
   .upload-modal {
     max-width: 700px;
+    background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 45%),
+      radial-gradient(circle at top left, rgba(167, 139, 250, 0.12), transparent 40%),
+      #ffffff;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    box-shadow:
+      0 24px 60px rgba(15, 23, 42, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 
   .upload-modal-body {
@@ -1135,10 +1327,11 @@
   }
 
   .upload-info {
-    background: #f9fafb;
-    padding: 1rem;
-    border-radius: 0.5rem;
+    background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
+    padding: 1rem 1.125rem;
+    border-radius: 0.75rem;
     margin-bottom: 1rem;
+    border: 1px solid rgba(99, 102, 241, 0.25);
   }
 
   .upload-info p {
@@ -1147,34 +1340,119 @@
     color: #374151;
   }
 
-  .file-input-wrapper {
-    margin-bottom: 1.5rem;
-  }
-
-  .file-input-label {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1rem;
-    border: 2px dashed #d1d5db;
-    border-radius: 0.5rem;
-    background: #f9fafb;
-    cursor: pointer;
-    transition: all 0.2s;
+  .upload-hint {
+    color: #4338ca;
     font-weight: 600;
-    color: #374151;
+    margin-top: 0.5rem;
   }
 
-  .file-input-label:hover:not(.disabled) {
-    border-color: #1e40af;
-    background: #eff6ff;
-    color: #1e40af;
+  .section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4338ca;
+    margin-bottom: 0.625rem;
   }
 
-  .file-input-label.disabled {
+  .current-upload-section {
+    margin-bottom: 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid #e0e7ff;
+    background: #f8faff;
+    padding: 0.9rem;
+  }
+
+  .current-grid {
+    margin-top: 0.25rem;
+  }
+
+  .current-preview-item {
+    border-color: #c7d2fe;
+  }
+
+  .current-number {
+    background: rgba(67, 56, 202, 0.88);
+  }
+
+  .current-empty-state {
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+    border: 1px dashed #c7d2fe;
+    background: #f5f3ff;
+  }
+
+  .scene-empty-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .scene-change-btn {
+    border: none;
+    background: linear-gradient(135deg, #4338ca 0%, #2563eb 100%);
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 0.5rem 0.95rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.25);
+  }
+
+  .scene-change-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
+  }
+
+  .scene-change-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .scene-change-btn.on-image {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    backdrop-filter: blur(3px);
+    background: rgba(30, 64, 175, 0.92);
+    border: 1px solid rgba(191, 219, 254, 0.8);
+    z-index: 3;
+  }
+
+  .scene-change-btn.on-image:hover:not(:disabled) {
+    transform: translate(-50%, calc(-50% - 1px));
+  }
+
+  .scene-delete-btn {
+    border: 1px solid rgba(252, 165, 165, 0.8);
+    background: rgba(185, 28, 28, 0.9);
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 0.38rem 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.015em;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    z-index: 3;
+  }
+
+  .scene-delete-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(153, 27, 27, 0.95);
+  }
+
+  .on-image-delete {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
   }
 
   .preview-grid {
@@ -1202,27 +1480,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-
-  .remove-preview-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    background: rgba(220, 38, 38, 0.9);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .remove-preview-btn:hover {
-    background: rgba(220, 38, 38, 1);
   }
 
   .preview-number {

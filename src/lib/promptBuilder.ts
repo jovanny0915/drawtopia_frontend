@@ -609,6 +609,8 @@ function replaceStoryScenePlaceholders(
   options: StoryScenePromptOptions
 ): string {
   let result = template;
+  const resolvedSceneDescription = options.pageSceneDescription || '';
+  const resolvedCharacterAction = options.pageCharacterAction || '';
   
   result = result.replace(/\{character_name\}/g, options.characterName);
   result = result.replace(/\{character_type\}/g, options.characterType);
@@ -618,8 +620,14 @@ function replaceStoryScenePlaceholders(
   result = result.replace(/\{adventure_type\}/g, options.adventureType);
   result = result.replace(/\{age_group\}/g, options.ageGroup);
   result = result.replace(/\{story_title\}/g, options.storyTitle);
+  // Support both snake_case and camelCase placeholders for compatibility.
   result = result.replace(/\{page_number\}/g, String(options.pageNumber));
+  result = result.replace(/\{pageNumber\}/g, String(options.pageNumber));
   result = result.replace(/\{story_page_text\}/g, options.pageText);
+  result = result.replace(/\{storyText\}/g, options.pageText);
+  result = result.replace(/\{sceneDescription\}/g, resolvedSceneDescription);
+  result = result.replace(/\{storyDescription\}/g, resolvedSceneDescription);
+  result = result.replace(/\{characterAction\}/g, resolvedCharacterAction);
 
   
   return result;

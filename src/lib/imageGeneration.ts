@@ -832,7 +832,11 @@ INSTRUCTIONS:
 4. Ensure the character is well-integrated with the background (proper lighting, shadows, scale)
 5. Keep the overall composition balanced and appealing for a children's book cover
 6. The character should be prominent but not overwhelming
-7. Preserve any text or decorative elements from the template if present
+7. Preserve all text and decorative elements from the template exactly as they are
+8. Keep the template image unchanged: preserve original composition, background, colors, textures, and illustration style
+9. Do NOT redraw, restyle, regenerate, repaint, or replace the template scene
+10. Do NOT add, remove, or move existing template elements
+11. Limit edits to character placement plus minimal local overlap and contact shadows only
 
 Style: ${charStyle} illustration style
 Target Age Group: ${age}
@@ -937,7 +941,12 @@ OUTPUT REQUIREMENTS:
 3.  Title Overlay:
     *   Add title "${title}" prominently top.
     *   Style title legibly, fitting ${charStyle} children's book aesthetic, integrated into design.
-4.  Template Elements: Preserve non-conflicting template decorations and atmospheric effects.
+4.  Template Preservation:
+    *   Keep the template scene unchanged: preserve original composition, background, props, colors, textures, and illustration style.
+    *   Preserve all existing template decorations and atmospheric effects exactly.
+    *   Do NOT redraw, restyle, regenerate, repaint, or replace the template scene.
+    *   Do NOT add, remove, or move existing template elements.
+    *   Limit edits to character placement plus minimal local overlap and contact shadows only.
 5.  Dimensions: Final image must match exact width and height of the background template.
 
 GENERATE THE BOOK COVER.`;
