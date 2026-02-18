@@ -13,6 +13,7 @@
  */
 
 import { supabase } from '../supabase';
+import { env } from '../env';
 
 export interface BookTemplate {
   id: string;
@@ -100,6 +101,34 @@ export async function deleteBookTemplate(
 export async function getRandomTemplateByStoryWorld(
   storyWorld: 'forest' | 'underwater' | 'outerspace'
 ): Promise<{ data: BookTemplate | null; error: string | null }> {
+  // Prefer backend lookup so production does not depend on frontend RLS visibility.
+  try {
+    const response = await fetch(
+      `${env.API_BASE_URL}/templates/random?story_world=${encodeURIComponent(storyWorld)}`,
+      {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result?.success && result?.data?.cover_image) {
+        return { data: result.data as BookTemplate, error: null };
+      }
+      if (result?.error) {
+        return { data: null, error: result.error as string };
+      }
+    } else {
+      const errorBody = await response.json().catch(() => null);
+      const errorMessage = errorBody?.detail || `HTTP ${response.status}: ${response.statusText}`;
+      console.warn(`Backend template lookup failed: ${errorMessage}`);
+    }
+  } catch (backendError) {
+    console.warn('Backend template lookup unavailable, falling back to Supabase client query:', backendError);
+  }
+
+  // Fallback for local/dev environments where direct Supabase client access is available.
   const { data, error } = await supabase
     .from('book_templates')
     .select('*')
