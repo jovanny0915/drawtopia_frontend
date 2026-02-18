@@ -49,6 +49,7 @@
   let audioProgress = 0;
   let audioDuration = 0;
   let audioCurrentTime = 0;
+  let shareAudioIndex = -1;
 
   // Load story data from load() when available, otherwise fetch in onMount
   onMount(async () => {
@@ -292,6 +293,15 @@
   function getStoryPageIndex(sceneIndex: number): number {
     if (isSpecialSceneIndex(sceneIndex)) return -1;
     return sceneIndex - (hasDedication ? 2 : 1);
+  }
+
+  // Keep audio index in sync with scene and story structure changes.
+  $: {
+    currentSceneIndex;
+    storyScenes;
+    hasDedication;
+    backCoverImage;
+    shareAudioIndex = getStoryPageIndex(currentSceneIndex);
   }
 
   function toggleAudio() {
@@ -622,7 +632,6 @@
         </div>
       {/if} -->
 
-      {@const shareAudioIndex = getStoryPageIndex(currentSceneIndex)}
       {#if shareAudioIndex >= 0 && audioUrls[shareAudioIndex]}
         <div class="audio-controls">
           <div class="audio-header">

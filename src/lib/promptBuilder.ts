@@ -626,7 +626,6 @@ function replaceStoryScenePlaceholders(
   result = result.replace(/\{story_page_text\}/g, options.pageText);
   result = result.replace(/\{storyText\}/g, options.pageText);
   result = result.replace(/\{sceneDescription\}/g, resolvedSceneDescription);
-  result = result.replace(/\{storyDescription\}/g, resolvedSceneDescription);
   result = result.replace(/\{characterAction\}/g, resolvedCharacterAction);
 
   
