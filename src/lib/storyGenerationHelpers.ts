@@ -6,6 +6,7 @@
 import prompt2Data from './prompt1.json';
 import type { BookTemplate } from './database/bookTemplates';
 import { env, LOGO_PATH } from './env';
+import { buildStoryScenePrompt } from './promptBuilder';
 
 /** Text block for overlay API: text, font_size, color_hex, y_position, alignment, shadow */
 export interface TextBlockOverlay {
@@ -34,17 +35,92 @@ export function replacePlaceholders(text: string, replacements: { [key: string]:
 /**
  * Build story page prompt with story text, character action, and scene description
  */
+/** Temporary fixed prompt for main story page (page 1) on /adventure-story/loading. Set to null to use prompt builder again. */
+const TEMP_MAIN_STORY_PAGE_PROMPT: string | null =
+  "Replace the main character of attached template image with the main character of reference image. The replaced character should precisely match the pose, action, and emotions of the original main character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).";
+
+const PAGE_ALLY_CHARACTER_PROMPTS: { [key: number]: string } = {
+  1: "Ally character - {fox} should be not in this image.",
+  2: "Ally character - {fox} should be not removed in this image.",
+  3: "Ally character - {fox} should be not removed in this image.",
+  4: "Ally character - {fox} should be not removed in this image.",
+  5: "Ally character - {fix} should be not removed in this image."
+};
+
+const PAGE_MAIN_CHARACTER_POSE_ACTION_EMOTION_PROMPTS: { [key: number]: string } = {
+  1: "The character stands in a magical treehouse dwelling. The character's hands gently cupped as if holding or observing something delicate. And he/she seems to look at us. The placement of character stands in the a slightly left from center.",
+  2: "A bright-eyed, the adventurous character stands smiling at the stone entrance to a magical, glowing forest path. The character's ready for the journey, accompanied by a friendly ally character.",
+  3: "The character and fox ally companion character pause on a mossy stone path in a deeply enchanted, twilight forest. The character looks on with wide-eyed curiosity and a touch of awe, one hand slightly raised.",
+  4: "The character stands in a powerful, slightly crouched pose on a mystical forest path, actively casting a swirling, blue-green magic from he/her outstretched hand. The character's gaze is intensely focused forward. The character stands in the left of fox companion character.",
+  5: "The warm and welcoming character stands confidently on a cobblestone path before the open, ornate gates of a magnificent, brightly lit castle at night. With a radiant smile and open hands, the character gestures invitingly, accompanied by the character's happy fox companion. The character should stand on the left to the fox on my perspective."
+};
+
+function appendPageSpecificStoryRules(basePrompt: string, pageNumber: number): string {
+  const allyPrompt = PAGE_ALLY_CHARACTER_PROMPTS[pageNumber];
+  const posePrompt = PAGE_MAIN_CHARACTER_POSE_ACTION_EMOTION_PROMPTS[pageNumber];
+  const sections: string[] = [basePrompt];
+
+  if (allyPrompt) {
+    sections.push(`PAGE-SPECIFIC ALLY CHARACTER RULE:\n- ${allyPrompt}`);
+  }
+  if (posePrompt) {
+    sections.push(`PAGE-SPECIFIC MAIN CHARACTER POSE/ACTION/EMOTION RULE:\n- ${posePrompt}`);
+  }
+
+  return sections.join('\n\n');
+}
+
 export function buildStoryPagePrompt(
   pageNumber: number,
   storyText: string,
   characterAction: string,
-  sceneDescription: string
+  sceneDescription: string,
+  options: {
+    characterName: string;
+    characterType: string;
+    specialAbility: string;
+    characterStyle: '3d' | 'cartoon' | 'anime';
+    storyWorld: string;
+    adventureType: string;
+    ageGroup: string;
+    storyTitle: string;
+    characterImageUrl: string;
+  }
 ): string {
-  return prompt2Data.generateStoryScene.basePrompt
-    .replace('{pageNumber}', pageNumber.toString())
-    .replace('{storyText}', storyText)
-    .replace('{characterAction}', characterAction)
-    .replace('{sceneDescription}', sceneDescription);
+  // TEMPORARY: use fixed prompt for main story page (page 1) on /adventure-story/loading.
+  // Prompt builder and logic below are unchanged; unset TEMP_MAIN_STORY_PAGE_PROMPT (set to null) to use them again for page 1.
+  // if (pageNumber === 1 && TEMP_MAIN_STORY_PAGE_PROMPT != null) {
+  if (TEMP_MAIN_STORY_PAGE_PROMPT != null) {
+    return appendPageSpecificStoryRules(TEMP_MAIN_STORY_PAGE_PROMPT, pageNumber);
+  }
+
+  const derivedEmotion = generateCharacterEmotion(pageNumber, storyText);
+  const derivedAtmosphere = generateAtmosphereDescription(pageNumber, storyText);
+  const enrichedSceneDescription = `${sceneDescription}. Atmosphere: ${derivedAtmosphere}`;
+
+  const prompt = buildStoryScenePrompt({
+    characterName: options.characterName,
+    characterType: options.characterType,
+    specialAbility: options.specialAbility,
+    characterStyle: options.characterStyle,
+    storyWorld: options.storyWorld,
+    adventureType: options.adventureType,
+    ageGroup: options.ageGroup,
+    storyTitle: options.storyTitle,
+    pageNumber,
+    pageText: storyText,
+    pageSceneDescription: enrichedSceneDescription,
+    pageCharacterAction: characterAction,
+    pageEmotion: derivedEmotion,
+    companionCharacters: 'Fox',
+    characterImageUrl: options.characterImageUrl,
+    characterPlacement: 'left-half'
+  });
+
+  return appendPageSpecificStoryRules(
+    `${prompt}\n\nTEMPLATE LOCK (HIGHEST PRIORITY):\n- Keep the provided template artwork structurally unchanged.\n- Do not redesign background layout, props, perspective, camera, or composition.\n- If any instruction conflicts with template preservation, preserve the template and adapt only character integration.\n- Mood/style updates must be subtle and global (light/tone/color grading), not repainting.\n\nSTORY-TO-SCENE MAPPING (SECOND PRIORITY):\n- Use the exact page story text as the source of truth for action, emotion, and atmosphere.\n- Keep expressions, body language, and lighting aligned with this page's emotional beat.\n- If the story text implies calm or sleep, prefer gentle, natural poses over exaggerated action.\n\nPAGE STORY TEXT (SOURCE OF TRUTH):\n${storyText}\n\nSCENE SIGNALS DERIVED FROM STORY:\n- Character Action: ${characterAction}\n- Character Emotion: ${derivedEmotion}\n- Atmosphere: ${derivedAtmosphere}\n\nPOSE CONSTRAINTS:\n- Avoid static front-facing, T-pose, idle, or reference-sheet poses.\n- Use movement and posture that match the story beat (active, gentle, or sleepy as needed).\n- Body language and facial expression must reinforce the page emotion.\n\nFACIAL CONSISTENCY (CRITICAL ACROSS PAGES 1-5):\n- Keep the same core facial features from the reference in every story scene (face shape, eyes, eyebrows, nose, mouth, ears).\n- Do not add, remove, or swap facial features between pages (example: if the character has a visible nose, it must remain visible in all main story scenes).\n- Maintain recognizable facial proportions and feature placement while only changing expression for the page emotion.\n\nCOMPANION CONSTRAINTS:\n- Always include the fox companion with the main character in every story scene page (1-5).\n- The fox companion should be clearly visible and naturally interacting with the main character.\n\nLAYOUT CONSTRAINTS:\n- Always position the main character on the LEFT HALF of the page scene (for story pages 1-5).\n- Keep the character fully within the left half and preserve template composition.`,
+    pageNumber
+  );
 }
 
 /**
@@ -136,16 +212,95 @@ export function buildBackCoverPrompt(): string {
 /**
  * Generate action descriptions based on page number and story context
  */
-export function generateCharacterAction(pageNumber: number, storyWorld: string): string {
+export function generateCharacterAction(pageNumber: number, storyWorld: string, storyText?: string): string {
+  const worldKey = (storyWorld || '').toLowerCase();
+  const worldMotion = worldKey.includes('underwater') ? 'swimming' : worldKey.includes('space') ? 'floating and maneuvering' : 'running';
   const actions: { [key: number]: string } = {
-    1: "Character is discovering or entering a new world, looking curious and excited",
-    2: "Character is exploring and observing the environment, engaged and attentive",
-    3: "Character is actively involved in the adventure, showing determination",
-    4: "Character is using their special ability or solving the main challenge, confident and heroic",
-    5: "Character is celebrating success or reflecting on their journey, happy and fulfilled"
+    1: "Character is discovering or entering a new world with forward movement and curious body language",
+    2: `Character is exploring the environment with active ${worldMotion} motion`,
+    3: "Character is actively overcoming an obstacle in a dynamic mid-action pose (not static)",
+    4: "Character is using their special ability to solve the main challenge in a powerful action pose",
+    5: "Character is celebrating success or reflecting warmly with expressive movement"
   };
-  
-  return actions[pageNumber] || "Character is actively participating in the scene";
+
+  const fallback = actions[pageNumber] || "Character is actively participating in the scene with clear movement";
+
+  if (!storyText || storyText.trim().length === 0) {
+    return fallback;
+  }
+
+  // Prefer a concrete action sentence from the page text when available.
+  const actionSentence = storyText
+    .split(/[.!?]/)
+    .map((s) => s.trim())
+    .find((s) => /(run|running|jump|jumping|climb|climbing|fly|flying|swim|swimming|use|using|open|opening|reach|reaching|rescue|help|helping|solve|solving|search|find|finding|follow|following|hold|holding|push|pull|dodge|celebrate|celebrating|breathe|breathing|settle|settling|nestle|nestled|relax|relaxing|drift|drifting|sleep|sleeping|rest|resting|whisper|whispering)/i.test(s));
+
+  if (!actionSentence) {
+    return fallback;
+  }
+
+  return `${actionSentence}. Use a storytelling pose with clear intent that matches the page mood (active when needed, gentle when sleepy).`;
+}
+
+/**
+ * Derive character emotion from the generated story text.
+ */
+export function generateCharacterEmotion(pageNumber: number, storyText?: string): string {
+  const defaultEmotions: { [key: number]: string } = {
+    1: 'curious and emotionally open',
+    2: 'safe and trusting',
+    3: 'concerned but brave',
+    4: 'peaceful pride',
+    5: 'sleepy and content'
+  };
+  const fallback = defaultEmotions[pageNumber] || 'warm and engaged';
+
+  if (!storyText || storyText.trim().length === 0) {
+    return fallback;
+  }
+
+  const lower = storyText.toLowerCase();
+  if (/(sleepy|drowsy|eyes.*(heavy|closing)|drift|dream)/.test(lower)) return 'drowsy, calm, and ready for sleep';
+  if (/(peaceful|calm|settled|relaxed|safe)/.test(lower)) return 'calm, safe, and relaxed';
+  if (/(sad|lonely|worried|anxious|too awake|restless)/.test(lower)) return 'tender concern with gentle reassurance';
+  if (/(happy|smile|joy|proud|wonderful)/.test(lower)) return 'quiet joy and peaceful pride';
+  if (/(wonder|curious|maybe|discover|learn)/.test(lower)) return 'curious and hopeful';
+
+  return fallback;
+}
+
+/**
+ * Derive atmosphere and visual mood from the generated story text.
+ */
+export function generateAtmosphereDescription(pageNumber: number, storyText?: string): string {
+  const defaults: { [key: number]: string } = {
+    1: 'soft twilight, gentle cozy lighting, inviting wonder',
+    2: 'warm mentorship, calm pacing, safe and peaceful environment',
+    3: 'empathetic guidance, focused calm, comforting support',
+    4: 'quiet triumph, warm glow, peaceful connection',
+    5: 'very soft moonlit bedtime calm, hushed and sleepy'
+  };
+  const fallback = defaults[pageNumber] || 'warm storybook atmosphere';
+
+  if (!storyText || storyText.trim().length === 0) {
+    return fallback;
+  }
+
+  const lower = storyText.toLowerCase();
+  if (/(sleepy|drowsy|dream|whisper|moonlight|settled|nestled|eyes.*heavy)/.test(lower)) {
+    return 'hushed bedtime mood, soft moonlight, slow quiet rhythm, sleep-inducing calm';
+  }
+  if (/(sad|lonely|worried|anxious|restless)/.test(lower)) {
+    return 'gentle supportive atmosphere, tender lighting, emotionally safe and non-scary';
+  }
+  if (/(calm|peaceful|safe|breathe|breathing|relax)/.test(lower)) {
+    return 'calming atmosphere with soft light, slow pace, and emotional safety';
+  }
+  if (/(smile|happy|joy|proud|wonderful|connection)/.test(lower)) {
+    return 'warm, peaceful celebration with quiet joy and comforting light';
+  }
+
+  return fallback;
 }
 
 /**
@@ -291,6 +446,12 @@ export interface GenerateBookPagesOptions {
   dedicationMessage: string;
   storyPages: Array<{ pageNumber: number; text: string }>;
   storyWorld: string;
+  characterType?: string;
+  specialAbility?: string;
+  characterStyle?: '3d' | 'cartoon' | 'anime';
+  adventureType?: string;
+  ageGroup?: string;
+  storyTitle?: string;
   onProgress?: (step: string, progress: number) => void;
   /** When true, only generate story page images (skip copyright, dedication, last word, back cover). */
   storyPagesOnly?: boolean;
@@ -314,6 +475,12 @@ export async function generateAllBookPages(
     dedicationMessage,
     storyPages,
     storyWorld,
+    characterType = 'person',
+    specialAbility = 'special ability',
+    characterStyle = 'cartoon',
+    adventureType = 'Treasure Hunt',
+    ageGroup = '7-10',
+    storyTitle = 'Adventure Story',
     onProgress,
     storyPagesOnly = false
   } = options;
@@ -355,8 +522,10 @@ export async function generateAllBookPages(
     
     // Generate story page images
     if (onProgress) onProgress('Generating story pages...', storyPagesOnly ? 10 : 30);
-    const storyPageImages: string[] = [];
     const totalPages = validPages.length;
+    // Keep strict page-index alignment (index 0 => page 1, ..., index 4 => page 5)
+    // so a failed page generation never shifts later pages.
+    const storyPageImages: string[] = new Array(totalPages).fill('');
     
     for (let i = 0; i < totalPages; i++) {
       const page = validPages[i];
@@ -371,6 +540,8 @@ export async function generateAllBookPages(
       
       if (!templateImage) {
         console.warn(`No template image for story page ${pageNumber}`);
+        // Fallback to character image so the page slot is never omitted.
+        storyPageImages[i] = characterImageUrl;
         continue;
       }
       
@@ -380,30 +551,55 @@ export async function generateAllBookPages(
       if (onProgress) onProgress(`Generating story page ${pageNumber}...`, progress);
       
       try {
-        const characterAction = generateCharacterAction(pageNumber, storyWorld);
+        const characterAction = generateCharacterAction(pageNumber, storyWorld, page.text);
         const sceneDescription = generateSceneDescription(pageNumber, storyWorld, page.text);
-        const storyPagePrompt = buildStoryPagePrompt(pageNumber, page.text, characterAction, sceneDescription);
+        const storyPagePrompt = buildStoryPagePrompt(pageNumber, page.text, characterAction, sceneDescription, {
+          characterName,
+          characterType,
+          specialAbility,
+          characterStyle,
+          storyWorld,
+          adventureType,
+          ageGroup,
+          storyTitle,
+          characterImageUrl
+        });
         
-        const storyPageResult = await generateImageWithTwoTemplates(
+        let storyPageResult = await generateImageWithTwoTemplates(
           templateImage,
           characterImageUrl,
           storyPagePrompt
         );
+
+        // Retry once for transient generation failures.
+        if (!(storyPageResult.success && storyPageResult.url)) {
+          console.warn(`Retrying story page ${pageNumber} generation once...`);
+          storyPageResult = await generateImageWithTwoTemplates(
+            templateImage,
+            characterImageUrl,
+            storyPagePrompt
+          );
+        }
         
         if (storyPageResult.success && storyPageResult.url) {
-          storyPageImages.push(storyPageResult.url);
+          storyPageImages[i] = storyPageResult.url;
           console.log(`✅ Story page ${pageNumber} generated successfully`);
         } else {
           console.error(`❌ Failed to generate story page ${pageNumber}:`, storyPageResult.error);
+          // Keep page slot populated to avoid omission/shifting.
+          storyPageImages[i] = templateImage;
         }
       } catch (error) {
         console.error(`❌ Error generating story page ${pageNumber}:`, error);
+        // Keep page slot populated to avoid omission/shifting.
+        storyPageImages[i] = templateImage;
         // Continue with next page even if one fails
       }
     }
     
     result.storyPageImageUrls = storyPageImages;
-    console.log(`Generated ${storyPageImages.length} out of ${totalPages} story page images`);
+    const generatedCount = storyPageImages.filter((url) => !!url).length;
+    console.log(`Generated ${generatedCount} out of ${totalPages} story page image slots`);
     
     // Back cover (skipped when storyPagesOnly)
     if (!storyPagesOnly) {

@@ -13,6 +13,7 @@
   import spaceBackground from "../../assets/space_share_back.png";
   import dedicationLeft from "../../assets/dedicationleft.png";
   import { getStoryById } from "../../lib/database/stories";
+  import BookShareFooter from "../../components/BookShareFooter.svelte";
 
   export let data: {
     story?: any;
@@ -711,6 +712,9 @@
     </div>
   {/if}
 </div>
+{#if !isFullscreen}
+  <BookShareFooter />
+{/if}
 
 <style>
   .story-preview-container {
@@ -719,6 +723,7 @@
     display: flex;
     flex-direction: column;
     padding: 20px;
+    padding-bottom: 92px;
     position: relative;
   }
 

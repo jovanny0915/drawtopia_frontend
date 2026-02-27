@@ -8,53 +8,44 @@
   import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";
   import { browser } from "$app/environment";
   import { onMount } from "svelte";
-  import small from "../../../assets/small.png";
-  import classic from "../../../assets/classic.png";
   import spinner from "../../../assets/Spinner.svg";
   import { storyCreation } from "../../../lib/stores/storyCreation";
-  import { generateIntersearchCover, saveSelectedImageUrl, generateCoverImageWithTemplate } from "../../../lib/imageGeneration";
+  import { saveSelectedImageUrl, generateCoverImageWithTemplate, overlayCoverTitleOnImage } from "../../../lib/imageGeneration";
   import { generateStoryTitles } from "../../../lib/api/storyTitles";
   import { getRandomTemplateByStoryWorld } from "../../../lib/api/admin";
   import { user } from "../../../lib/stores/auth";
+
+  const STEP7_COVER_IMAGE_KEY = "step7CoverImage";
+  const STEP7_UNTITLED_COVER_IMAGE_KEY = "step7UntitledCoverImage";
+  const CUSTOM_TITLE_OPTION = "Custom Title";
 
   let isMobile = false;
   let characterName = "";
   let selectedImageFromStep6 = "";
   let selectedStyle = "";
-  let selectedEnhancement = "";
   let selectedWorld = "";
-  let selectedAdventure = "";
-  let selectedFormat = "";
   let enhancedCharacterImage = "";
+  let untitledCoverImageUrl = "";
   let isGeneratingImage = false;
   let isGeneratingTitles = false;
-  let isInitialLoadComplete = false; // Track if initial load is done
-  let selectedCharacterEnhancedImage = "";
-  let intersearchWorld = "";
-  let intersearchDifficulty = "";
-  // Selection state variables - these will be updated with the character name
+  let isApplyingTitle = false;
   let selectedTitle = "";
-  let selectedCoverDesign = "Classic Storybook";
   let customTitleText = "";
-  let customTitleDebounceTimer: ReturnType<typeof setTimeout> | undefined;
-
-  // Title options with character name
   let titleOptions: string[] = [];
-  
-  // Effective title for continue/store: preset or custom text when "Custom Title" is selected
-  $: effectiveTitle = selectedTitle === "Custom Title" ? customTitleText.trim() : selectedTitle;
 
-  // Computed property to check if continue button should be enabled
-  $: canContinue = !isGeneratingImage && !isGeneratingTitles &&
-                   selectedImageFromStep6 && 
+  $: effectiveTitle = selectedTitle === CUSTOM_TITLE_OPTION ? customTitleText.trim() : selectedTitle;
+
+  $: canContinue = !isGeneratingImage && !isGeneratingTitles && !isApplyingTitle &&
+                   selectedImageFromStep6 &&
                    selectedImageFromStep6.trim().length > 0 &&
-                   (selectedTitle !== "Custom Title" ? (selectedTitle && selectedTitle.trim().length > 0) : (customTitleText && customTitleText.trim().length > 0));
+                   (selectedTitle === CUSTOM_TITLE_OPTION
+                     ? customTitleText.trim().length > 0
+                     : selectedTitle && selectedTitle.trim().length > 0);
 
   $: if (browser) {
     isMobile = window.innerWidth < 800;
   }
 
-  // Fallback titles when API fails or data is missing
   const getFallbackTitles = () => {
     const name = characterName || '[Your Name]';
     return [
@@ -64,206 +55,151 @@
     ];
   };
 
-  // Retrieve character data from sessionStorage on component mount
-  onMount(async () => {
-    if (browser) {
-      const storedCharacterName = sessionStorage.getItem('characterName');
-      characterName = storedCharacterName || '';
-      
-      // Get selections from sessionStorage
-      selectedStyle = sessionStorage.getItem('selectedStyle') || "";
-      selectedEnhancement = sessionStorage.getItem('selectedEnhancement') || "";
-      selectedWorld = sessionStorage.getItem('selectedWorld') || "";
-      selectedAdventure = sessionStorage.getItem('selectedAdventure') || "";
-      selectedFormat = sessionStorage.getItem('selectedFormat') || "";
-      enhancedCharacterImage = sessionStorage.getItem('selectedCharacterEnhancedImage') || "";
-      const specialAbility = sessionStorage.getItem('specialAbility') || '';
-      const characterType = sessionStorage.getItem('selectedCharacterType') || 'person';
-      const ageGroup = sessionStorage.getItem('ageGroup') || '7-10';
-
-      // STEP 1: Generate story titles first (show only loading during this)
-      isGeneratingTitles = true;
-      const titlesResult = await generateStoryTitles({
-        characterName: characterName || 'Character',
-        specialAbility: specialAbility,
-        storyWorld: selectedWorld || 'forest',
-        adventureType: selectedAdventure || 'treasure',
-        characterType: characterType,
-        characterStyle: selectedStyle || 'cartoon',
-        storyFormat: selectedFormat || 'story',
-        ageGroup: ageGroup
-      });
-
-      if (titlesResult.success && titlesResult.titles && titlesResult.titles.length >= 3) {
-        titleOptions = titlesResult.titles;
-        // Don't auto-select any title
-      } else {
-        // Fallback to default titles
-        titleOptions = getFallbackTitles();
-        // Don't auto-select any title
-        if (titlesResult.error) {
-          console.warn('Story titles API failed, using fallback:', titlesResult.error);
-        }
-      }
-      isGeneratingTitles = false;
-      
-      // Mark initial load as complete
-      isInitialLoadComplete = true;
-    }
-  });
-
-  // Generate cover image using template and character image (no environment generation)
-  const generateImages = async (title?: string) => {
-    if (!enhancedCharacterImage || !selectedWorld || !selectedAdventure || isGeneratingImage) return;
-    
+  const generateCoverImageOnce = async () => {
+    if (!enhancedCharacterImage || !selectedWorld || isGeneratingImage) return;
     isGeneratingImage = true;
-    
+
     try {
-      // Generate cover image using template and character image
       const worldMapping: { [key: string]: 'forest' | 'underwater' | 'outerspace' } = {
         'forest': 'forest',
         'outerspace': 'outerspace',
         'underwater': 'underwater'
       };
       const mappedWorld = worldMapping[selectedWorld] || 'forest';
-      
-      // Use the title parameter or effective title
-      const titleToUse = title || effectiveTitle || selectedTitle;
-      
-      // Skip if title is empty or just "Custom Title" without actual text
-      if (!titleToUse || titleToUse.trim().length === 0 || titleToUse === "Custom Title") {
-        console.log('Skipping cover generation - no valid title');
-        isGeneratingImage = false;
+
+      const templateResult = await getRandomTemplateByStoryWorld(mappedWorld);
+
+      if (!templateResult.success || !templateResult.data?.cover_image) {
+        console.warn(`No template found for ${mappedWorld}, cannot generate cover`);
         return;
       }
-      
-      const coverCacheKey = `coverImage_${selectedWorld}_${selectedAdventure}_${titleToUse}`;
-      
-      // Check cache first (don't clear it!)
-      let coverImageUrl = sessionStorage.getItem(coverCacheKey);
-      
-      if (!coverImageUrl) {
-        // Only clear these when we're about to generate a new image
-        sessionStorage.removeItem('storyCover');
-        sessionStorage.removeItem('selectedImage_step6');
-        
-        // Get character image for cover generation
-        const characterImageUrl = sessionStorage.getItem('selectedCharacterEnhancedImage');
-        
-        if (!characterImageUrl) {
-          console.error('No character image available for cover generation');
-          isGeneratingImage = false;
-          return;
-        }
-        
-        // Get a random book template for the story world
-        const templateResult = await getRandomTemplateByStoryWorld(mappedWorld);
 
-        if (!templateResult.success || !templateResult.data?.cover_image) {
-          console.warn(`No template found for ${mappedWorld}, cannot generate cover`);
-          if (templateResult.error) {
-            console.warn(`Template lookup error: ${templateResult.error}`);
-          }
-          isGeneratingImage = false;
-          alert('No book template available for the selected story world. Please contact support.');
-          return;
-        }
-        
-        // Save book template ID to sessionStorage for later use
-        if (templateResult.data.id) {
-          sessionStorage.setItem('bookTemplateId', templateResult.data.id);
-          console.log(`Saved book template ID: ${templateResult.data.id}`);
-        }
-        
-        // Use the new API with template
-        console.log(`Using template cover: ${templateResult.data.cover_image}`);
-        console.log(`Generating cover with title: ${titleToUse}`);
-        
-        const coverResult = await generateCoverImageWithTemplate({
-          templateCoverUrl: templateResult.data.cover_image,
-          characterImageUrl: characterImageUrl,
-          storyWorld: mappedWorld,
-          storyTitle: titleToUse,
-          saveToStorage: true,
-          storageKey: coverCacheKey
-        });
-        
-        if (coverResult.success && coverResult.url) {
-          coverImageUrl = coverResult.url;
-          selectedImageFromStep6 = coverResult.url;
-          saveSelectedImageUrl('6', coverImageUrl);
-          storyCreation.setOriginalImageUrl(coverImageUrl);
-        } else {
-          console.error('Failed to generate cover with template:', coverResult.error);
-        }
-      } else {
-        console.log(`Using cached cover for title: ${titleToUse}`);
-        coverImageUrl = coverImageUrl.split('?')[0];
-        selectedImageFromStep6 = coverImageUrl;
-        storyCreation.setOriginalImageUrl(coverImageUrl);
+      if (templateResult.data.id) {
+        sessionStorage.setItem('bookTemplateId', templateResult.data.id);
+      }
+
+      const coverResult = await generateCoverImageWithTemplate({
+        templateCoverUrl: templateResult.data.cover_image,
+        characterImageUrl: enhancedCharacterImage,
+        storyWorld: mappedWorld,
+        storyTitle: '',
+        includeTitleInPrompt: false,
+        saveToStorage: false
+      });
+
+      if (coverResult.success && coverResult.url) {
+        selectedImageFromStep6 = coverResult.url;
+        untitledCoverImageUrl = coverResult.url;
+        saveSelectedImageUrl('6', coverResult.url);
+        sessionStorage.setItem(STEP7_COVER_IMAGE_KEY, coverResult.url);
+        sessionStorage.setItem(STEP7_UNTITLED_COVER_IMAGE_KEY, coverResult.url);
+        storyCreation.setOriginalImageUrl(coverResult.url);
       }
     } catch (error) {
-      console.error('Error generating images:', error);
+      console.error('Error generating step 7 cover image:', error);
     } finally {
       isGeneratingImage = false;
     }
   };
 
-  // Generate interactive search story cover
-  const generateInteractiveSearchCover = async () => {
-    if (isGeneratingImage) return;
-    
-    isGeneratingImage = true;
-    
+  const applySelectedTitleToCover = async (title: string) => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle || !untitledCoverImageUrl || isApplyingTitle) {
+      return;
+    }
+
+    isApplyingTitle = true;
     try {
-      // Generate the intersearch cover using the new function
-      const result = await generateIntersearchCover();
-      
-      if (result.success && result.url) {
-        selectedImageFromStep6 = result.url;
-        saveSelectedImageUrl('6', result.url);
-        storyCreation.setOriginalImageUrl(result.url);
+      const titledCoverResult = await overlayCoverTitleOnImage({
+        coverImageUrl: untitledCoverImageUrl,
+        title: trimmedTitle,
+        saveToStorage: false
+      });
+
+      if (titledCoverResult.success && titledCoverResult.url) {
+        const titledUrl = titledCoverResult.url.split('?')[0];
+        selectedImageFromStep6 = titledUrl;
+        saveSelectedImageUrl('6', titledUrl);
+        sessionStorage.setItem(STEP7_COVER_IMAGE_KEY, titledUrl);
+        sessionStorage.setItem('storyCover', titledUrl);
       } else {
-        console.error('Failed to generate intersearch cover:', result.error);
+        console.warn('Failed to overlay title on cover image:', titledCoverResult.error);
       }
-    } catch (error) {
-      console.error('Error generating interactive search cover:', error);
     } finally {
-      isGeneratingImage = false;
+      isApplyingTitle = false;
     }
   };
 
-  // Title selection handler - regenerate cover when title changes (only after initial load)
-  function selectTitle(title: string) {
-    selectedTitle = title;
-    
-    // Only regenerate if initial load is complete and it's NOT custom title
-    // (custom title will regenerate via reactive statement)
-    if (isInitialLoadComplete && selectedFormat !== "interactive" && title !== "Custom Title") {
-      generateImages(title);
-    }
-  }
+  onMount(async () => {
+    if (browser) {
+      characterName = sessionStorage.getItem('characterName') || '';
+      selectedStyle = sessionStorage.getItem('selectedStyle') || "";
+      selectedWorld = sessionStorage.getItem('selectedWorld') || "";
+      enhancedCharacterImage = sessionStorage.getItem('selectedCharacterEnhancedImage') || "";
 
-  // Handle custom title text changes with debounce (only after initial load)
-  let previousCustomTitleText = '';
-  $: if (browser && isInitialLoadComplete && selectedTitle === "Custom Title" && customTitleText && customTitleText.trim().length > 0 && customTitleText !== previousCustomTitleText) {
-    // Clear existing timer
-    if (customTitleDebounceTimer) {
-      clearTimeout(customTitleDebounceTimer);
-    }
-    
-    // Set new timer to regenerate cover after user stops typing
-    customTitleDebounceTimer = setTimeout(() => {
-      if (selectedFormat !== "interactive" && customTitleText.trim().length > 0) {
-        previousCustomTitleText = customTitleText;
-        generateImages(customTitleText);
+      const untitledCover = sessionStorage.getItem(STEP7_COVER_IMAGE_KEY) || sessionStorage.getItem('selectedImage_step6');
+      untitledCoverImageUrl = sessionStorage.getItem(STEP7_UNTITLED_COVER_IMAGE_KEY) || "";
+      if (untitledCover) {
+        selectedImageFromStep6 = untitledCover.split('?')[0];
+        storyCreation.setOriginalImageUrl(selectedImageFromStep6);
+        if (!untitledCoverImageUrl) {
+          untitledCoverImageUrl = selectedImageFromStep6;
+          sessionStorage.setItem(STEP7_UNTITLED_COVER_IMAGE_KEY, selectedImageFromStep6);
+        }
       }
-    }, 1000); // Wait 1 second after user stops typing
+
+      const specialAbility = sessionStorage.getItem('specialAbility') || '';
+      const characterType = sessionStorage.getItem('selectedCharacterType') || 'person';
+      const selectedAdventure = sessionStorage.getItem('selectedAdventure') || 'treasure';
+      const selectedFormat = sessionStorage.getItem('selectedFormat') || 'story';
+      const ageGroup = sessionStorage.getItem('ageGroup') || '7-10';
+
+      isGeneratingTitles = true;
+      const titlesResult = await generateStoryTitles({
+        characterName: characterName || 'Character',
+        specialAbility: specialAbility,
+        storyWorld: selectedWorld || 'forest',
+        adventureType: selectedAdventure,
+        characterType: characterType,
+        characterStyle: selectedStyle || 'cartoon',
+        storyFormat: selectedFormat,
+        ageGroup: ageGroup
+      });
+
+      if (titlesResult.success && titlesResult.titles && titlesResult.titles.length >= 3) {
+        titleOptions = titlesResult.titles;
+      } else {
+        titleOptions = getFallbackTitles();
+        if (titlesResult.error) {
+          console.warn('Story titles API failed, using fallback:', titlesResult.error);
+        }
+      }
+      isGeneratingTitles = false;
+
+      if (!selectedTitle && titleOptions.length > 0) {
+        await selectTitle(titleOptions[0]);
+      }
+
+      if (enhancedCharacterImage && selectedWorld) {
+        await generateCoverImageOnce();
+        if (selectedTitle && selectedTitle !== CUSTOM_TITLE_OPTION) {
+          await applySelectedTitleToCover(selectedTitle);
+        }
+      }
+    }
+  });
+
+  async function selectTitle(title: string) {
+    selectedTitle = title;
+    if (browser) {
+      sessionStorage.setItem('storyTitle', title === CUSTOM_TITLE_OPTION ? customTitleText.trim() : title);
+    }
+    if (title !== CUSTOM_TITLE_OPTION) {
+      await applySelectedTitleToCover(title);
+    }
   }
 
-  // Handle preview story button click (continue generation)
   const handleContinueToDedicationPage = async () => {
-    // Only proceed if conditions are met
     if (!canContinue) return;
 
     const currentUser = $user;
@@ -271,26 +207,34 @@
       return;
     }
 
-    // Update story creation store with final story presentation data
-    // Include the cover image URL if available (use effective title: custom text when "Custom Title" is selected)
-    const coverImageUrl = selectedImageFromStep6 ? selectedImageFromStep6.split('?')[0] : undefined;
-    storyCreation.setStoryPresentation(effectiveTitle, selectedCoverDesign, coverImageUrl);
+    if (browser) {
+      sessionStorage.setItem('storyTitle', effectiveTitle);
+    }
 
-    // Determine which dedication page to navigate to based on the gift_mode from sessionStorage
+    // Apply selected title to the cover only when user continues.
+    if (effectiveTitle) {
+      await applySelectedTitleToCover(effectiveTitle);
+    }
+
+    let coverImageUrlForFlow = selectedImageFromStep6 ? selectedImageFromStep6.split('?')[0] : undefined;
+
+    if (browser && coverImageUrlForFlow) {
+      sessionStorage.setItem('storyCover', coverImageUrlForFlow);
+    }
+
+    storyCreation.setStoryPresentation(effectiveTitle, "Classic Storybook", coverImageUrlForFlow);
+
     let dedicationPath = "/create-character/dedication/creation-link"; // Default to creation-link
 
     if (browser) {
       const giftMode = sessionStorage.getItem("gift_mode");
       if (!giftMode || giftMode === "create") {
-        // If the flow is "Create & Send", go to create-send dedication page
         dedicationPath = "/create-character/dedication/create-send";
       } else {
-        // If the flow is "Send Creation Link" or not set, go to creation-link dedication page
         dedicationPath = "/create-character/dedication/creation-link";
       }
     }
 
-    // Navigate to the appropriate dedication page
     goto(dedicationPath);
   };
 
@@ -365,11 +309,13 @@
               <div class="generating-text">Generating cover image...</div>
             </div>
           {:else if selectedImageFromStep6}
-            <img
-              class="image"
-              src={selectedImageFromStep6}
-              alt="image_card_1"
-            />
+            <div class="cover-preview-wrapper">
+              <img
+                class="image"
+                src={selectedImageFromStep6}
+                alt="image_card_1"
+              />
+            </div>
           {:else}
             <div class="no-cover-placeholder">
               <span class="no-cover-text">No Cover</span>
@@ -472,11 +418,11 @@
         <div class="form_01">
           <div><span class="customstorytitle_span">Custom Story Title</span></div>
           <div class="frame-1410103942_01">
-            <div 
-              class="selected_04" 
-              class:selected-custom={selectedTitle === "Custom Title"}
-              on:click={() => selectTitle("Custom Title")}
-              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (selectTitle("Custom Title"), e.preventDefault())}
+            <div
+              class="selected_04"
+              class:selected-custom={selectedTitle === CUSTOM_TITLE_OPTION}
+              on:click={() => selectTitle(CUSTOM_TITLE_OPTION)}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (selectTitle(CUSTOM_TITLE_OPTION), e.preventDefault())}
               tabindex="0"
               role="button"
               aria-label="Select Custom Title"
@@ -490,10 +436,10 @@
               </div>
               <div class="frame-1410104043">
                 <div class="ellipse-14"></div>
-                <div class="ellipse-13_01" class:hidden={selectedTitle !== "Custom Title"}></div>
+                <div class="ellipse-13_01" class:hidden={selectedTitle !== CUSTOM_TITLE_OPTION}></div>
               </div>
             </div>
-            {#if selectedTitle === "Custom Title"}
+            {#if selectedTitle === CUSTOM_TITLE_OPTION}
               <div class="input-form title-input-form">
                 <div class="input-placeholder title-input-placeholder">
                   <input
@@ -502,6 +448,22 @@
                     bind:value={customTitleText}
                     placeholder="Enter your custom story title..."
                     aria-label="Custom story title"
+                    on:blur={async () => {
+                      if (selectedTitle === CUSTOM_TITLE_OPTION) {
+                        if (browser) {
+                          sessionStorage.setItem('storyTitle', customTitleText.trim());
+                        }
+                        await applySelectedTitleToCover(customTitleText);
+                      }
+                    }}
+                    on:keydown={async (e) => {
+                      if (e.key === 'Enter' && selectedTitle === CUSTOM_TITLE_OPTION) {
+                        if (browser) {
+                          sessionStorage.setItem('storyTitle', customTitleText.trim());
+                        }
+                        await applySelectedTitleToCover(customTitleText);
+                      }
+                    }}
                   />
                 </div>
               </div>
@@ -910,6 +872,14 @@
     border-radius: 12px;
   }
 
+  .cover-preview-wrapper {
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+
   .informationcover_span {
     color: #141414;
     font-size: 20px;
@@ -999,59 +969,6 @@
     height: 24px;
     border-radius: 9999px;
     border: 2px #ededed solid;
-  }
-
-  .customtitle_span {
-    color: #141414;
-    font-size: 16px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 22.4px;
-    word-wrap: break-word;
-  }
-
-  /* Custom title input (aligned with Information Dedication Pages on dedication/creation-link) */
-  .title-input-form,
-  .input-form.title-input-form {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 4px;
-    display: flex;
-  }
-
-  .title-input-placeholder,
-  .input-placeholder.title-input-placeholder {
-    align-self: stretch;
-    min-height: 48px;
-    padding: 12px;
-    background: white;
-    overflow: hidden;
-    border-radius: 12px;
-    outline: 1px #EDEDED solid;
-    outline-offset: -1px;
-    justify-content: flex-start;
-    align-items: center;
-    display: inline-flex;
-  }
-
-  .custom-title-input {
-    flex: 1 1 0;
-    width: 100%;
-    color: #141414;
-    font-size: 16px;
-    font-family: DM Sans;
-    font-weight: 400;
-    line-height: 22.4px;
-    word-wrap: break-word;
-    border: none;
-    outline: none;
-    background: transparent;
-  }
-
-  .custom-title-input::placeholder {
-    color: #727272;
   }
 
   .frame-1410104034 {
@@ -1198,20 +1115,6 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
-  .frame-1410104084 {
-    flex: 1 1 0;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 4px;
-    display: inline-flex;
-  }
-
-  .selected-custom {
-    background: #EEF6FF !important;
-    outline: 1px #173DB6 solid !important;
-  }
-
   .frame-1410103942 {
     align-self: stretch;
     flex-direction: column;
@@ -1271,6 +1174,20 @@
     outline: 1px #c0c0c0 solid;
   }
 
+  .selected-custom {
+    background: #EEF6FF !important;
+    outline: 1px #173DB6 solid !important;
+  }
+
+  .frame-1410104084 {
+    flex: 1 1 0;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 4px;
+    display: inline-flex;
+  }
+
   .frame-1410103940_04 {
     align-self: stretch;
     justify-content: flex-start;
@@ -1286,6 +1203,58 @@
     align-items: flex-start;
     gap: 2px;
     display: inline-flex;
+  }
+
+  .customtitle_span {
+    color: #141414;
+    font-size: 16px;
+    font-family: Nunito;
+    font-weight: 400;
+    line-height: 22.4px;
+    word-wrap: break-word;
+  }
+
+  .title-input-form,
+  .input-form.title-input-form {
+    align-self: stretch;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 4px;
+    display: flex;
+  }
+
+  .title-input-placeholder,
+  .input-placeholder.title-input-placeholder {
+    align-self: stretch;
+    min-height: 48px;
+    padding: 12px;
+    background: white;
+    overflow: hidden;
+    border-radius: 12px;
+    outline: 1px #EDEDED solid;
+    outline-offset: -1px;
+    justify-content: flex-start;
+    align-items: center;
+    display: inline-flex;
+  }
+
+  .custom-title-input {
+    flex: 1 1 0;
+    width: 100%;
+    color: #141414;
+    font-size: 16px;
+    font-family: DM Sans;
+    font-weight: 400;
+    line-height: 22.4px;
+    word-wrap: break-word;
+    border: none;
+    outline: none;
+    background: transparent;
+  }
+
+  .custom-title-input::placeholder {
+    color: #727272;
   }
 
   .ellipse-13_01.hidden {

@@ -6,6 +6,7 @@
 
   import logo from "../../../../assets/logo.png";
   import CalendarBlank from "../../../../assets/CalendarBlank.svg";
+  import BookShareFooter from "../../../../components/BookShareFooter.svelte";
 
   import { giftCreation } from "../../../../lib/stores/giftCreation";
   import { getGiftById, type Gift } from "../../../../lib/database/gifts";
@@ -253,6 +254,7 @@
     </div>
   </div>
 </div>
+<BookShareFooter />
 
 <style>
   .gift-redemption-page {
@@ -260,7 +262,7 @@
     max-width: 1240px;
     width: 100%;
     min-height: 100vh;
-    padding: 24px 100px 80px;
+    padding: 24px 100px 104px;
     background: white;
     display: flex;
     flex-direction: column;
@@ -463,7 +465,7 @@
   /* Tablet and small desktop */
   @media (max-width: 900px) {
     .gift-redemption-page {
-      padding: 20px 24px 60px;
+      padding: 20px 24px 92px;
       gap: 28px;
     }
 
@@ -475,7 +477,7 @@
   /* Mobile */
   @media (max-width: 768px) {
     .gift-redemption-page {
-      padding: 16px 20px 48px;
+      padding: 16px 20px 88px;
       gap: 24px;
     }
 
@@ -564,7 +566,7 @@
   /* Small mobile */
   @media (max-width: 480px) {
     .gift-redemption-page {
-      padding: 12px 16px 40px;
+      padding: 12px 16px 84px;
       gap: 20px;
     }
 

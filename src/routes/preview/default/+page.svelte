@@ -21,6 +21,7 @@
   import StoryInfoModal from "../../../components/StoryInfoModal.svelte";
   import StoryPreviewEnd from "../../../components/StoryPreviewEnd.svelte";
   import BookSelectionModal, { type BookOption } from "../../../components/BookSelectionModal.svelte";
+  import BookShareFooter from "../../../components/BookShareFooter.svelte";
   import { user } from "../../../lib/stores/auth";
   import { getUserProfile } from "../../../lib/auth";
   import { getStoryById, updateReadingState } from "../../../lib/database/stories";
@@ -1632,6 +1633,9 @@
     />
   {/if}
 </div>
+{#if !isFullscreen}
+  <BookShareFooter />
+{/if}
 
 <style>
   .navbar {
@@ -1813,6 +1817,7 @@
   .mobile-image-split.fullscreen-split .mobile-image-left .image .scene-main-image {
     object-position: left center !important;
     margin-left: 0 !important;
+    top: 0;
   }
   .mobile-image-split.fullscreen-split .mobile-image-right .image_01 .scene-main-image {
     object-position: right center !important;
@@ -2355,7 +2360,7 @@
     width: 100%;
     height: 100%;
     padding-top: 24px;
-    padding-bottom: 80px;
+    padding-bottom: 104px;
     padding-left: 100px;
     padding-right: 100px;
     background: white;
@@ -2725,6 +2730,7 @@
     object-position: left center;
     margin-left: 0;
     height: 100%;
+    position: absolute;
   }
   
   /* Right half: show right 50% of the image */

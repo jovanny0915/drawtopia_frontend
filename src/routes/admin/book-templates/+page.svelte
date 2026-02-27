@@ -388,15 +388,26 @@
     modalFileInput?.click();
   }
 
+  function triggerAppendStoryScenePicker() {
+    if (uploadInProgress || deletingSceneInProgress || uploadModalType !== 'multiple') return;
+    targetStoryPageIndex = null;
+    modalFileInput?.click();
+  }
+
   function getModalSceneUrls(): string[] {
     if (previewUrls.length === 0) {
       return existingUploadUrls;
     }
 
-    if (uploadModalType === 'multiple' && targetStoryPageIndex !== null && previewUrls[0]) {
-      const merged = [...existingUploadUrls];
-      merged[targetStoryPageIndex] = previewUrls[0];
-      return merged;
+    if (uploadModalType === 'multiple') {
+      if (targetStoryPageIndex !== null && previewUrls[0]) {
+        const merged = [...existingUploadUrls];
+        merged[targetStoryPageIndex] = previewUrls[0];
+        return merged;
+      }
+
+      // Append mode: keep current scenes visible and show new ones at the end.
+      return [...existingUploadUrls, ...previewUrls];
     }
 
     return previewUrls;
@@ -783,6 +794,13 @@
               Current Uploaded Image{uploadModalType === 'multiple' ? 's' : ''}
             {/if}
           </div>
+          {#if uploadModalType === 'multiple' && !(uploadInProgress || deletingSceneInProgress)}
+            <div class="scene-actions-row">
+              <button class="scene-add-btn" on:click={triggerAppendStoryScenePicker}>
+                Add Story Scenes
+              </button>
+            </div>
+          {/if}
           {#if getModalSceneUrls().length > 0}
             <div class="preview-grid current-grid" class:single={uploadModalType === 'single'}>
               {#each getModalSceneUrls() as url, index}
@@ -817,10 +835,10 @@
               <p>No image uploaded yet for this slot.</p>
               <button
                 class="scene-change-btn"
-                on:click={() => triggerModalFilePicker(null)}
+                on:click={() => triggerModalFilePicker(uploadModalType === 'multiple' ? null : 0)}
                 disabled={uploadInProgress || deletingSceneInProgress}
               >
-                Change Scene
+                {uploadModalType === 'multiple' ? 'Add Story Scenes' : 'Change Scene'}
               </button>
             </div>
           {/if}
@@ -1374,6 +1392,30 @@
     flex-direction: column;
     align-items: center;
     gap: 0.75rem;
+  }
+
+  .scene-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+  }
+
+  .scene-add-btn {
+    border: 1px solid rgba(67, 56, 202, 0.35);
+    background: #eef2ff;
+    color: #3730a3;
+    border-radius: 999px;
+    padding: 0.42rem 0.8rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+
+  .scene-add-btn:hover {
+    background: #e0e7ff;
+    transform: translateY(-1px);
   }
 
   .scene-change-btn {

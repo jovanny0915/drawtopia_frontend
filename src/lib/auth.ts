@@ -27,6 +27,24 @@ export interface AuthResponse {
   error?: string;
 }
 
+/** Storage key for passwordless phone JWT (backend-issued). */
+export const PHONE_TOKEN_STORAGE_KEY = 'drawtopia_phone_token';
+
+/** Result from backend /api/auth/verify-otp (passwordless phone). */
+export interface PhoneAuthUser {
+  id: string;
+  email?: string | null;
+  phone?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  role?: string;
+}
+
+/** Session-like object for passwordless phone auth (has access_token for API calls). */
+export interface PhoneSession {
+  access_token: string;
+}
+
 type AuthHistoryEventType = 'login' | 'register';
 
 async function logUserAuthHistory(
@@ -369,13 +387,15 @@ export async function decrementUserUploadCount(userId: string): Promise<{ succes
 }
 
 /**
- * Sign in with email and password
+ * Sign in with email OTP (passwordless)
  */
-export async function signInWithEmail(email: string, password: string): Promise<AuthResponse> {
+export async function signInWithEmail(email: string): Promise<AuthResponse> {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email: email.toLowerCase().trim(),
+      options: {
+        emailRedirectTo: `${window.location.origin}`,
+      }
     });
 
     if (error) {
@@ -383,11 +403,6 @@ export async function signInWithEmail(email: string, password: string): Promise<
         success: false,
         error: error.message
       };
-    }
-
-    if (data.user?.id) {
-      await updateUserLastLogin(data.user.id);
-      await logUserAuthHistory(data.user.id, 'login', 'email_password');
     }
 
     return {
@@ -444,6 +459,10 @@ export async function signInWithPhone(phone: string, password: string): Promise<
 export async function signOut(): Promise<{ success: boolean; error?: string }> {
   try {
     console.log('Signing out user...');
+    clearPhoneSession();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('drawtopia-signout'));
+    }
 
     // Get current user info for logging
     const { data: { user } } = await supabase.auth.getUser();
@@ -938,6 +957,143 @@ export async function verifyPhone(phone: string, token: string): Promise<{ succe
       error: error instanceof Error ? error.message : 'An unexpected error occurred'
     };
   }
+}
+
+// --- Passwordless phone auth (Twilio Verify via backend) ---
+
+function getAuthApiBase(): string {
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  return base.replace(/\/$/, '');
+}
+
+/**
+ * Request SMS verification code (Twilio Verify). No password required.
+ */
+export async function requestPhoneOtp(phone: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${getAuthApiBase()}/api/auth/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: data.detail || data.message || `Request failed (${res.status})`,
+      };
+    }
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    };
+  }
+}
+
+/**
+ * Verify SMS code and sign in (passwordless). On success, stores token and returns user + session.
+ */
+export async function verifyPhoneOtp(
+  phone: string,
+  code: string
+): Promise<{ success: boolean; user?: User; session?: PhoneSession; error?: string }> {
+  try {
+    const res = await fetch(`${getAuthApiBase()}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone.trim(), code: code.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        success: false,
+        error: data.detail || data.message || `Verification failed (${res.status})`,
+      };
+    }
+    const accessToken = data.access_token;
+    const apiUser = data.user as PhoneAuthUser | undefined;
+    if (!accessToken || !apiUser?.id) {
+      return { success: false, error: 'Invalid response from server' };
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(PHONE_TOKEN_STORAGE_KEY, accessToken);
+    }
+    const user: User & { first_name?: string | null; last_name?: string | null } = {
+      id: apiUser.id,
+      email: apiUser.email ?? undefined,
+      phone: apiUser.phone ?? undefined,
+      app_metadata: {},
+      user_metadata: {},
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      first_name: apiUser.first_name ?? null,
+      last_name: apiUser.last_name ?? null,
+    } as User & { first_name?: string | null; last_name?: string | null };
+    const session: PhoneSession = { access_token: accessToken };
+    return { success: true, user, session };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    };
+  }
+}
+
+/**
+ * Fetch current user for passwordless phone session (Bearer token).
+ */
+export async function fetchPhoneSessionUser(): Promise<{
+  success: boolean;
+  user?: User;
+  error?: string;
+}> {
+  try {
+    if (typeof window === 'undefined') return { success: false };
+    const token = localStorage.getItem(PHONE_TOKEN_STORAGE_KEY);
+    if (!token) return { success: false };
+    const res = await fetch(`${getAuthApiBase()}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401) clearPhoneSession();
+      return {
+        success: false,
+        error: data.detail || data.message || 'Unauthorized',
+      };
+    }
+    const apiUser = data.user as PhoneAuthUser | undefined;
+    if (!apiUser?.id) return { success: false };
+    const user: User & { first_name?: string | null; last_name?: string | null } = {
+      id: apiUser.id,
+      email: apiUser.email ?? undefined,
+      phone: apiUser.phone ?? undefined,
+      app_metadata: {},
+      user_metadata: {},
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      first_name: apiUser.first_name ?? null,
+      last_name: apiUser.last_name ?? null,
+    } as User & { first_name?: string | null; last_name?: string | null };
+    return { success: true, user };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Request failed',
+    };
+  }
+}
+
+/**
+ * Clear passwordless phone session (remove stored token).
+ */
+export function clearPhoneSession(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(PHONE_TOKEN_STORAGE_KEY);
 }
 
 /**

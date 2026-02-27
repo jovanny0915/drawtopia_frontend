@@ -11,25 +11,37 @@
   let userRole: string | null = null;
   let loading = true;
   let sidebarOpen = true;
+  let hasStartedAdminCheck = false;
 
   // Verify user is admin on mount
-  onMount(async () => {
-    // Wait for auth to load
+  onMount(() => {
+    // Poll until auth loading completes, then verify admin exactly once.
     const checkAuth = setInterval(() => {
-      if (!$authLoading) {
+      if (!$authLoading && !hasStartedAdminCheck) {
+        hasStartedAdminCheck = true;
         clearInterval(checkAuth);
-        verifyAdmin();
+        void verifyAdmin();
       }
     }, 100);
 
-    // Timeout after 5 seconds
-    setTimeout(() => {
+    // Fallback: auth can take longer on slower network/OAuth callback flows.
+    // Do not redirect on timeout; trigger one admin check only if auth is ready.
+    const authTimeout = setTimeout(() => {
       clearInterval(checkAuth);
-      if (loading) {
-        console.error('Auth check timeout');
-        goto('/login');
+      if (loading && !$authLoading && !hasStartedAdminCheck) {
+        hasStartedAdminCheck = true;
+        void verifyAdmin();
+        return;
       }
-    }, 5000);
+      if (loading && $authLoading) {
+        console.warn('Auth check still loading after timeout window.');
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(checkAuth);
+      clearTimeout(authTimeout);
+    };
   });
 
   async function verifyAdmin() {

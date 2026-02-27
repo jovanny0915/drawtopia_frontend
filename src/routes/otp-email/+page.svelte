@@ -12,6 +12,7 @@
   let otpValues: string[] = ["", "", "", "", "", ""];
   let otpInputs: HTMLInputElement[] = [];
   let email = "";
+  let mode: "signup" | "login" = "signup";
   let isLoading = false;
   let errors: { [key: string]: string } = {};
   let isResendingOTP = false;
@@ -21,6 +22,10 @@
     // Try to get email from URL params first
     const urlParams = new URLSearchParams(window.location.search);
     const emailParam = urlParams.get("email");
+    const modeParam = urlParams.get("mode");
+    if (modeParam === "login") {
+      mode = "login";
+    }
 
     if (emailParam) {
       email = emailParam;
@@ -175,7 +180,7 @@
 
   // Handle back button
   const handleBack = () => {
-    goto("/signup");
+    goto(mode === "login" ? "/login" : "/signup");
   };
 
   // Resend OTP function

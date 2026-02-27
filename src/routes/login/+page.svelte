@@ -9,17 +9,23 @@
   import PrimaryBtn from "../../components/PrimaryBtn.svelte";
   import TextBtn from "../../components/TextBtn.svelte";
   import PrimaryInput from "../../components/PrimaryInput.svelte";
-  import { signInWithEmail, signInWithPhone, signInWithGoogle, checkUserExists, checkUserExistsByPhone } from "../../lib/auth";
+  import { signInWithEmail, signInWithGoogle, checkUserExists, requestPhoneOtp, verifyPhoneOtp } from "../../lib/auth";
   import { goto } from "$app/navigation";
-  import { isAuthenticated } from "$lib/stores/auth";
+  import { page } from "$app/stores";
+  import { isAuthenticated, auth } from "$lib/stores/auth";
   import { addNotification } from "$lib/stores/notification";
   import { onMount } from "svelte";
+  import type { UserWithProfile } from "$lib/stores/auth";
 
   import languageFlag from "../../assets/langbtnicon.svg";
   import logo from "../../assets/logo.png";
 
-  // Check if user is already authenticated
+  // Check if user is already authenticated; support ?method=phone for signup-with-phone link
   onMount(() => {
+    if ($page.url.searchParams.get("method") === "phone") {
+      loginMethod = "phone";
+      phoneStep = "enter_phone";
+    }
     const unsubscribe = isAuthenticated.subscribe(authenticated => {
       if (authenticated) {
         addNotification({
@@ -45,11 +51,12 @@
   let detailedValue: DetailedValue | null = null;
   let email = "";
   let phoneNumber = "";
-  let password = "123456";
-  let rememberMe = false;
   let isLoading = false;
   let errors: { [key: string]: string } = {};
   let loginMethod: "phone" | "email" = "email";
+  /** Passwordless phone: step 1 = enter phone & send code, step 2 = enter code & verify */
+  let phoneStep: "enter_phone" | "enter_code" = "enter_phone";
+  let verificationCode = "";
   // let selectedCountry = { name: 'United States', code: '+1', flag: '🇺🇸' };
   let showCountryDropdown = false;
   const countries = [
@@ -68,7 +75,9 @@
 
   const switchLoginMethod = (method: "phone" | "email") => {
     loginMethod = method;
-    errors = {}; // Clear errors when switching
+    errors = {};
+    phoneStep = "enter_phone";
+    verificationCode = "";
   };
 
   const selectCountry = (country: (typeof countries)[0]) => {
@@ -91,12 +100,7 @@
       } else if (!valid) {
         errors.phone = "Please enter a valid phone number";
       }
-    }
-
-    if (!password) {
-      errors.password = "Password is required";
-    } else if (password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
+      // Password not required for passwordless phone (SMS code)
     }
 
     return Object.keys(errors).length === 0;
@@ -131,8 +135,80 @@
     }
   };
 
+  const getPhoneValue = () => (value || phoneNumber || "").trim();
+
+  const handleSendCode = async () => {
+    if (!validateForm()) return;
+    const phoneToUse = getPhoneValue();
+    if (!phoneToUse || !valid) return;
+    isLoading = true;
+    errors = {};
+    try {
+      const result = await requestPhoneOtp(phoneToUse);
+      if (result.success) {
+        phoneStep = "enter_code";
+        verificationCode = "";
+        addNotification({ type: "success", message: "Verification code sent to your phone." });
+      } else {
+        errors.general = result.error || "Failed to send code.";
+      }
+    } catch (e) {
+      errors.general = e instanceof Error ? e.message : "Failed to send code.";
+    } finally {
+      isLoading = false;
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    const phoneToUse = getPhoneValue();
+    const code = (verificationCode || "").trim();
+    if (!phoneToUse || !code) {
+      errors.general = "Enter the verification code from the SMS.";
+      return;
+    }
+    if (code.length < 4) {
+      errors.general = "Please enter the full verification code.";
+      return;
+    }
+    isLoading = true;
+    errors = {};
+    try {
+      const result = await verifyPhoneOtp(phoneToUse, code);
+      if (result.success && result.user && result.session) {
+        const u = result.user as UserWithProfile;
+        auth.update((s) => ({
+          ...s,
+          session: result.session!,
+          user: result.user!,
+          loading: false,
+          first_name: u?.first_name ?? null,
+          last_name: u?.last_name ?? null,
+        }));
+        const redirectPath = sessionStorage.getItem("redirectAfterLogin") || "/dashboard";
+        sessionStorage.removeItem("redirectAfterLogin");
+        addNotification({ type: "success", message: "Signed in successfully! Redirecting..." });
+        goto(redirectPath);
+      } else {
+        errors.general = result.error || "Invalid or expired code.";
+      }
+    } catch (e) {
+      errors.general = e instanceof Error ? e.message : "Verification failed.";
+    } finally {
+      isLoading = false;
+    }
+  };
+
   const handleSubmit = async (event: Event) => {
     event.preventDefault();
+
+    if (loginMethod === "phone") {
+      if (phoneStep === "enter_phone") {
+        handleSendCode();
+        return;
+      }
+      handleVerifyCode();
+      return;
+    }
 
     if (!validateForm()) return;
 
@@ -140,80 +216,29 @@
     errors = {}; // Clear previous errors
 
     try {
-      // First check if user exists before attempting login
-      if (loginMethod === "email") {
-        const userCheck = await checkUserExists(email);
-        
-        if (userCheck.error) {
-          errors.general = "Unable to verify user. Please try again.";
-          isLoading = false;
-          return;
-        }
-        
-        if (!userCheck.exists) {
-          // User doesn't exist, redirect to signup with error notification
-          addNotification({
-            type: 'error',
-            message: 'No account found with this email. Please sign up first.',
-            duration: 7000
-          });
-          goto("/signup");
-          return;
-        }
-      } else {
-        // Check phone number existence
-        const phoneToUse = value || phoneNumber;
-        const userCheck = await checkUserExistsByPhone(phoneToUse);
-        
-        if (userCheck.error) {
-          errors.general = "Unable to verify user. Please try again.";
-          isLoading = false;
-          return;
-        }
-        
-        if (!userCheck.exists) {
-          // User doesn't exist, redirect to signup with error notification
-          addNotification({
-            type: 'error',
-            message: 'No account found with this phone number. Please sign up first.',
-            duration: 7000
-          });
-          goto("/signup");
-          return;
-        }
+      const userCheck = await checkUserExists(email);
+      if (userCheck.error) {
+        errors.general = "Unable to verify user. Please try again.";
+        isLoading = false;
+        return;
       }
-
-      let result;
-
-      if (loginMethod === "email") {
-        result = await signInWithEmail(email, password);
-        console.log("result", result);
-      } else {
-        // Use the formatted phone number from the TelInput component
-        const phoneToUse = value || phoneNumber;
-        result = await signInWithPhone(phoneToUse, password);
-      }
-
-      if (result.success) {
-        // Success! User is signed in
-        console.log("Login successful:", result.user);
-        console.log("Session:", result.session);
-
-        // Get redirect path from sessionStorage or default to dashboard
-        const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/dashboard';
-        sessionStorage.removeItem('redirectAfterLogin'); // Clean up
-
-        // Redirect to intended destination or dashboard
+      if (!userCheck.exists) {
         addNotification({
-          type: 'success',
-          message: 'Login successful! Redirecting...'
+          type: "error",
+          message: "No account found with this email. Please sign up first.",
+          duration: 7000,
         });
-        goto(redirectPath);
+        goto("/signup");
+        return;
+      }
+
+      const result = await signInWithEmail(email);
+      if (result.success) {
+        localStorage.setItem("pendingEmailVerification", email);
+        addNotification({ type: "info", message: "Verification code sent to your email." });
+        goto(`/otp-email?email=${encodeURIComponent(email)}&mode=login`);
       } else {
-        // Handle login error
-        errors.general =
-          result.error ||
-          "Login failed. Please check your credentials and try again.";
+        errors.general = result.error || "Login failed. Please try again.";
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -338,18 +363,37 @@
             </div>
 
             {#if loginMethod === "phone"}
-              <div class="text-field">
-                <div><span class="phonenumber_01_span">Phone Number</span></div>
-                <PhoneNumber
-                  bind:valid
-                  bind:detailedValue
-                  bind:selectedCountry
-                  bind:value
-                />
-                {#if errors.phone}
-                  <span class="error-text">{errors.phone}</span>
-                {/if}
-              </div>
+              {#if phoneStep === "enter_code"}
+                <div class="text-field">
+                  <div><span class="phonenumber_01_span">Verification code</span></div>
+                  <PrimaryInput
+                    type="text"
+                    bind:value={verificationCode}
+                    placeholder="Enter code from SMS"
+                    {errors}
+                    disabled={isLoading}
+                  />
+                  {#if errors.general && phoneStep === "enter_code"}
+                    <span class="error-text">{errors.general}</span>
+                  {/if}
+                </div>
+                <button type="button" class="text-link" on:click={() => { phoneStep = 'enter_phone'; errors = {}; verificationCode = ''; }}>
+                  ← Use a different number
+                </button>
+              {:else}
+                <div class="text-field">
+                  <div><span class="phonenumber_01_span">Phone Number</span></div>
+                  <PhoneNumber
+                    bind:valid
+                    bind:detailedValue
+                    bind:selectedCountry
+                    bind:value
+                  />
+                  {#if errors.phone}
+                    <span class="error-text">{errors.phone}</span>
+                  {/if}
+                </div>
+              {/if}
             {:else}
               <div class="text-field">
                 <div><span class="phonenumber_01_span">Email</span></div>
@@ -374,9 +418,13 @@
             <div class="error-banner">{errors.general}</div>
           {/if}
           <PrimaryBtn
-            text={loginMethod === 'phone' ? 'Login With Phone Number' : 'Login With Email'}
+            text={
+              loginMethod === 'phone'
+                ? (phoneStep === 'enter_code' ? 'Verify and sign in' : 'Send verification code')
+                : 'Send verification code'
+            }
             {isLoading}
-            spinner_name="Logging in..."
+            spinner_name={loginMethod === 'phone' && phoneStep === 'enter_code' ? 'Verifying...' : 'Sending code...'}
             onClick={handleSubmit}
           />
           <TextBtn
@@ -761,6 +809,20 @@
     margin-bottom: 16px;
     text-align: center;
     font-size: 14px;
+  }
+
+  .text-link {
+    background: none;
+    border: none;
+    color: #2563eb;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 0;
+    margin-top: 4px;
+  }
+
+  .text-link:hover {
+    text-decoration: underline;
   }
 
   @media (max-width: 768px) {

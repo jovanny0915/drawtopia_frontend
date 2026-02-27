@@ -44,12 +44,15 @@
   // Retrieve character data from sessionStorage on component mount
   onMount(() => {
     if (browser) {
+      sessionStorage.removeItem('storyCover');
+      sessionStorage.removeItem('storyTitle');
+
       const storedCharacterName = sessionStorage.getItem('characterName');
       const storedSelectedWorld = sessionStorage.getItem('selectedWorld');
       const storedSpecialAbility = sessionStorage.getItem('specialAbility');
       const storedSelectedStyle = sessionStorage.getItem('selectedStyle');
       const storedSelectedEnhancement = sessionStorage.getItem('selectedEnhancement');
-      
+
       if (storedCharacterName) characterName = storedCharacterName;
       if (storedSelectedWorld) selectedWorld = storedSelectedWorld;
       if (storedSpecialAbility) specialAbility = storedSpecialAbility;

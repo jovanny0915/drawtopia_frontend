@@ -185,30 +185,50 @@ function getStoryWorldKey(world: string): string {
   return worldMapping[world.toLowerCase()] || "enchantedForest";
 }
 
-/**
- * Maps adventure type to prompt1.json keys
- */
-function getAdventureTypeKey(adventureType: string): string {
-  const normalized = adventureType.toLowerCase();
-  if (normalized.includes('treasure') || normalized.includes('hunt')) {
-    return 'treasureHunt';
+function normalizeStoryThemeKey(storyTheme?: string): string {
+  if (!storyTheme) return 'kindnessEmpathy';
+  const normalized = storyTheme.trim().toLowerCase();
+
+  if (
+    normalized === 'kindnessempathy' ||
+    normalized === 'kindness_empathy' ||
+    normalized === 'kindness-empathy'
+  ) {
+    return 'kindnessEmpathy';
   }
-  if (normalized.includes('help') || normalized.includes('friend')) {
-    return 'helpingFriend';
+
+  if (
+    normalized === 'bedtimeroutinesleephygiene' ||
+    normalized === 'bedtime_routine_sleep_hygiene' ||
+    normalized === 'bedtime-routine-sleep-hygiene'
+  ) {
+    return 'bedtimeRoutineSleepHygiene';
   }
-  return 'treasureHunt'; // default
+
+  return storyTheme;
 }
 
-/**
- * Maps occasion theme to prompt1.json keys
- */
-function getOccasionThemeKey(occasionTheme: string): string {
-  const normalized = occasionTheme.toLowerCase();
-  if (normalized === 'birthday') return 'birthday';
-  if (normalized === 'graduation') return 'graduation';
-  if (normalized === 'first_day_school' || normalized === 'firstdayofschool') return 'firstDayOfSchool';
-  if (normalized === 'new_sibling' || normalized === 'newsibling') return 'newSibling';
-  return ''; // general or other themes don't have specific prompts
+function compactStoryTextPageTemplate(template: string, pageNum: number): string {
+  let compacted = template.replace(/\r\n/g, '\n');
+
+  // Remove repeated variable sections from each page; variables are added once globally.
+  compacted = compacted
+    .replace(/^VARIABLES:\s*$/gim, '')
+    .replace(/^\[[A-Z_]+\]\s*=\s*.*$/gim, '');
+
+  // Remove repeated per-page generation cue and keep one global cue.
+  compacted = compacted.replace(/^\s*Generate the story text now\.?\s*$/gim, '');
+
+  // Shorten long page heading variants while preserving page index context.
+  compacted = compacted.replace(
+    /^PAGE\s+\d+\s+PROMPT\s*\([^)]*\):\s*$/im,
+    `PAGE ${pageNum}:`
+  );
+
+  // Normalize excessive blank lines introduced by cleanup.
+  compacted = compacted.replace(/\n{3,}/g, '\n\n').trim();
+
+  return compacted;
 }
 
 /**
@@ -216,7 +236,7 @@ function getOccasionThemeKey(occasionTheme: string): string {
  */
 function replaceStoryTextPlaceholders(
   template: string,
-  options: StoryTextPromptOptions
+  options: StoryTextGenerationPromptOptions
 ): string {
   let result = template;
   
@@ -231,6 +251,9 @@ function replaceStoryTextPlaceholders(
   result = result.replace(/\{reading_level\}/g, options.readingLevel);
   result = result.replace(/\{story_title\}/g, options.storyTitle);
   result = result.replace(/\{page_number\}/g, String(options.pageNumber));
+  result = result.replace(/\{child's character name\}/g, options.characterName);
+  result = result.replace(/\[CHARACTER_NAME\]/g, options.characterName);
+  result = result.replace(/\[WORLD_NAME\]/g, getWorldDisplayName(options.storyWorld));
   
   const adventureDisplay = getAdventureTypeDisplayName(options.adventureType);
   result = result.replace(/\{adventure_objective\}/g, adventureDisplay.toLowerCase());
@@ -239,88 +262,101 @@ function replaceStoryTextPlaceholders(
 }
 
 /**
- * Builds a story text generation prompt for the entire 5-page story using prompt1.json
- * 
- * Combines:
- * 1. basePrompt from generateStoryText
- * 2. ageRequirement based on age group
- * 3. storyStructures for all 5 pages
- * 4. thematicRequirements based on adventure type
- * 5. occasionThemes if applicable
- * 6. worldSpecific based on story world
- * 7. characterConsistencyRequirements
+ * Builds a story text generation prompt from the new theme/age prompt structure.
  */
-export function buildStoryTextPrompt(options: StoryTextPromptOptions): string {
+export function buildStoryTextPrompt(options: StoryTextGenerationPromptOptions): string {
   const storyText = (prompt1Data as any).generateStoryText;
   if (!storyText) {
     throw new Error('generateStoryText not found in prompt1.json');
   }
 
+  const storyPromptConfig = storyText.storyTextGenerationPrompts;
+  if (!storyPromptConfig) {
+    throw new Error('storyTextGenerationPrompts not found in generateStoryText');
+  }
+
+  const defaultTheme = storyText.defaultTheme || 'kindnessEmpathy';
+  const requestedTheme = normalizeStoryThemeKey(options.storyTheme);
+  const resolvedThemeKey = storyPromptConfig[requestedTheme]
+    ? requestedTheme
+    : storyPromptConfig[defaultTheme]
+    ? defaultTheme
+    : Object.keys(storyPromptConfig)[0];
+
+  if (!resolvedThemeKey) {
+    throw new Error('No story text themes configured in prompt1.json');
+  }
+
+  const selectedTheme = storyPromptConfig[resolvedThemeKey];
+  const ageRanges = selectedTheme?.ageRanges || {};
+  const selectedAgeRange = ageRanges[options.ageGroup] || ageRanges['7-10'] || Object.values(ageRanges)[0];
+  if (!selectedAgeRange) {
+    throw new Error(`No prompts found for age group ${options.ageGroup} in theme ${resolvedThemeKey}`);
+  }
+
+  const themeVariables = selectedAgeRange.variables || {};
+  const pagePrompts = selectedAgeRange.pages || {};
   const promptParts: string[] = [];
+  const sharedVariables: Array<{ key: string; value: string }> = [
+    { key: 'CHARACTER_NAME', value: options.characterName },
+    { key: 'WORLD_NAME', value: getWorldDisplayName(options.storyWorld) },
+    { key: 'LEARNING_THEME', value: themeVariables.learningTheme || selectedTheme.themeName || '' },
+    { key: 'ALLY_NAME', value: themeVariables.allyName || '' },
+    { key: 'OBSTACLE', value: themeVariables.obstacle || '' },
+    { key: 'BUNNY_NAME', value: themeVariables.bunnyName || 'Little Bunny' }
+  ].filter(({ value }) => typeof value === 'string' && value.trim().length > 0);
 
-  // 1. Base prompt
-  const basePrompt = storyText.basePrompt || '';
-  if (basePrompt && basePrompt.trim().length > 0) {
-    promptParts.push(replaceStoryTextPlaceholders(basePrompt, options));
+  promptParts.push(
+    `You are an expert children's bedtime story author. Write exactly 5 pages in order, following the page prompts below.
+\nOUTPUT FORMAT REQUIREMENTS:
+- Return exactly 5 paragraphs, one per page, in order
+- Separate each page with exactly one blank line
+- Do NOT include labels like "PAGE 1", headings, or bullet points
+- Keep continuity across all pages (same characters, tone, and story arc)`
+  );
+
+  promptParts.push(
+    `\n\nSTORY THEME:
+- Theme Key: ${resolvedThemeKey}
+- Theme Name: ${selectedTheme.themeName || ''}
+- Age Group: ${options.ageGroup}`
+  );
+
+  if (sharedVariables.length > 0) {
+    promptParts.push(
+      `\n\nSHARED VARIABLES (apply across all pages unless a page says otherwise):
+${sharedVariables.map(({ key, value }) => `- [${key}] = ${value}`).join('\n')}`
+    );
   }
 
-  // 2. Age requirements based on age group
-  const ageReq = storyText.ageRequirement?.[options.ageGroup];
-  if (ageReq && ageReq.trim().length > 0) {
-    promptParts.push(`\n\n${replaceStoryTextPlaceholders(ageReq, options)}`);
-  }
+  promptParts.push(
+    '\n\nWrite all 5 pages now in a single response, following the page guidance below.'
+  );
 
-  // 3. Story structures for all 5 pages
-  const storyStructures = storyText.storyStructures;
-  if (storyStructures) {
-    for (let pageNum = 1; pageNum <= 5; pageNum++) {
-      const pageKey = `page${pageNum}` as keyof typeof storyStructures;
-      const pageStructure = storyStructures[pageKey];
-      if (pageStructure && pageStructure.trim().length > 0) {
-        promptParts.push(`\n\n${replaceStoryTextPlaceholders(pageStructure, options)}`);
-      }
+  for (let pageNum = 1; pageNum <= 5; pageNum++) {
+    const pageKey = `page${pageNum}`;
+    const template = pagePrompts[pageKey];
+    if (typeof template !== 'string' || template.trim().length === 0) {
+      continue;
     }
+
+    const mergedTemplate = template
+      .replace(/\[ALLY_NAME\]/g, themeVariables.allyName || '')
+      .replace(/\[LEARNING_THEME\]/g, themeVariables.learningTheme || selectedTheme.themeName || '')
+      .replace(/\[OBSTACLE\]/g, themeVariables.obstacle || '')
+      .replace(/\[BUNNY_NAME\]/g, themeVariables.bunnyName || 'Little Bunny');
+
+    const compactTemplate = compactStoryTextPageTemplate(mergedTemplate, pageNum);
+    promptParts.push(`\n\n${replaceStoryTextPlaceholders(compactTemplate, options)}`);
   }
 
-  // 4. Thematic requirements based on adventure type
-  const adventureKey = getAdventureTypeKey(options.adventureType);
-  const thematicReq = storyText.thematicRequirements?.[adventureKey];
-  if (thematicReq && thematicReq.trim().length > 0) {
-    promptParts.push(`\n\n${replaceStoryTextPlaceholders(thematicReq, options)}`);
-  }
-
-  // 5. Occasion themes if applicable
-  const occasionKey = getOccasionThemeKey(options.occasionTheme);
-  if (occasionKey) {
-    const occasionTheme = storyText.occasionThemes?.[occasionKey];
-    if (occasionTheme && occasionTheme.trim().length > 0) {
-      promptParts.push(`\n\n${replaceStoryTextPlaceholders(occasionTheme, options)}`);
-    }
-  }
-
-  // 6. World-specific storytelling
-  const worldKey = getStoryWorldKey(options.storyWorld);
-  const worldSpecific = storyText.worldSpecific?.[worldKey];
-  if (worldSpecific && worldSpecific.trim().length > 0) {
-    promptParts.push(`\n\n${replaceStoryTextPlaceholders(worldSpecific, options)}`);
-  }
-
-  // 7. Character consistency requirements
-  const consistencyReq = storyText.characterConsistencyRequirements;
-  if (consistencyReq && consistencyReq.trim().length > 0) {
-    promptParts.push(`\n\n${replaceStoryTextPlaceholders(consistencyReq, options)}`);
-  }
-
-  // Combine all parts
-  const finalPrompt = promptParts.join('');
-
-  return finalPrompt;
+  return promptParts.join('');
 }
 
 /**
  * Interface for story text generation prompt options
  */
-export interface StoryTextPromptOptions {
+export interface StoryTextGenerationPromptOptions {
   characterName: string
   characterType: string
   specialAbility: string
@@ -332,6 +368,7 @@ export interface StoryTextPromptOptions {
   readingLevel: string
   storyTitle: string
   pageNumber: number
+  storyTheme?: string
 }
 
 /**
@@ -599,6 +636,7 @@ export interface StoryScenePromptOptions {
   pageCharacterAction?: string
   pageEmotion?: string
   companionCharacters?: string
+  characterPlacement?: 'left-half' | 'center' | 'right-half'
 }
 
 /**
@@ -611,6 +649,7 @@ function replaceStoryScenePlaceholders(
   let result = template;
   const resolvedSceneDescription = options.pageSceneDescription || '';
   const resolvedCharacterAction = options.pageCharacterAction || '';
+  const resolvedCompanionCharacters = options.companionCharacters?.trim() || 'Fox';
   
   result = result.replace(/\{character_name\}/g, options.characterName);
   result = result.replace(/\{character_type\}/g, options.characterType);
@@ -627,6 +666,8 @@ function replaceStoryScenePlaceholders(
   result = result.replace(/\{storyText\}/g, options.pageText);
   result = result.replace(/\{sceneDescription\}/g, resolvedSceneDescription);
   result = result.replace(/\{characterAction\}/g, resolvedCharacterAction);
+  result = result.replace(/\{companion_characters\}/g, resolvedCompanionCharacters);
+  result = result.replace(/\{companionCharacters\}/g, resolvedCompanionCharacters);
 
   
   return result;
@@ -664,6 +705,12 @@ export function buildStoryScenePrompt(options: StoryScenePromptOptions): string 
     promptParts.push(`\n\n${replaceStoryScenePlaceholders(consistencyEnforcement, options)}`);
   }
 
+  // 2.5 Template preservation priority (highest-level guardrail for compositing flow)
+  const templatePreservationPriority = storyScene.templatePreservationPriority;
+  if (templatePreservationPriority && templatePreservationPriority.trim().length > 0) {
+    promptParts.push(`\n\n${replaceStoryScenePlaceholders(templatePreservationPriority, options)}`);
+  }
+
   // 3. Style specifications based on character style
   const styleKey = options.characterStyle === '3d' ? '3d' : 
                    options.characterStyle === 'cartoon' ? 'cartoon' : 
@@ -690,7 +737,13 @@ export function buildStoryScenePrompt(options: StoryScenePromptOptions): string 
     promptParts.push(`\n\n${replaceStoryScenePlaceholders(pageSpecificReq, options)}`);
   }
 
-  // 6. Additional context if provided
+  // 6. Companion requirements (default companion is Fox)
+  const companionReq = storyScene.companionRequirements;
+  if (companionReq && companionReq.trim().length > 0) {
+    promptParts.push(`\n\n${replaceStoryScenePlaceholders(companionReq, options)}`);
+  }
+
+  // 7. Additional context if provided
   if (options.pageSceneDescription) {
     promptParts.push(`\n\nADDITIONAL SCENE DESCRIPTION: ${options.pageSceneDescription}`);
   }
@@ -703,11 +756,11 @@ export function buildStoryScenePrompt(options: StoryScenePromptOptions): string 
     promptParts.push(`\n\nCHARACTER EMOTION: ${options.pageEmotion}`);
   }
   
-  if (options.companionCharacters) {
-    promptParts.push(`\n\nCOMPANION CHARACTERS: ${options.companionCharacters}`);
-  }
+  const defaultCompanion = (storyScene.defaultCompanion || 'Fox').trim();
+  const resolvedCompanion = options.companionCharacters?.trim() || defaultCompanion;
+  promptParts.push(`\n\nCOMPANION CHARACTERS: ${resolvedCompanion}`);
 
-  // 7. Character reference image instructions
+  // 8. Character reference image instructions
   if (options.characterImageUrl) {
     promptParts.push(`\n\nCHARACTER REFERENCE IMAGE:
 - A reference image of ${options.characterName} is provided
@@ -716,7 +769,24 @@ export function buildStoryScenePrompt(options: StoryScenePromptOptions): string 
 - Keep the character's visual identity consistent with the reference image`);
   }
 
-  // 8. Negative prompts
+  // 9. Character placement constraints (defaults to left-half for story main pages).
+  const placement = options.characterPlacement || 'left-half';
+  if (placement === 'left-half') {
+    promptParts.push(`\n\nCHARACTER PLACEMENT REQUIREMENTS:
+- Place the main character in the LEFT HALF of the template scene (x-position roughly 0-50% of canvas width)
+- Keep the character's full body entirely inside the left half; do not cross the center line
+- Preserve original template composition; only adjust character position/scale inside the left section
+- If scene depth is needed, keep depth variation but anchor horizontal placement to the left half`);
+  } else if (placement === 'right-half') {
+    promptParts.push(`\n\nCHARACTER PLACEMENT REQUIREMENTS:
+- Place the main character in the RIGHT HALF of the template scene (x-position roughly 50-100% of canvas width)
+- Keep the character's full body entirely inside the right half; do not cross the center line`);
+  } else {
+    promptParts.push(`\n\nCHARACTER PLACEMENT REQUIREMENTS:
+- Place the main character near the center while preserving template composition`);
+  }
+
+  // 10. Negative prompts
   const negativePrompts = storyScene.negativePrompts;
   if (negativePrompts && negativePrompts.trim().length > 0) {
     promptParts.push(`\n\n${replaceStoryScenePlaceholders(negativePrompts, options)}`);
@@ -816,6 +886,38 @@ function replaceStoryCoverPlaceholders(
   result = result.replace(/\{character_style\}/g, options.characterStyle);
   result = result.replace(/\{story_world\}/g, options.storyWorld);
   
+  return result;
+}
+
+/**
+ * Builds the template-based story cover compositing prompt from prompt1.json
+ */
+export function buildTemplateCompositeCoverPrompt(
+  options: StoryAdventureCoverPromptOptions
+): string {
+  const storyScene = (prompt1Data as any).generateStoryScene;
+  if (!storyScene) {
+    throw new Error('generateStoryScene not found in prompt1.json');
+  }
+
+  const cover = storyScene.cover;
+  if (!cover) {
+    throw new Error('cover not found in generateStoryScene');
+  }
+
+  const templateCompositePrompt = cover.templateCompositePrompt;
+  if (!templateCompositePrompt || templateCompositePrompt.trim().length === 0) {
+    throw new Error('templateCompositePrompt not found in generateStoryScene.cover');
+  }
+
+  let result = templateCompositePrompt;
+  result = result.replace(/\{character_name\}/g, options.characterName);
+  result = result.replace(/\{character_type\}/g, options.characterType);
+  result = result.replace(/\{character_style\}/g, options.characterStyle);
+  result = result.replace(/\{story_world\}/g, options.storyWorld);
+  result = result.replace(/\{age_group\}/g, options.ageGroup);
+  result = result.replace(/\{story_title\}/g, options.storyTitle || 'Adventure Story');
+
   return result;
 }
 

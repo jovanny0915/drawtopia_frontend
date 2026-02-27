@@ -384,7 +384,7 @@
                     <div class="frame-1410104091">
                         <img
                             class="frame-1410104089"
-                            src={originalImageUrl}
+                            src={storyCover}
                             alt="Story summary"
                         />
                         <div class="frame-1410104090">

@@ -1053,6 +1053,7 @@
             const storyTitle = storyState.storyTitle || sessionStorage.getItem('selectedTitle') || 'The Great Adventure';
             // Get occasion theme from sessionStorage (not in StoryCreationState)
             const occasionTheme = browser ? (sessionStorage.getItem('occasionTheme') || 'general') : 'general';
+            const storyTheme = browser ? (sessionStorage.getItem('storyTheme') || 'kindnessEmpathy') : 'kindnessEmpathy';
             
             // Get reading level (default to developing_reader if not available)
             let readingLevel = 'developing_reader';
@@ -1081,7 +1082,8 @@
                 ageGroup,
                 readingLevel,
                 storyTitle,
-                pageNumber: 1 // Main prompt for the whole story
+                pageNumber: 1, // Main prompt for the whole story
+                storyTheme
             });
             
             // ——— Step 1: Generate Story Text Only (No Images) ———
@@ -1103,6 +1105,7 @@
                 occasion_theme: occasionTheme,
                 reading_level: readingLevel,
                 story_title: storyTitle,
+                story_theme: storyTheme,
                 story_text_prompt: storyTextPrompt,
                 generate_images: false, // Request text only
                 generate_audio: false // No audio for now
@@ -1223,6 +1226,12 @@
                 dedicationMessage: '',
                 storyPages: storyPagesTextOnly,
                 storyWorld: mapStoryWorld(storyState.storyWorld) || 'enchanted-forest',
+                characterType,
+                specialAbility,
+                characterStyle: characterStyle as '3d' | 'cartoon' | 'anime',
+                adventureType,
+                ageGroup,
+                storyTitle,
                 storyPagesOnly: true,
                 onProgress: (step: string, progress: number) => {
                     console.log(`${step} - ${progress}%`);
@@ -1514,7 +1523,7 @@
                                     </div>
                                 {/if}
                             </div>
-                            <div class="preview-slot-wrapper">
+                            <div class="preview-slot-wrapper3">
                                 <img
                                     class="frame-2147227510_01"
                                     src={displayImage3}
@@ -1692,11 +1701,17 @@
         position: relative;
     }
 
-    .preview-slot-wrapper .frame-2147227509_01,
-    .preview-slot-wrapper .frame-2147227510_01 {
+    .preview-slot-wrapper3, .frame-2147227509_01 {
         width: 100%;
         height: 100%;
         object-fit: cover;
+    }
+
+    .preview-slot-wrapper, .frame-2147227510_01 {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        padding: 15px;
     }
 
     .frame-2147227509_01 {

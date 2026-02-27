@@ -1,6 +1,12 @@
 import { browser } from "$app/environment";
 import prompt1Data from "./prompt1.json";
-import { buildEnhancementPrompt, buildIntersearchCoverPrompt, buildStoryAdventureCoverPrompt, type StoryAdventureCoverPromptOptions } from "./promptBuilder";
+import {
+  buildEnhancementPrompt,
+  buildIntersearchCoverPrompt,
+  buildStoryAdventureCoverPrompt,
+  buildTemplateCompositeCoverPrompt,
+  type StoryAdventureCoverPromptOptions
+} from "./promptBuilder";
 
 export interface ImageGenerationResult {
   success: boolean;
@@ -816,31 +822,7 @@ export async function generateStoryAdventureCover(
     const templateCoverUrl = templateResult.data.cover_image;
     
     // Build a prompt to insert the character into the template cover
-    const insertCharacterPrompt = `You are compositing a character into a book cover template.
-
-TEMPLATE COVER: The base image is a book cover template for a ${mappedWorld} themed storybook.
-
-CHARACTER TO INSERT: Insert the character from the reference image into this book cover scene.
-- Character Name: ${charName}
-- Character Type: ${charType}
-- Art Style: ${charStyle}
-
-INSTRUCTIONS:
-1. Place the character naturally into the scene, making them the focal point
-2. The character should look like they belong in the ${mappedWorld} environment
-3. Maintain the character's original design, style, and features from the reference image
-4. Ensure the character is well-integrated with the background (proper lighting, shadows, scale)
-5. Keep the overall composition balanced and appealing for a children's book cover
-6. The character should be prominent but not overwhelming
-7. Preserve all text and decorative elements from the template exactly as they are
-8. Keep the template image unchanged: preserve original composition, background, colors, textures, and illustration style
-9. Do NOT redraw, restyle, regenerate, repaint, or replace the template scene
-10. Do NOT add, remove, or move existing template elements
-11. Limit edits to character placement plus minimal local overlap and contact shadows only
-
-Style: ${charStyle} illustration style
-Target Age Group: ${age}
-Book Title: "${title}"`;
+    const insertCharacterPrompt = `Insert the character from the reference image onto the provided book cover template. The character should be placed in the lower-middle section of the cover, standing confidently with a radiant smile and open hands, as if gesturing invitingly. Blend them naturally with the background magical forest, ensuring correct scale, lighting, and shadows consistent with the template's glowing elements. The character should be integrated into the existing forest background of the template The ratio of image will be gnerated must be (2:3=width:height).`;
 
     // Call the image editing API with the template as base and character as reference
     const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
@@ -894,6 +876,7 @@ export async function generateCoverImageWithTemplate(options: {
   characterStyle?: string;
   ageGroup?: string;
   storyTitle?: string;
+  includeTitleInPrompt?: boolean;
   saveToStorage?: boolean;
   storageKey?: string;
 }): Promise<ImageGenerationResult> {
@@ -911,6 +894,7 @@ export async function generateCoverImageWithTemplate(options: {
       characterStyle,
       ageGroup,
       storyTitle,
+      includeTitleInPrompt = true,
       saveToStorage = true,
       storageKey
     } = options;
@@ -920,36 +904,23 @@ export async function generateCoverImageWithTemplate(options: {
     const charType = characterType || sessionStorage.getItem('selectedCharacterType') || 'person';
     const charStyle = characterStyle || sessionStorage.getItem('selectedStyle') || 'cartoon';
     const age = ageGroup || sessionStorage.getItem('ageGroup') || '7-10';
-    const title = storyTitle || sessionStorage.getItem('storyTitle') || 'Adventure Story';
+    const title = storyTitle ?? sessionStorage.getItem('storyTitle') ?? 'Adventure Story';
 
-    // Build the prompt for cover generation
-    const coverPrompt = `TASK: Create a unified book cover by compositing a character onto a background template. Maintain the template's exact image dimensions.
+    const sanitizedStyle = (charStyle === '3d' || charStyle === 'cartoon' || charStyle === 'anime') ? charStyle : 'cartoon';
+    const normalizedTitle = title.trim();
 
-INPUTS:
-1.  BACKGROUND TEMPLATE IMAGE: A ${storyWorld} themed book cover background (sets scene, mood, style).
-2.  CHARACTER IMAGE: Character for integration.
-    *   Name: ${charName}
-    *   Type: ${charType}
-    *   Art Style: ${charStyle} (Must be strictly preserved for character.)
-
-OUTPUT REQUIREMENTS:
-1.  Character Integration:
-    *   Place character as focal point.
-    *   Seamlessly adapt character's pose, lighting, shadows, and scale to fit the ${storyWorld} environment. The character must look natural and belong in the scene, not just placed on it.
-    *   Maintain character's precise ${charStyle} and design, but with environmental rendering (lighting, color) matching the background.
-2.  Visual Cohesion: The final cover must have a consistent ${charStyle} and be visually balanced, appealing for an ${age} children's book.
-3.  Title Overlay:
-    *   Add title "${title}" prominently top.
-    *   Style title legibly, fitting ${charStyle} children's book aesthetic, integrated into design.
-4.  Template Preservation:
-    *   Keep the template scene unchanged: preserve original composition, background, props, colors, textures, and illustration style.
-    *   Preserve all existing template decorations and atmospheric effects exactly.
-    *   Do NOT redraw, restyle, regenerate, repaint, or replace the template scene.
-    *   Do NOT add, remove, or move existing template elements.
-    *   Limit edits to character placement plus minimal local overlap and contact shadows only.
-5.  Dimensions: Final image must match exact width and height of the background template.
-
-GENERATE THE BOOK COVER.`;
+    // For step 7 we intentionally support generation without title text on the image.
+    const coverPrompt = includeTitleInPrompt && normalizedTitle.length > 0
+      ? buildTemplateCompositeCoverPrompt({
+          characterName: charName,
+          characterType: charType,
+          characterStyle: sanitizedStyle,
+          storyWorld: storyWorld,
+          adventureType: '',
+          ageGroup: age,
+          storyTitle: normalizedTitle
+        })
+      : `Insert the character from the reference image onto the provided book cover template. The character should be placed in the lower-middle section of the cover, standing confidently with a radiant smile and open hands, as if gesturing invitingly. Blend them naturally with the background magical forest, ensuring correct scale, lighting, and shadows consistent with the template's glowing elements. The character should be integrated into the existing forest background of the template The ratio of image will be gnerated must be (2:3=width:height).`;
 
     // Call the backend API endpoint with three parts: prompt, character image URL, and template cover URL
     const response = await fetch('https://image-edit-five.vercel.app/generate-cover-image', {
@@ -986,6 +957,67 @@ GENERATE THE BOOK COVER.`;
   } catch (err) {
     console.error('Error generating cover image with template:', err);
     const errorMessage = err instanceof Error ? err.message : 'Failed to generate cover image. Please try again.';
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * Overlay a selected title onto an existing cover image using backend PIL rendering (non-AI).
+ */
+export async function overlayCoverTitleOnImage(options: {
+  coverImageUrl: string;
+  title: string;
+  saveToStorage?: boolean;
+  storageKey?: string;
+}): Promise<ImageGenerationResult> {
+  if (!browser) {
+    return { success: false, error: 'Browser environment required' };
+  }
+
+  try {
+    const {
+      coverImageUrl,
+      title,
+      saveToStorage = true,
+      storageKey
+    } = options;
+
+    const trimmedTitle = title.trim();
+    if (!coverImageUrl || !trimmedTitle) {
+      return { success: false, error: 'Cover image URL and title are required' };
+    }
+
+    const response = await fetch('https://image-edit-five.vercel.app/overlay-cover-title/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        image_url: coverImageUrl,
+        title: trimmedTitle
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to overlay cover title: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (data.success && data.url) {
+      const cleanUrl = data.url.split('?')[0];
+
+      if (saveToStorage) {
+        const key = storageKey || 'storyCover';
+        sessionStorage.setItem(key, cleanUrl);
+      }
+
+      return { success: true, url: cleanUrl };
+    }
+
+    throw new Error(data.message || 'Failed to overlay title on cover image');
+  } catch (err) {
+    console.error('Error overlaying title on cover image:', err);
+    const errorMessage = err instanceof Error ? err.message : 'Failed to overlay title on cover image.';
     return { success: false, error: errorMessage };
   }
 }

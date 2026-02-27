@@ -5,16 +5,20 @@
 
 import { writable, derived } from 'svelte/store';
 import { supabase, AUTH_STORAGE_KEY } from '../supabase';
-import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory } from '../auth';
+import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory, fetchPhoneSessionUser, clearPhoneSession, PHONE_TOKEN_STORAGE_KEY } from '../auth';
+import type { PhoneSession } from '../auth';
 import type { User, Session } from '@supabase/supabase-js';
 
 // User with profile fields from custom users table (for display name, etc.)
 export type UserWithProfile = User & { first_name?: string | null; last_name?: string | null };
 
+// Session can be Supabase session or passwordless phone (has access_token for API calls)
+export type AppSession = Session | PhoneSession | null;
+
 // Auth state interface
 interface AuthState {
   user: User | null;
-  session: Session | null;
+  session: AppSession;
   loading: boolean;
   first_name: string | null;
   last_name: string | null;
@@ -248,13 +252,57 @@ export function initAuth() {
           }
         } catch (_) {}
       }
-      syncUserProfileToAuth(session);
+      syncUserProfileToAuth(session as Session);
     } else {
       auth.update(s => ({ ...s, first_name: null, last_name: null }));
+    }
+
+    // If no Supabase session, check for passwordless phone token (Twilio Verify)
+    if (!session && typeof window !== 'undefined') {
+      const phoneToken = localStorage.getItem(PHONE_TOKEN_STORAGE_KEY);
+      if (phoneToken) {
+        fetchPhoneSessionUser().then((result) => {
+          if (result.success && result.user) {
+            const u = result.user as UserWithProfile;
+            ensureSessionStartMarker();
+            auth.update(state => ({
+              ...state,
+              session: { access_token: phoneToken },
+              user: result.user ?? null,
+              loading: false,
+              first_name: u?.first_name ?? null,
+              last_name: u?.last_name ?? null
+            }));
+          } else {
+            clearPhoneSession();
+            auth.update(s => ({ ...s, loading: false }));
+          }
+        }).catch(() => {
+          clearPhoneSession();
+          auth.update(s => ({ ...s, loading: false }));
+        });
+        return;
+      }
     }
   };
 
   getSessionWithRetry();
+
+  // When sign out is triggered (e.g. phone-only session), clear auth state
+  const onSignOut = () => {
+    clearSessionStartMarker();
+    auth.update(state => ({
+      ...state,
+      session: null,
+      user: null,
+      first_name: null,
+      last_name: null,
+      loading: false
+    }));
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('drawtopia-signout', onSignOut);
+  }
 
   // Listen for auth state changes
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -397,6 +445,9 @@ export function initAuth() {
   // Return unsubscribe function
   return () => {
     subscription.unsubscribe();
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('drawtopia-signout', onSignOut);
+    }
     if (hardTimeoutCheckInterval) {
       clearInterval(hardTimeoutCheckInterval);
       hardTimeoutCheckInterval = null;
@@ -414,7 +465,7 @@ export const user = derived(auth, ($auth): UserWithProfile | null => {
     last_name: $auth.last_name ?? undefined
   };
 });
-export const session = writable<Session | null>(null);
+export const session = writable<AppSession>(null);
 export const isAuthenticated = writable<boolean>(false);
 export const authLoading = writable<boolean>(true);
 

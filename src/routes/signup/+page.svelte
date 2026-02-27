@@ -487,6 +487,11 @@
             linkText="Login"
             link="/login"
           />
+          <TextBtn
+            text="Or sign up with phone (no password)"
+            linkText="Use phone number"
+            link="/login?method=phone"
+          />
         </div>
       </form>
     </div>
