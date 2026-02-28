@@ -2757,11 +2757,12 @@
     align-items: flex-end;
     gap: 24px;
     position: absolute;
+    text-align: left;
     right: 0;
     z-index: 3;
-    width: 70%;
+    width: 82%;
     height: 45%;
-    padding: 50px;
+    padding: 20px;
     pointer-events: none;
   }
 

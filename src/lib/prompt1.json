@@ -78,10 +78,69 @@
   },
   "generateStoryText": {
     "defaultTheme": "kindnessEmpathy",
+    "themeToAllyMapping": {
+      "kindnessEmpathy": {
+        "3-6": "Wise Deer",
+        "7-10": "Gentle Fox",
+        "11-12": "Elder Owl"
+      },
+      "bedtimeRoutineSleepHygiene": {
+        "3-6": "Sleepy Badger",
+        "7-10": "Restful Heron",
+        "11-12": "Wise Moon Keeper"
+      },
+      "courage": {
+        "3-6": "Brave Bear",
+        "7-10": "Courageous Hawk",
+        "11-12": "Wise Lion"
+      },
+      "connection": {
+        "3-6": "Friendly Rabbit",
+        "7-10": "Loyal Fox",
+        "11-12": "Trusted Companion"
+      },
+      "patienceEndurance": {
+        "3-6": "Patient Turtle",
+        "7-10": "Wise Badger",
+        "11-12": "Steadfast Mountain Goat"
+      }
+    },
     "storyTextGenerationPrompts": {
       "kindnessEmpathy": {
         "themeName": "Kindness & Empathy",
         "worldName": "Enchanted Forest",
+        "storyVariablesByAgeGroup": {
+          "3-6": {
+            "emotionalChallenge": "Luna felt sad when others weren't smiling",
+            "allyName": "Wise Deer",
+            "allyTrait": "always noticed when friends needed help",
+            "themeObstacle": "A sad creature by itself",
+            "obstacleDescription": "a small bunny sitting alone, looking at the stars sadly",
+            "themeAction": "Luna sat beside the bunny and shared stories",
+            "resolutionImage": "Happy bunny smiling with Luna",
+            "bedtimeMoral": "Kindness is like a warm blanket-it makes everyone feel safe and loved"
+          },
+          "7-10": {
+            "emotionalChallenge": "Luna noticed the forest felt lonely when friends weren't talking to each other",
+            "allyName": "Gentle Fox",
+            "allyTrait": "saw sadness in others and knew exactly what to say",
+            "themeObstacle": "A lonely friend hiding away",
+            "obstacleDescription": "a fox friend who had made a mistake and was hiding in shame",
+            "themeAction": "Luna approached with kind words and a listening heart",
+            "resolutionImage": "Friends laughing together again",
+            "bedtimeMoral": "When you help others feel better, you feel better too, and that brings peaceful sleep"
+          },
+          "11-12": {
+            "emotionalChallenge": "Luna realized kindness was more than helping-it meant truly understanding how others felt",
+            "allyName": "Elder Owl",
+            "allyTrait": "understood the difference between help and true compassion",
+            "themeObstacle": "A hurting character too proud to ask for help",
+            "obstacleDescription": "a creature who had lost something precious and couldn't believe anyone cared",
+            "themeAction": "Luna showed vulnerability, admitting their own struggles too",
+            "resolutionImage": "Mutual trust and deep friendship formed",
+            "bedtimeMoral": "True kindness creates connections that let you rest knowing you matter to others"
+          }
+        },
         "ageRanges": {
           "3-6": {
             "variables": {
@@ -105,6 +164,38 @@
       "bedtimeRoutineSleepHygiene": {
         "themeName": "Bedtime Routine & Sleep Hygiene",
         "worldName": "Enchanted Forest",
+        "storyVariablesByAgeGroup": {
+          "3-6": {
+            "emotionalChallenge": "Luna didn't want to sleep-adventure was too exciting!",
+            "allyName": "Sleepy Badger",
+            "allyTrait": "loved bedtime and knew all its secrets",
+            "themeObstacle": "Luna's excitement and racing thoughts",
+            "obstacleDescription": "Luna's mind was bouncing like a butterfly-so many thoughts!",
+            "themeAction": "Luna learned the magic of a bedtime routine-slowing down on purpose",
+            "resolutionImage": "Luna tucked in, eyes closing, ready for dreams",
+            "bedtimeMoral": "Bedtime is special-it's when your body rests and your dreams come"
+          },
+          "7-10": {
+            "emotionalChallenge": "Luna was nervous about bedtime and couldn't calm down",
+            "allyName": "Restful Heron",
+            "allyTrait": "understood that rest made you stronger",
+            "themeObstacle": "Luna's worry and restless energy",
+            "obstacleDescription": "Luna's heart was beating fast and she couldn't sit still",
+            "themeAction": "Luna practiced breathing slowly and let her body relax",
+            "resolutionImage": "Luna calm and still, breathing slowly, at peace",
+            "bedtimeMoral": "Sleep is a superpower. It makes you strong, smart, and happy"
+          },
+          "11-12": {
+            "emotionalChallenge": "Luna resisted sleep, thinking she'd miss something important",
+            "allyName": "Wise Moon Keeper",
+            "allyTrait": "knew that sleep was when your body healed and your mind dreamed",
+            "themeObstacle": "Luna's fear of missing out, resistance to rest",
+            "obstacleDescription": "Luna's mind raced with all the things she wanted to do instead of sleep",
+            "themeAction": "Luna understood: sleep isn't losing time, it's gaining strength for tomorrow",
+            "resolutionImage": "Luna surrendering to rest, understanding its power",
+            "bedtimeMoral": "Rest is a gift you give yourself. When you sleep well, you're ready for anything"
+          }
+        },
         "ageRanges": {
           "7-10": {
             "variables": {
@@ -118,8 +209,157 @@
               "page1": "PAGE 1 PROMPT (BEDTIME ROUTINE, Ages 7-10):\nYou are writing page 1 of a bedtime story for a 7-10 year old child.\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[WORLD_NAME] = Enchanted Forest\n[LEARNING_THEME] = Bedtime Routine & Sleep Hygiene\n\nTASK: Write a 70-100 word opening paragraph showing [CHARACTER_NAME]\nresisting sleep.\n\nREQUIREMENTS:\n- Show [CHARACTER_NAME] excited, anxious, or resistant about bedtime\n- The reason is relatable (not scary): too much fun happening, racing mind, anxiety\n- Tone is validating: \"I understand why you don't want to sleep\"\n- [CHARACTER_NAME] notices something isn't working: \"I'm too awake\"\n- End with openness to learning: \"Maybe there's something I'm missing...\"\n- Warm, not judgmental\n\nSTRUCTURE:\n1. Show excitement or resistance\n2. Show it's not working (can't actually sleep)\n3. Wonder if there's another way\n\nTONE: Understanding, gentle, curious.\n\nGenerate the story text now.",
               "page2": "PAGE 2 PROMPT (BEDTIME ROUTINE, Ages 7-10):\nContinue page 2 of the bedtime story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Restful Heron\n[WORLD_NAME] = Enchanted Forest\n[LEARNING_THEME] = Bedtime Routine & Sleep Hygiene\n\nTASK: Write a 80-110 word paragraph where [CHARACTER_NAME] meets [ALLY_NAME].\n\nREQUIREMENTS:\n- [ALLY_NAME] appears calm, peaceful, unhurried\n- [ALLY_NAME] shares why they love bedtime: \"It's when my body heals\"\n- [ALLY_NAME] introduces the idea of a gentle routine\n- Dialogue is natural and age-appropriate\n- They venture together toward a peaceful place\n- No pressure; [ALLY_NAME] is inviting, not commanding\n\nALLY_DESCRIPTION: Restful Heron moves slowly and intentionally, speaks in a calm voice,\nand radiates peace. [ALLY_NAME] understands that rest is a skill to be learned.\n\nTONE: Reassuring mentorship, introducing peace.\n\nGenerate the story text now.",
               "page3": "PAGE 3 PROMPT (BEDTIME ROUTINE, Ages 7-10):\nPage 3: The sleep challenge in the bedtime story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Restful Heron\n[OBSTACLE] = [CHARACTER_NAME]'s restless mind and body\n[WORLD_NAME] = Enchanted Forest\n\nTASK: Write a 90-120 word scene where [CHARACTER_NAME] learns to slow down.\n\nREQUIREMENTS:\n- Show [CHARACTER_NAME]'s racing thoughts or restless body\n- [ALLY_NAME] teaches something concrete: slow breathing, gentle movement, quiet thoughts\n- [CHARACTER_NAME] tries the technique with [ALLY_NAME]'s guidance\n- Show it actually starting to work: \"I feel... calmer\"\n- Acknowledge that this takes practice\n- Tone is patient and encouraging\n\nSTRUCTURE:\n1. [CHARACTER_NAME]'s resistance/racing thoughts\n2. [ALLY_NAME] teaches a specific technique (breathing, slow movement, etc.)\n3. They practice together\n4. [CHARACTER_NAME] feels the shift\n\nTONE: Patient, teaching, peaceful.\n\nGenerate the story text now.",
-              "page4": "PAGE 4 PROMPT (BEDTIME ROUTINE, Ages 7-10):\nPage 4: The sleep triumph in the bedtime story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Restful Heron\n[WORLD_NAME] = Enchanted Forest\n\nTASK: Write a 90-120 word scene where [CHARACTER_NAME] experiences the\npower of rest.\n\nREQUIREMENTS:\n- Show [CHARACTER_NAME]'s body relaxing completely\n- Show [CHARACTER_NAME]'s mind becoming quiet\n- Emphasize the good feeling: \"This feels... wonderful\"\n- [ALLY_NAME] celebrates: \"You've discovered the secret\"\n- [CHARACTER_NAME] realizes: \"Sleep isn't losing time-it's gaining strength\"\n- Peaceful, satisfied tone\n\nSTRUCTURE:\n1. [CHARACTER_NAME] fully relaxed and calm\n2. Internal realization about sleep's value\n3. Ally's affirmation\n4. [CHARACTER_NAME] ready to drift off\n\nTONE: Peaceful, satisfied, sleepy.\n\nGenerate the story text now.",
+              "page4": "PAGE 4 PROMPT (BEDTIME ROUTINE, Ages 7-10):\nPage 4: The sleep triumph in the bedtime story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Restful Heron\n[WORLD_NAME] = Enchanted Forest\n\nTASK: Write a 90-120 word scene where [CHARACTER_NAME] experiences the\npower of rest.\n\nREQUIREMENTS:\n- Show [CHARACTER_NAME]'s body relaxing completely\n- Show [CHARACTER_NAME]'s mind becoming quiet\n- Emphasize the good feeling: \"This feels... wonderful\"\n- [ALLY_NAME] celebrates: \"You've discovered the secret\"\n- [CHARACTER_NAME] realizes: \"Sleep isn't losing time—it's gaining strength\"\n- Peaceful, satisfied tone\n\nSTRUCTURE:\n1. [CHARACTER_NAME] fully relaxed and calm\n2. Internal realization about sleep's value\n3. Ally's affirmation\n4. [CHARACTER_NAME] ready to drift off\n\nTONE: Peaceful, satisfied, sleepy.\n\nGenerate the story text now.",
               "page5": "PAGE 5 PROMPT (BEDTIME ROUTINE, Ages 7-10):\nPage 5: Bedtime resolution in the sleep hygiene story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Restful Heron\n[WORLD_NAME] = Enchanted Forest\n\nTASK: Write a 80-110 word closing paragraph for a bedtime story.\n\nREQUIREMENTS:\n- [CHARACTER_NAME] and [ALLY_NAME] settle in a peaceful sleeping spot\n- Very soft, drowsy language (\"breathing deeply,\" \"eyes closing,\" \"dream beginning\")\n- Explicit sleep language: \"As [CHARACTER_NAME]'s eyes grew heavy and [CHARACTER_NAME]'s body\n  settled...\"\n- Moral reflection: \"Sleep is a superpower. It makes you strong, smart, and happy\"\n- [ALLY_NAME] whispers goodbye: \"Sweet dreams, [CHARACTER_NAME]\"\n- [CHARACTER_NAME] drifts into sleep, peaceful and ready\n- Calming tone that actually primes sleep\n\nSTRUCTURE:\n1. Settling into sleep position\n2. Body and mind becoming peaceful\n3. Moral reflection\n4. [CHARACTER_NAME] drifting into dreams\n\nTONE: Very drowsy, peaceful, sleep-inducing.\n\nGenerate the story text now."
+            }
+          }
+        }
+      },
+      "courage": {
+        "themeName": "Courage",
+        "worldName": "Enchanted Forest",
+        "coreNarrativeArc": "Fear or uncertainty -> Facing the fear with support -> Action despite fear -> Newfound confidence -> Calm rest knowing you're brave",
+        "storyVariablesByAgeGroup": {
+          "3-6": {
+            "emotionalChallenge": "Luna was afraid of the dark forest",
+            "allyName": "Brave Bear",
+            "allyTrait": "wasn't afraid of anything",
+            "themeObstacle": "A dark cave",
+            "obstacleDescription": "a cave so dark Luna couldn't see anything",
+            "themeAction": "Luna took Brave Bear's paw and walked into the darkness",
+            "resolutionImage": "Luna safely through the cave, surprised it wasn't scary",
+            "bedtimeMoral": "Courage is when you're scared but you try anyway-and you can rest knowing you were brave"
+          },
+          "7-10": {
+            "emotionalChallenge": "Luna felt nervous about doing something for the first time",
+            "allyName": "Courageous Hawk",
+            "allyTrait": "had done scary things and lived to tell about it",
+            "themeObstacle": "A high cliff with a beautiful view",
+            "obstacleDescription": "a steep cliff that led to the most beautiful meadow",
+            "themeAction": "Luna took a deep breath and began climbing, one step at a time",
+            "resolutionImage": "Luna at the top, amazed at her own courage",
+            "bedtimeMoral": "You can be brave even when you're nervous. One step at a time"
+          },
+          "11-12": {
+            "emotionalChallenge": "Luna felt paralyzed by what others might think if she tried something new",
+            "allyName": "Wise Lion",
+            "allyTrait": "understood that courage isn't the absence of fear-it's acting anyway",
+            "themeObstacle": "A situation requiring vulnerability",
+            "obstacleDescription": "a moment where Luna had to admit what she really wanted",
+            "themeAction": "Luna shared what scared her and found others had the same fears",
+            "resolutionImage": "Luna with new friends who appreciated her honesty",
+            "bedtimeMoral": "Real courage is being true to yourself, even when it's uncomfortable"
+          }
+        }
+      },
+      "connection": {
+        "themeName": "Connection",
+        "worldName": "Enchanted Forest",
+        "coreNarrativeArc": "Loneliness or feeling different -> Reaching out and risking vulnerability -> Being seen and accepted -> Deep belonging -> Restful peace in knowing you're not alone",
+        "storyVariablesByAgeGroup": {
+          "3-6": {
+            "emotionalChallenge": "Luna felt alone and wanted a friend",
+            "allyName": "Friendly Rabbit",
+            "allyTrait": "shared everything and loved having friends",
+            "themeObstacle": "Finding someone to play with",
+            "obstacleDescription": "the forest seemed empty until Luna reached out",
+            "themeAction": "Luna shared her feelings and found a friend",
+            "resolutionImage": "Luna playing happily with new friend",
+            "bedtimeMoral": "Friends make everything more fun and help you feel less alone"
+          },
+          "7-10": {
+            "emotionalChallenge": "Luna realized she was holding back her true self from others",
+            "allyName": "Loyal Fox",
+            "allyTrait": "understood that real friendship means showing up completely",
+            "themeObstacle": "Learning to trust and depend on others",
+            "obstacleDescription": "a challenge too big for one creature to solve alone",
+            "themeAction": "Luna asked for help and discovered the power of partnership",
+            "resolutionImage": "Friends celebrating together, stronger for partnership",
+            "bedtimeMoral": "We're stronger together than apart-and connection brings peace to sleep"
+          },
+          "11-12": {
+            "emotionalChallenge": "Luna learned that true connection requires showing your whole self",
+            "allyName": "Trusted Companion",
+            "allyTrait": "valued depth and authenticity over fitting in",
+            "themeObstacle": "Allowing others to see imperfection and pain",
+            "obstacleDescription": "accepting help without feeling weak or exposing vulnerability",
+            "themeAction": "Luna showed vulnerability and found deep acceptance",
+            "resolutionImage": "Deep friendship built on honesty and mutual support",
+            "bedtimeMoral": "True friendship begins when we show our real selves. That's where belonging lives"
+          }
+        }
+      },
+      "patienceEndurance": {
+        "themeName": "Patience & Endurance",
+        "worldName": "Enchanted Forest",
+        "coreNarrativeArc": "Impatience or resistance to difficulty -> Persevering through challenge -> Discovering inner strength -> Peaceful rest earned through effort",
+        "whatIsPatienceEndurance": [
+          "Continuing steadily despite difficulty",
+          "Taking things one step at a time",
+          "Understanding that some things take time",
+          "Finding strength through sustained effort",
+          "Knowing that difficulties don't disappear but can be persevered through",
+          "Trusting the process and the journey"
+        ],
+        "whyIncludeInChildrensBook": [
+          "Teaches that progress doesn't happen instantly",
+          "Validates struggle as part of growth",
+          "Frames persistence as a real strength",
+          "Helps children understand that difficult tasks require time and effort",
+          "Prepares children for long-term goals and learning"
+        ],
+        "bedtimeFit": [
+          "At bedtime: \"You've worked hard today. Your body needs rest to recover from the effort. That's strength too.\"",
+          "Learning stories: \"Learning to read takes time and patience. Each page you read is progress.\"",
+          "Challenges: \"This is hard, but continuing one step at a time is how we grow.\""
+        ],
+        "storyVariablesByAgeGroup": {
+          "3-6": {
+            "emotionalChallenge": "Luna had to do something that took a long time and felt hard",
+            "allyName": "Patient Turtle",
+            "allyTrait": "moved slowly and never gave up, no matter how long things took",
+            "themeObstacle": "A long path or task that feels tedious",
+            "obstacleDescription": "A winding path through the forest that seemed to go on forever",
+            "themeAction": "Luna continued step by step, discovering that patience was a strength",
+            "resolutionImage": "Luna reaching the end, proud of herself for not giving up",
+            "bedtimeMoral": "When something takes a long time, patience means going slowly and keeping going"
+          },
+          "7-10": {
+            "emotionalChallenge": "Luna faced a long, difficult task that required patience",
+            "allyName": "Wise Badger",
+            "allyTrait": "understood that strength comes from continuing, not rushing",
+            "themeObstacle": "A difficult journey that seems endless",
+            "obstacleDescription": "A steep mountain to climb with many switchbacks and slow progress",
+            "themeAction": "Luna took it one step at a time and discovered she was stronger than she knew",
+            "resolutionImage": "Luna at the summit, amazed at how far she came",
+            "bedtimeMoral": "You have strength inside to continue, one step at a time"
+          },
+          "11-12": {
+            "emotionalChallenge": "Luna realized that meaningful things require sustained effort",
+            "allyName": "Steadfast Mountain Goat",
+            "allyTrait": "knew that true strength is keeping going, one step at a time",
+            "themeObstacle": "A long-term challenge that tests her resolve",
+            "obstacleDescription": "A long journey where each step forward felt small",
+            "themeAction": "Luna chose to continue steadily, trusting the process of growth",
+            "resolutionImage": "Luna understanding: perseverance is strength",
+            "bedtimeMoral": "Real strength is continuing through difficulty, knowing that steady effort creates growth"
+          }
+        },
+        "ageRanges": {
+          "11-12": {
+            "variables": {
+              "characterName": "{child's character name}",
+              "allyName": "Steadfast Mountain Goat",
+              "worldName": "Enchanted Forest",
+              "learningTheme": "Patience & Endurance",
+              "obstacle": "The long, difficult path/task"
+            },
+            "pages": {
+              "page1": "PAGE 1 PROMPT (PATIENCE & ENDURANCE, Ages 11-12):\nYou are writing page 1 of a bedtime story for an 11-12 year old child.\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[WORLD_NAME] = Enchanted Forest\n[LEARNING_THEME] = Patience & Endurance\n\nTASK: Write a 90-130 word opening paragraph showing [CHARACTER_NAME]\nfacing a long, difficult task ahead.\n\nREQUIREMENTS:\n- Show a task or journey that will take time and sustained effort\n- Acknowledge the legitimate difficulty (don't minimize it)\n- Show [CHARACTER_NAME]'s hesitation or impatience\n- Introduce the question: \"Can I do this? How will I find the strength?\"\n- Avoid shame or judgment; frame it as a universal challenge\n- Tone is honest about the challenge while curious about capability\n\nSTRUCTURE:\n1. The long task or journey ahead\n2. [CHARACTER_NAME]'s emotional response (valid doubt)\n3. Question: How do I persevere through this?\n\nTONE: Honest, validating, contemplative.\n\nGenerate the story text now.",
+              "page2": "PAGE 2 PROMPT (PATIENCE & ENDURANCE, Ages 11-12):\nContinue page 2 of the bedtime story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Steadfast Mountain Goat\n[WORLD_NAME] = Enchanted Forest\n[LEARNING_THEME] = Patience & Endurance\n\nTASK: Write a 100-140 word paragraph where [CHARACTER_NAME] meets [ALLY_NAME].\n\nREQUIREMENTS:\n- [ALLY_NAME] appears as someone who practices patience and endurance\n- [ALLY_NAME] doesn't say \"it will be fine\" or \"rush through it\"\n- Instead: \"Yes, this is long. But you have the strength to go one step at a time\"\n- [ALLY_NAME] shows their own perseverance through difficult journeys\n- Together, they approach the challenge with intention\n- Dialogue is natural, honest, mature\n\nALLY_DESCRIPTION: Steadfast Mountain Goat has navigated many long, difficult paths.\nThey embody patient persistence and steady progress. They understand that strength\ncomes from continuing, not from speed.\n\nTONE: Wise, grounded, honest about difficulty.\n\nGenerate the story text now.",
+              "page3": "PAGE 3 PROMPT (PATIENCE & ENDURANCE, Ages 11-12):\nPage 3: The patience & endurance test in the bedtime story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Steadfast Mountain Goat\n[OBSTACLE] = The long, difficult path/task\n[WORLD_NAME] = Enchanted Forest\n\nTASK: Write a 110-150 word scene where [CHARACTER_NAME] begins to persevere.\n\nREQUIREMENTS:\n- Show [CHARACTER_NAME] continuing despite difficulty and fatigue\n- Show it's hard-persistence isn't \"easy acceptance\"\n- [ALLY_NAME] models steady, patient progress (not trying to fix it)\n- [CHARACTER_NAME] feels [ALLY_NAME]'s quiet strength\n- Show small moments of [CHARACTER_NAME]'s growing inner strength\n- Acknowledge that this requires patience and will take time\n\nSTRUCTURE:\n1. [CHARACTER_NAME] choosing to continue\n2. The difficulty is real-not minimized\n3. [ALLY_NAME]'s steady presence as witness\n4. [CHARACTER_NAME]'s first taste of perseverance\n\nTONE: Honest about difficulty, celebrating quiet strength.\n\nGenerate the story text now.",
+              "page4": "PAGE 4 PROMPT (PATIENCE & ENDURANCE, Ages 11-12):\nPage 4: The patience & endurance triumph in the bedtime story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Steadfast Mountain Goat\n[WORLD_NAME] = Enchanted Forest\n\nTASK: Write a 110-150 word scene where [CHARACTER_NAME] realizes their own endurance.\n\nREQUIREMENTS:\n- Show [CHARACTER_NAME] has moved through the difficulty (or well into it)\n- Key realization: \"I did this. Not by going fast. By continuing steadily.\"\n- Celebrate quiet, persistent strength (not explosive triumph)\n- [ALLY_NAME] affirms: \"You have real endurance inside you.\"\n- Show [CHARACTER_NAME]'s sense of expanded capability\n- Peace from understanding: \"I can persist through difficulty\"\n\nSTRUCTURE:\n1. [CHARACTER_NAME] through or well into the difficulty\n2. Internal realization: persistence IS strength\n3. Ally's affirmation\n4. [CHARACTER_NAME] feeling capable in a new way\n\nTONE: Quiet pride, deep strength, peaceful understanding.\n\nGenerate the story text now.",
+              "page5": "PAGE 5 PROMPT (PATIENCE & ENDURANCE, Ages 11-12):\nPage 5: Bedtime resolution in the patience & endurance story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Steadfast Mountain Goat\n[WORLD_NAME] = Enchanted Forest\n\nTASK: Write a 100-130 word closing paragraph for a bedtime story.\n\nREQUIREMENTS:\n- [CHARACTER_NAME] and [ALLY_NAME] settle in peaceful rest\n- Soft language that honors [CHARACTER_NAME]'s strength through effort\n- Explicit sleep language: \"As [CHARACTER_NAME]'s breathing slowed...\"\n- Moral reflection: \"Patience & Endurance is strength-continuing one step at a time, knowing that effort and rest together make you strong\"\n- [ALLY_NAME] whispers: \"You have endurance inside you. Rest now.\"\n- [CHARACTER_NAME] drifts to sleep, changed by understanding inner strength\n- Calming tone that validates the journey\n\nSTRUCTURE:\n1. Settling into rest\n2. Reflection on strength discovered\n3. [CHARACTER_NAME] at peace with themselves\n4. Sleep as earned rest\n\nTONE: Honoring quiet strength, peaceful, sleep-inducing.\n\nGenerate the story text now."
             }
           }
         }

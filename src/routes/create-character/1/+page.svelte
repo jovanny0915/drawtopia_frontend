@@ -63,6 +63,7 @@
     value: string;
     label: string;
     avatarUrl?: string;
+    age?: string;
   }> = [];
   let loadingChildProfiles = false;
   let childProfilesError = "";
@@ -100,6 +101,7 @@
           value: profile.id.toString(),
           label: profile.first_name,
           avatarUrl: profile.avatar_url,
+          age: profile.age_group,
         }));
         lastLoadedChildProfilesForUserId = userId;
         // Get child profile ID from sessionStorage (set from dashboard or gift flow)
@@ -109,7 +111,9 @@
           if (selectedChild) {
             selectedChildProfileId = childProfileId;
             selectedChildProfileName = selectedChild.label;
-            storyCreation.setSelectedChild(childProfileId, selectedChild.label);
+            if (browser) {
+              persistSelectedChild(childProfileId, selectedChild.label, selectedChild.age);
+            }
           }
         }
       } else {
@@ -173,7 +177,9 @@
           if (selectedChild) {
             selectedChildProfileId = childProfileId;
             selectedChildProfileName = selectedChild.label;
-            storyCreation.setSelectedChild(childProfileId, selectedChild.label);
+            if (browser) {
+              persistSelectedChild(childProfileId, selectedChild.label, selectedChild.age);
+            }
           }
         }
       }
@@ -239,7 +245,7 @@
           if (selectedChild) {
             selectedChildProfileId = prefillChildProfileId;
             selectedChildProfileName = selectedChild.label;
-            storyCreation.setSelectedChild(prefillChildProfileId, selectedChild.label);
+            persistSelectedChild(prefillChildProfileId, selectedChild.label, selectedChild.age);
           }
         }
 
@@ -417,6 +423,18 @@
   };
 
   // Handle child profile selection
+  const persistSelectedChild = (childId: string, childName: string, childAge?: string) => {
+    storyCreation.setSelectedChild(childId, childName);
+    sessionStorage.setItem('selectedChildProfileId', childId);
+    sessionStorage.setItem('selectedChildProfileName', childName);
+    sessionStorage.setItem('selectedChildName', childName);
+    if (childAge) {
+      sessionStorage.setItem('selectedChildAge', childAge);
+    } else {
+      sessionStorage.removeItem('selectedChildAge');
+    }
+  };
+
   const handleChildProfileChange = (event: Event) => {
     const target = event.target as HTMLSelectElement;
     selectedChildProfileId = target.value;
@@ -424,10 +442,7 @@
     if (selectedChild) {
       selectedChildProfileName = selectedChild.label;
       if (browser) {
-        storyCreation.setSelectedChild(target.value, selectedChild.label);
-        sessionStorage.setItem('selectedChildProfileId', target.value);
-        sessionStorage.setItem('selectedChildProfileName', selectedChild.label);
-        sessionStorage.setItem('selectedChildName', selectedChild.label);
+        persistSelectedChild(target.value, selectedChild.label, selectedChild.age);
       }
     }
   };
@@ -446,6 +461,7 @@
       // Clear selected child profile from sessionStorage
       sessionStorage.removeItem("selectedChildProfileId");
       sessionStorage.removeItem("selectedChildProfileName");
+      sessionStorage.removeItem("selectedChildAge");
     }
     
     // Navigate back to dashboard

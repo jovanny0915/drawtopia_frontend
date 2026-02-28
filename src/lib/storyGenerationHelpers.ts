@@ -38,13 +38,15 @@ export function replacePlaceholders(text: string, replacements: { [key: string]:
 /** Temporary fixed prompt for main story page (page 1) on /adventure-story/loading. Set to null to use prompt builder again. */
 const TEMP_MAIN_STORY_PAGE_PROMPT: string | null =
   "Replace the main character of attached template image with the main character of reference image. The replaced character should precisely match the pose, action, and emotions of the original main character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).";
+const TEMP_MAIN_STORY_PAGE_ALLY_CHARACTER_PROMPT: string | null =
+  "Replace the fox ally character of attached templage image with [ally_name] character. The replaced character should precisely match the pose, action, and emotions of the original fox ally character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).";
 
 const PAGE_ALLY_CHARACTER_PROMPTS: { [key: number]: string } = {
-  1: "Ally character - {fox} should be not in this image.",
-  2: "Ally character - {fox} should be not removed in this image.",
-  3: "Ally character - {fox} should be not removed in this image.",
-  4: "Ally character - {fox} should be not removed in this image.",
-  5: "Ally character - {fix} should be not removed in this image."
+  1: "Ally character - ally character should be not in this image.",
+  2: "Ally character - ally character should be not removed in this image.",
+  3: "Ally character - ally character should be not removed in this image.",
+  4: "Ally character - ally character should be not removed in this image.",
+  5: "Ally character - ally character should be not removed in this image."
 };
 
 const PAGE_MAIN_CHARACTER_POSE_ACTION_EMOTION_PROMPTS: { [key: number]: string } = {
@@ -70,6 +72,44 @@ function appendPageSpecificStoryRules(basePrompt: string, pageNumber: number): s
   return sections.join('\n\n');
 }
 
+function normalizeThemeKey(theme: string): string {
+  return theme.replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+function resolveAllyNameFromPromptData(storyTheme: string | undefined, ageGroup: string): string {
+  const promptData = prompt2Data as {
+    generateStoryText?: {
+      defaultTheme?: string;
+      themeToAllyMapping?: Record<string, Record<string, string>>;
+      storyTextGenerationPrompts?: Record<string, { storyVariablesByAgeGroup?: Record<string, { allyName?: string }> }>;
+    };
+  };
+  const generateStoryText = promptData.generateStoryText;
+  if (!generateStoryText) return 'Fox';
+
+  const promptsByTheme = generateStoryText.storyTextGenerationPrompts ?? {};
+  const allyMappingByTheme = generateStoryText.themeToAllyMapping ?? {};
+  const themeCandidates = [storyTheme, generateStoryText.defaultTheme].filter((value): value is string => !!value);
+  const normalizedPromptThemeEntries = Object.entries(promptsByTheme).map(([key, value]) => [normalizeThemeKey(key), value] as const);
+  const normalizedAllyThemeEntries = Object.entries(allyMappingByTheme).map(([key, value]) => [normalizeThemeKey(key), value] as const);
+
+  for (const themeCandidate of themeCandidates) {
+    const promptTheme =
+      promptsByTheme[themeCandidate] ??
+      normalizedPromptThemeEntries.find(([normalizedKey]) => normalizedKey === normalizeThemeKey(themeCandidate))?.[1];
+    const promptAllyName = promptTheme?.storyVariablesByAgeGroup?.[ageGroup]?.allyName;
+    if (promptAllyName) return promptAllyName;
+
+    const mappingTheme =
+      allyMappingByTheme[themeCandidate] ??
+      normalizedAllyThemeEntries.find(([normalizedKey]) => normalizedKey === normalizeThemeKey(themeCandidate))?.[1];
+    const mappedAllyName = mappingTheme?.[ageGroup];
+    if (mappedAllyName) return mappedAllyName;
+  }
+
+  return 'Fox';
+}
+
 export function buildStoryPagePrompt(
   pageNumber: number,
   storyText: string,
@@ -83,15 +123,23 @@ export function buildStoryPagePrompt(
     storyWorld: string;
     adventureType: string;
     ageGroup: string;
+    storyTheme?: string;
     storyTitle: string;
     characterImageUrl: string;
   }
 ): string {
-  // TEMPORARY: use fixed prompt for main story page (page 1) on /adventure-story/loading.
-  // Prompt builder and logic below are unchanged; unset TEMP_MAIN_STORY_PAGE_PROMPT (set to null) to use them again for page 1.
-  // if (pageNumber === 1 && TEMP_MAIN_STORY_PAGE_PROMPT != null) {
+  const allyName = resolveAllyNameFromPromptData(options.storyTheme, options.ageGroup);
+  const allyReplacementPrompt = TEMP_MAIN_STORY_PAGE_ALLY_CHARACTER_PROMPT
+    ? TEMP_MAIN_STORY_PAGE_ALLY_CHARACTER_PROMPT.replace(/\[ally_name\]/g, allyName)
+    : null;
+
+  // TEMPORARY: use fixed base prompt for story page generation on /adventure-story/loading.
+  // Unset TEMP_MAIN_STORY_PAGE_PROMPT (set to null) to use the prompt builder again.
   if (TEMP_MAIN_STORY_PAGE_PROMPT != null) {
-    return appendPageSpecificStoryRules(TEMP_MAIN_STORY_PAGE_PROMPT, pageNumber);
+    const fixedPrompt = pageNumber > 1 && allyReplacementPrompt
+      ? `${TEMP_MAIN_STORY_PAGE_PROMPT}\n\n${allyReplacementPrompt}`
+      : TEMP_MAIN_STORY_PAGE_PROMPT;
+    return appendPageSpecificStoryRules(fixedPrompt, pageNumber);
   }
 
   const derivedEmotion = generateCharacterEmotion(pageNumber, storyText);
@@ -117,10 +165,12 @@ export function buildStoryPagePrompt(
     characterPlacement: 'left-half'
   });
 
-  return appendPageSpecificStoryRules(
-    `${prompt}\n\nTEMPLATE LOCK (HIGHEST PRIORITY):\n- Keep the provided template artwork structurally unchanged.\n- Do not redesign background layout, props, perspective, camera, or composition.\n- If any instruction conflicts with template preservation, preserve the template and adapt only character integration.\n- Mood/style updates must be subtle and global (light/tone/color grading), not repainting.\n\nSTORY-TO-SCENE MAPPING (SECOND PRIORITY):\n- Use the exact page story text as the source of truth for action, emotion, and atmosphere.\n- Keep expressions, body language, and lighting aligned with this page's emotional beat.\n- If the story text implies calm or sleep, prefer gentle, natural poses over exaggerated action.\n\nPAGE STORY TEXT (SOURCE OF TRUTH):\n${storyText}\n\nSCENE SIGNALS DERIVED FROM STORY:\n- Character Action: ${characterAction}\n- Character Emotion: ${derivedEmotion}\n- Atmosphere: ${derivedAtmosphere}\n\nPOSE CONSTRAINTS:\n- Avoid static front-facing, T-pose, idle, or reference-sheet poses.\n- Use movement and posture that match the story beat (active, gentle, or sleepy as needed).\n- Body language and facial expression must reinforce the page emotion.\n\nFACIAL CONSISTENCY (CRITICAL ACROSS PAGES 1-5):\n- Keep the same core facial features from the reference in every story scene (face shape, eyes, eyebrows, nose, mouth, ears).\n- Do not add, remove, or swap facial features between pages (example: if the character has a visible nose, it must remain visible in all main story scenes).\n- Maintain recognizable facial proportions and feature placement while only changing expression for the page emotion.\n\nCOMPANION CONSTRAINTS:\n- Always include the fox companion with the main character in every story scene page (1-5).\n- The fox companion should be clearly visible and naturally interacting with the main character.\n\nLAYOUT CONSTRAINTS:\n- Always position the main character on the LEFT HALF of the page scene (for story pages 1-5).\n- Keep the character fully within the left half and preserve template composition.`,
-    pageNumber
-  );
+  const basePromptWithRules = `${prompt}\n\nTEMPLATE LOCK (HIGHEST PRIORITY):\n- Keep the provided template artwork structurally unchanged.\n- Do not redesign background layout, props, perspective, camera, or composition.\n- If any instruction conflicts with template preservation, preserve the template and adapt only character integration.\n- Mood/style updates must be subtle and global (light/tone/color grading), not repainting.\n\nSTORY-TO-SCENE MAPPING (SECOND PRIORITY):\n- Use the exact page story text as the source of truth for action, emotion, and atmosphere.\n- Keep expressions, body language, and lighting aligned with this page's emotional beat.\n- If the story text implies calm or sleep, prefer gentle, natural poses over exaggerated action.\n\nPAGE STORY TEXT (SOURCE OF TRUTH):\n${storyText}\n\nSCENE SIGNALS DERIVED FROM STORY:\n- Character Action: ${characterAction}\n- Character Emotion: ${derivedEmotion}\n- Atmosphere: ${derivedAtmosphere}\n\nPOSE CONSTRAINTS:\n- Avoid static front-facing, T-pose, idle, or reference-sheet poses.\n- Use movement and posture that match the story beat (active, gentle, or sleepy as needed).\n- Body language and facial expression must reinforce the page emotion.\n\nFACIAL CONSISTENCY (CRITICAL ACROSS PAGES 1-5):\n- Keep the same core facial features from the reference in every story scene (face shape, eyes, eyebrows, nose, mouth, ears).\n- Do not add, remove, or swap facial features between pages (example: if the character has a visible nose, it must remain visible in all main story scenes).\n- Maintain recognizable facial proportions and feature placement while only changing expression for the page emotion.\n\nCOMPANION CONSTRAINTS:\n- Always include the fox companion with the main character in every story scene page (1-5).\n- The fox companion should be clearly visible and naturally interacting with the main character.\n\nLAYOUT CONSTRAINTS:\n- Always position the main character on the LEFT HALF of the page scene (for story pages 1-5).\n- Keep the character fully within the left half and preserve template composition.`;
+  const promptWithAllyReplacement = pageNumber > 1 && allyReplacementPrompt
+    ? `${basePromptWithRules}\n\n${allyReplacementPrompt}`
+    : basePromptWithRules;
+
+  return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber);
 }
 
 /**
@@ -304,9 +354,21 @@ export function generateAtmosphereDescription(pageNumber: number, storyText?: st
 }
 
 /**
+ * Normalize story world to the keys used in worldDescriptions (forest, underwater, outerspace).
+ */
+function normalizeStoryWorldForDescriptions(storyWorld: string): string {
+  const lower = (storyWorld || '').toLowerCase();
+  if (lower.includes('forest') || lower === 'enchanted-forest' || lower === 'enchanted_forest') return 'forest';
+  if (lower.includes('underwater') || lower.includes('kingdom')) return 'underwater';
+  if (lower.includes('space') || lower.includes('outer')) return 'outerspace';
+  return 'forest';
+}
+
+/**
  * Generate scene descriptions based on page number and story world
  */
 export function generateSceneDescription(pageNumber: number, storyWorld: string, storyText?: string): string {
+  const worldKey = normalizeStoryWorldForDescriptions(storyWorld);
   const worldDescriptions: { [key: string]: { [key: number]: string } } = {
     'forest': {
       1: prompt2Data.generateStoryScene.worldSpecific.enchantedForest.page1,
@@ -330,9 +392,9 @@ export function generateSceneDescription(pageNumber: number, storyWorld: string,
       5: prompt2Data.generateStoryScene.worldSpecific.outerSpace.page5
     }
   };
-  
-  const descriptions = worldDescriptions[storyWorld] || worldDescriptions['forest'];
-  const baseDescription = descriptions[pageNumber] || `Scene ${pageNumber} in ${storyWorld}`;
+
+  const descriptions = worldDescriptions[worldKey] || worldDescriptions['forest'];
+  const baseDescription = descriptions[pageNumber] || `Scene ${pageNumber} in ${worldKey}`;
   
   // Add story text excerpt if available
   if (storyText && storyText.trim().length > 0) {
@@ -346,12 +408,18 @@ export function generateSceneDescription(pageNumber: number, storyWorld: string,
 /**
  * Call edit-image endpoint with one image and prompt
  */
+const getImageApiBaseUrl = (): string => {
+  const base = env.PUBLIC_BACKEND_URL || '';
+  return base.replace(/\/api\/?$/, '').replace(/\/$/, '') || 'https://image-edit-five.vercel.app';
+};
+
 export async function generateImageWithSingleTemplate(
   templateImageUrl: string,
   prompt: string
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
-    const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
+    const baseUrl = getImageApiBaseUrl();
+    const response = await fetch(`${baseUrl}/edit-image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -397,7 +465,8 @@ export async function generateImageWithTwoTemplates(
   prompt: string
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
-    const response = await fetch('https://image-edit-five.vercel.app/generate-cover-image', {
+    const baseUrl = getImageApiBaseUrl();
+    const response = await fetch(`${baseUrl}/generate-cover-image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -410,22 +479,23 @@ export async function generateImageWithTwoTemplates(
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to generate image: ${response.status}`);
+      const errText = await response.text();
+      throw new Error(`Failed to generate image: ${response.status}${errText ? ` - ${errText}` : ''}`);
     }
     
     const data = await response.json();
-    
-    if (data.success && data.url) {
+    // Accept both formats: GenerateCoverImageResponse (success, url) or ImageResponse (storage_info.url)
+    const url = data.url ?? data.storage_info?.url;
+    if (data.success && url) {
       return {
         success: true,
-        url: data.url.split('?')[0]
-      };
-    } else {
-      return {
-        success: false,
-        error: data.message || 'No image URL received from API'
+        url: String(url).split('?')[0]
       };
     }
+    return {
+      success: false,
+      error: data.message || data.detail || 'No image URL received from API'
+    };
   } catch (error) {
     console.error('Error generating image:', error);
     return {
@@ -455,6 +525,8 @@ export interface GenerateBookPagesOptions {
   onProgress?: (step: string, progress: number) => void;
   /** When true, only generate story page images (skip copyright, dedication, last word, back cover). */
   storyPagesOnly?: boolean;
+  /** Optional: when true, abort the generation loop (e.g. user cancelled). */
+  shouldAbort?: () => boolean;
 }
 
 export interface GenerateBookPagesResult {
@@ -482,7 +554,8 @@ export async function generateAllBookPages(
     ageGroup = '7-10',
     storyTitle = 'Adventure Story',
     onProgress,
-    storyPagesOnly = false
+    storyPagesOnly = false,
+    shouldAbort
   } = options;
   
   const result: GenerateBookPagesResult = {
@@ -528,6 +601,10 @@ export async function generateAllBookPages(
     const storyPageImages: string[] = new Array(totalPages).fill('');
     
     for (let i = 0; i < totalPages; i++) {
+      if (shouldAbort?.()) {
+        console.warn('Story page image generation aborted');
+        break;
+      }
       const page = validPages[i];
       
       if (!page || !page.text) {

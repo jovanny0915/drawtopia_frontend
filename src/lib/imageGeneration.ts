@@ -822,7 +822,7 @@ export async function generateStoryAdventureCover(
     const templateCoverUrl = templateResult.data.cover_image;
     
     // Build a prompt to insert the character into the template cover
-    const insertCharacterPrompt = `Insert the character from the reference image onto the provided book cover template. The character should be placed in the lower-middle section of the cover, standing confidently with a radiant smile and open hands, as if gesturing invitingly. Blend them naturally with the background magical forest, ensuring correct scale, lighting, and shadows consistent with the template's glowing elements. The character should be integrated into the existing forest background of the template The ratio of image will be gnerated must be (2:3=width:height).`;
+    const insertCharacterPrompt = `Insert the character from the reference image onto the provided book cover template. The character should be placed in the lower-middle section of the cover, standing confidently with a radiant smile and open hands, as if gesturing invitingly. Blend them naturally with the magical background , ensuring correct scale, lighting, and shadows consistent with the template's glowing elements. The ratio of image will be gnerated must be (2:3=width:height). The height of character in the generated image should be over the half of the height of the template cover image.`;
 
     // Call the image editing API with the template as base and character as reference
     const response = await fetch('https://image-edit-five.vercel.app/edit-image', {

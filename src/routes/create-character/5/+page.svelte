@@ -14,15 +14,51 @@
   import treasure from "../../../assets/treasure_hunt.png";
   import helping from "../../../assets/help_friend.png";
   import globehemispherewest from "../../../assets/BlackGlobeHemiSphereWest.svg";
+  import kindnessEmpathyImg from "../../../assets/kindnessEmpathy.png";
+  import bedtimeRoutineSleepHygieneImg from "../../../assets/bedtimeRoutineSleepHygiene.png";
+  import courageImg from "../../../assets/courage.png";
+  import connectionImg from "../../../assets/connection.png";
+  import patienceEnduranceImg from "../../../assets/patienceEndurance.png";
   import { storyCreation } from "../../../lib/stores/storyCreation";
 
   let isMobile = false;
-  let selectedWorld = ""; // Default selection: "forest", "outspace", or "underwater"
-  let selectedAdventure = ""; // Default: no selection - user must choose "treasure" or "helping"
+  let selectedWorld = ""; // Step 1: "forest", "outerspace", or "underwater"
+  let selectedStoryTheme = ""; // Step 2: story theme id (kindnessEmpathy, etc.)
   let characterName = "";
   let specialAbility = "";
   let selectedStyle = "";
   let selectedEnhancement = "";
+
+  // Step 2 carousel: 5 story themes (distinct from story world)
+  const THEMES_VISIBLE = 3;
+  const storyThemes = [
+    { id: "kindnessEmpathy", name: "Kindness & Empathy", subtitle: "Stories about caring and understanding others", image: kindnessEmpathyImg },
+    { id: "bedtimeRoutineSleepHygiene", name: "Bedtime Routine & Sleep Hygiene", subtitle: "Gentle stories for winding down and rest", image: bedtimeRoutineSleepHygieneImg },
+    { id: "courage", name: "Courage", subtitle: "Adventures about bravery and trying new things", image: courageImg },
+    { id: "connection", name: "Connection", subtitle: "Stories of friendship and belonging", image: connectionImg },
+    { id: "patienceEndurance", name: "Patience & Endurance", subtitle: "Tales of perseverance and waiting for good things", image: patienceEnduranceImg }
+  ];
+  let carouselIndex = 0;
+
+  $: maxCarouselIndex = Math.max(0, storyThemes.length - THEMES_VISIBLE);
+  $: slideOffset = carouselIndex;
+
+  function carouselPrev() {
+    carouselIndex = Math.max(0, carouselIndex - 1);
+  }
+  function carouselNext() {
+    carouselIndex = Math.min(maxCarouselIndex, carouselIndex + 1);
+  }
+  function selectTheme(theme: (typeof storyThemes)[0]) {
+    selectedStoryTheme = theme.id;
+    if (browser) {
+      sessionStorage.setItem('storyTheme', theme.id);
+      sessionStorage.setItem('selectedStoryThemeName', theme.name);
+    }
+  }
+  function isThemeSelected(theme: (typeof storyThemes)[0]) {
+    return selectedStoryTheme === theme.id;
+  }
 
   // Style name mapping
   const styleNames = {
@@ -51,14 +87,14 @@
       const storedSelectedEnhancement = sessionStorage.getItem('selectedEnhancement');
       const storedOriginalImageUrl = sessionStorage.getItem('characterImageUrl');
       const storedSelectedWorld = sessionStorage.getItem('selectedWorld');
-      const storedSelectedAdventure = sessionStorage.getItem('selectedAdventure');
+      const storedStoryTheme = sessionStorage.getItem('storyTheme');
       
       if (storedCharacterName) characterName = storedCharacterName;
       if (storedSpecialAbility) specialAbility = storedSpecialAbility;
       if (storedSelectedStyle) selectedStyle = storedSelectedStyle;
       if (storedSelectedEnhancement) selectedEnhancement = storedSelectedEnhancement;
       if (storedSelectedWorld) selectedWorld = storedSelectedWorld;
-      if (storedSelectedAdventure) selectedAdventure = storedSelectedAdventure;
+      if (storedStoryTheme) selectedStoryTheme = storedStoryTheme;
       
       // Don't generate images on page load - they will be generated on page 7
     }
@@ -76,29 +112,12 @@
     storyCreation.setStoryWorld(world as any);
   }
 
-  function selectAdventure(adventure: string) {
-    selectedAdventure = adventure;
-    
-    // Save the selected adventure to sessionStorage
-    if (browser) {
-      sessionStorage.setItem('selectedAdventure', adventure);
-    }
-  }
+  // Step 1 = story world, Step 2 = story theme (both required)
+  $: canContinue = selectedWorld !== "" && selectedStoryTheme !== "";
 
-
-  // Check if both selections are made
-  $: canContinue = selectedWorld !== "" && selectedAdventure !== "";
-
-  // Handle continue to next step
   const handleContinue = async () => {
-    // Only proceed if both selections are made
     if (!canContinue) return;
-    
-    // Update story creation store with selected world and adventure
     storyCreation.setStoryWorld(selectedWorld as any);
-    const adventureType = selectedAdventure === 'treasure' ? 'treasure_hunt' : 'helping_friend';
-    storyCreation.setAdventureType(adventureType);
-    
     goto("/create-character/7");
   };
 
@@ -238,58 +257,76 @@
     </div>
 
     <div class="frame-1410103885">
-      <div class="step-2-choose-adventure-type">
-        <span class="step2chooseadventuretype_span">Step 2: Choose Adventure Type</span>
+      <div class="step-2-choose-story-themes">
+        <span class="step2choosestorythemes_span">Step 2: Choose Story Themes</span>
       </div>
-      <div class="frame-1410103852_01">
-        <div class="card_03" class:card-selected={selectedAdventure === "treasure"} role="button" tabindex="0" on:click={() => selectAdventure("treasure")} on:keydown={(e) => e.key === 'Enter' && selectAdventure("treasure")}>
-          <div class="image-container">
-            <img class="image_03" src={treasure} alt="Treasure Hunt" />
-          </div>
-          <div class="frame-10_03">
-            <div class="frame-2147227609">
-              <div class="treasure-hunt">
-                <span class="treasurehunt_span">Treasure Hunt</span>
+      <div class="carousel-wrapper">
+        <button type="button" class="carousel-btn carousel-btn-prev" aria-label="Previous themes" on:click={carouselPrev} disabled={carouselIndex <= 0}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="carousel-viewport">
+          <div
+            class="carousel-track"
+            style="--carousel-index: {slideOffset}"
+          >
+          {#each storyThemes as theme (theme.id)}
+            <div
+              class="card carousel-card"
+              class:card-selected={isThemeSelected(theme)}
+              role="button"
+              tabindex="0"
+              on:click={() => selectTheme(theme)}
+              on:keydown={(e) => e.key === 'Enter' && selectTheme(theme)}
+            >
+              <div class="image-container">
+                <img class="image" src={theme.image} alt={theme.name} />
               </div>
-              <div class="frame-1410104048">
-                <div class="character-name-will-search-for-a-legendary-treasure-hidden-in-the-selected-world">
-                  <span class="characternamewillsearchforalegendarytreasurehiddenintheselectedworld_span">
-                    {characterName || '[Character Name]'} will search for a legendary treasure hidden in the {worldNames[selectedWorld as keyof typeof worldNames] || '[Selected World]'}
-                  </span>
+              <div class="frame-10">
+                <div class="heading_01">
+                  <div class="enchanted-forest">
+                    <span class="enchantedforest_span">{theme.name}</span>
+                  </div>
+                  {#if theme.subtitle}
+                    <div class="frame-2147227581">
+                      <div class="icons">
+                        <div class="globehemispherewest">
+                          <img src={globehemispherewest} alt="">
+                        </div>
+                        <div>
+                          <span class="magicalcreaturestalkingtrees_span">{theme.subtitle}</span>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+                <div class="button" class:button-selected={isThemeSelected(theme)}>
+                  <div class="select">
+                    <span class="select_span">{isThemeSelected(theme) ? "Selected" : "Select"}</span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="button_03" class:button-selected={selectedAdventure === "treasure"} on:click={() => selectAdventure("treasure")}>
-              <div class="select_03">
-                <span class="select_03_span">{selectedAdventure === "treasure" ? "Selected" : "Select"}</span>
-              </div>
-            </div>
+          {/each}
           </div>
         </div>
-        <div class="card_04" class:card-selected={selectedAdventure === "helping"} role="button" tabindex="0" on:click={() => selectAdventure("helping")} on:keydown={(e) => e.key === 'Enter' && selectAdventure("helping")}>
-          <div class="image_04">
-            <img class="image-6" src={helping} alt="Helping a Friend" />
-          </div>
-          <div class="frame-10_04">
-            <div class="frame-2147227610">
-              <div class="helping-a-friend">
-                <span class="helpingafriend_span">Helping a Friend</span>
-              </div>
-              <div class="frame-1410104048_01">
-                <div class="character-name-will-help-a-friend-in-a-need-using-their-special-ability">
-                  <span class="characternamewillhelpafriendinaneedusingtheirspecialability_span">
-                    {characterName || '[Character Name]'} will help a friend in a need using their {specialAbility || '[Special Ability]'} <br/>
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div class="button_04" class:button-selected={selectedAdventure === "helping"} on:click={() => selectAdventure("helping")}>
-              <div class="select_04">
-                <span class="select_04_span" class:select-selected={selectedAdventure === "helping"}>{selectedAdventure === "helping" ? "Selected" : "Select"}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <button type="button" class="carousel-btn carousel-btn-next" aria-label="Next themes" on:click={carouselNext} disabled={carouselIndex >= maxCarouselIndex}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="carousel-dots" aria-hidden="true">
+        {#each Array(maxCarouselIndex + 1) as _, i}
+          <button
+            type="button"
+            class="carousel-dot"
+            class:carousel-dot-active={carouselIndex === i}
+            aria-label="Go to slide {i + 1}"
+            on:click={() => carouselIndex = i}
+          ></button>
+        {/each}
       </div>
     </div>
 
@@ -355,7 +392,7 @@
     text-align: center;
   }
 
-  .step2chooseadventuretype_span {
+  .step2choosestorythemes_span {
     color: #121212;
     font-size: 32px;
     font-family: Quicksand;
@@ -364,7 +401,7 @@
     word-wrap: break-word;
   }
 
-  .step-2-choose-adventure-type {
+  .step-2-choose-story-themes {
     text-align: center;
   }
 
@@ -660,6 +697,89 @@
     align-items: flex-start;
     gap: 16px;
     display: inline-flex;
+  }
+
+  .carousel-wrapper {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+  }
+
+  .carousel-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid #D3D3D3;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #141414;
+    transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+  }
+
+  .carousel-btn:hover:not(:disabled) {
+    background: #EEF6FF;
+    border-color: #438BFF;
+    color: #438BFF;
+  }
+
+  .carousel-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .carousel-viewport {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    padding: 10px;
+  }
+
+  .carousel-track {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    width: calc(5 * (100% - 32px) / 3 + 64px);
+    min-height: 100%;
+    transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transform: translateX(calc(-1 * var(--carousel-index, 0) * 20%));
+  }
+
+  .carousel-card {
+    flex: 0 0 calc((100% - 64px) / 5);
+    min-width: 0;
+  }
+
+  .carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: none;
+    background: #D3D3D3;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s, transform 0.2s;
+  }
+
+  .carousel-dot:hover {
+    background: #a0a0a0;
+  }
+
+  .carousel-dot-active {
+    background: #438BFF;
+    transform: scale(1.2);
   }
 
   .card {
@@ -1205,7 +1325,7 @@
     }
 
     .step1choosestoryworld_span,
-    .step2chooseadventuretype_span {
+    .step2choosestorythemes_span {
       font-size: 22px;
       line-height: 1.3;
     }
@@ -1240,7 +1360,7 @@
     }
 
     .step1choosestoryworld_span,
-    .step2chooseadventuretype_span {
+    .step2choosestorythemes_span {
       font-size: 20px;
     }
 

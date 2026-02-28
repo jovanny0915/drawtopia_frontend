@@ -59,6 +59,11 @@ export interface DatabaseResult {
   error?: string;
 }
 
+/** True if value is a non-empty string (used to avoid overwriting DB with null when client has no value). */
+function hasValue(v: string | null | undefined): boolean {
+  return typeof v === 'string' && v.trim().length > 0;
+}
+
 /**
  * Build the story row payload (shared for insert and update).
  */
@@ -115,13 +120,24 @@ export async function createStory(story: Story): Promise<DatabaseResult> {
 
     const existingUid = (story.uid || '').trim() || null;
     if (existingUid) {
-      const { data: existing } = await supabase
+      const { data: existingRow } = await supabase
         .from('stories')
-        .select('uid')
+        .select('*')
         .eq('uid', existingUid)
         .maybeSingle();
-      if (existing) {
-        const payload = buildStoryRowPayload(story, existingUid, storyContentValue);
+      if (existingRow) {
+        // When updating, preserve existing optional page images/text if incoming is empty
+        // so that dedication/copyright/etc. are not cleared when sessionStorage doesn't have them
+        const preserved = {
+          dedication_text: hasValue(story.dedication_text) ? story.dedication_text : (existingRow.dedication_text ?? null),
+          dedication_image: hasValue(story.dedication_image) ? story.dedication_image : (existingRow.dedication_image ?? null),
+          copyright_image: hasValue(story.copyright_image) ? story.copyright_image : (existingRow.copyright_image ?? null),
+          last_word_page_image: hasValue(story.last_word_page_image) ? story.last_word_page_image : (existingRow.last_word_page_image ?? null),
+          last_admin_page_image: hasValue(story.last_admin_page_image) ? story.last_admin_page_image : (existingRow.last_admin_page_image ?? null),
+          back_cover_image: hasValue(story.back_cover_image) ? story.back_cover_image : (existingRow.back_cover_image ?? null)
+        };
+        const mergedStory: Story = { ...story, ...preserved };
+        const payload = buildStoryRowPayload(mergedStory, existingUid, storyContentValue);
         const { data, error } = await supabase
           .from('stories')
           .update(payload)
