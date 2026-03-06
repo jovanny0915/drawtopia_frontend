@@ -3,7 +3,7 @@
   import ArrowLeft from "../../../assets/ArrowLeft.svg";
   import Play from "../../../assets/Play.svg";
   import TreasureChest from "../../../assets/TreasureChest.svg";
-  import girl from "../../../assets/girl.jpg";
+  import girl from "../../../assets/girl.webp";
   import MobileBackBtn from "../../../components/MobileBackBtn.svelte";
   import { goto } from "$app/navigation";
 

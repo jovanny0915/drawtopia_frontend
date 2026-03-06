@@ -6,7 +6,7 @@
   import { supabase } from "../../../lib/supabase";
   import logo from "../../../assets/logo.webp";
   import bookCover from "../../../assets/Luna1.webp";
-  import tempScene from "../../../assets/temp.jpg";
+  import tempScene from "../../../assets/temp.webp";
   import fullscreen from "../../../assets/fullscreen.svg";
   import coverIcon from "../../../assets/covericon.svg";
   import mailIcon from "../../../assets/mailicon.svg";
