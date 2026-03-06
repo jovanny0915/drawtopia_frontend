@@ -55,8 +55,8 @@
 
     // Spinner visibility: <30% slot1, <60% slot2, >60% slot3
     $: showSpinnerSlot1 = completionPercent < 30;
-    $: showSpinnerSlot2 = completionPercent >= 30 && completionPercent < 60;
-    $: showSpinnerSlot3 = completionPercent > 60;
+    $: showSpinnerSlot2 = completionPercent >= 30 && completionPercent < 75;
+    $: showSpinnerSlot3 = completionPercent > 75;
 
     // Determine which magical wand GIF to show based on completion percentage
     $: currentMagicalWand = completionPercent < 25 
