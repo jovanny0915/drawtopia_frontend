@@ -3795,7 +3795,7 @@
       font-weight: 500;
     }
     .copyright-page-footer {
-      font-size: 0.9rem;
+      font-size: 0.7rem;
       font-weight: 500;
       line-height: 1.2;
       bottom: 30px;
