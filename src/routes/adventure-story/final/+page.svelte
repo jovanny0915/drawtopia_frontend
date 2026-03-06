@@ -20,6 +20,10 @@
   // Reactive button text based on selection
   $: buttonText = selectedOption === 'record' ? 'Choose Record Video' : 'Preview a Story';
 
+  function goToDashboard() {
+    goto('/dashboard');
+  }
+
   function handleChooseRecordVideo() {
     if (selectedOption === 'preview') {
       // Navigate directly to preview page with story ID from sessionStorage
@@ -109,7 +113,13 @@
 
 <div class="record-pages-default-selected">
   <div class="navbar">
-    <div class="logo-text-full">
+    <div
+      class="logo-text-full"
+      role="button"
+      tabindex="0"
+      on:click={goToDashboard}
+      on:keydown={(e) => e.key === 'Enter' && goToDashboard()}
+    >
       <div class="logo-img"></div>
     </div>
   </div>
@@ -475,6 +485,7 @@
     width: 203.32px;
     height: 38px;
     position: relative;
+    cursor: pointer;
   }
 
   .heading_01 {
