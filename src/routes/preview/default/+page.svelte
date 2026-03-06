@@ -2010,13 +2010,11 @@
   .button {
     width: 48px;
     height: 48px;
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-left: 8px;
+    padding-right: 8px;
     padding-top: 8px;
     padding-bottom: 8px;
-    left: 1163px;
-    top: 16px;
-    position: absolute;
+    position: relative;
     border-radius: 8px;
     outline: 1px #ededed solid;
     outline-offset: -1px;
@@ -2041,13 +2039,11 @@
   .button_01 {
     width: 48px;
     height: 48px;
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-left: 8px;
+    padding-right: 8px;
     padding-top: 8px;
     padding-bottom: 8px;
-    left: 1107px;
-    top: 16px;
-    position: absolute;
+    position: relative;
     border-radius: 8px;
     outline: 1px #ededed solid;
     outline-offset: -1px;
@@ -2067,6 +2063,14 @@
 
   .button_01:active {
     transform: translateY(0);
+  }
+
+  .button img,
+  .button_01 img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    display: block;
   }
 
   .notification {
@@ -2276,10 +2280,20 @@
   }
 
   .frame-1410104065 {
-    justify-content: flex-start;
+    flex: 1 1 auto;
+    justify-content: center;
     align-items: center;
     gap: 12px;
     display: flex;
+    width: 100%;
+    overflow-x: auto;
+    padding: 4px 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .frame-1410104065::-webkit-scrollbar {
+    display: none;
   }
 
   .frame-1410103870 {
@@ -2291,9 +2305,19 @@
 
   .frame-1410103860 {
     align-self: stretch;
+    width: 100%;
     justify-content: space-between;
     align-items: center;
-    display: inline-flex;
+    gap: 12px;
+    display: flex;
+  }
+
+  .share-dots-button-group,
+  .mobile-share-dots-button-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
   }
 
   .frame-1410103860_01 {
@@ -3614,6 +3638,65 @@
   .last-admin-page-logo {
     top: 80px;
   }
+
+  @media (max-width: 1100px) {
+    .button_02,
+    .button_03 {
+      padding-left: 16px;
+      padding-right: 16px;
+      padding-top: 12px;
+      padding-bottom: 12px;
+      border-radius: 16px;
+      min-height: 46px;
+    }
+
+    .frame-1410103860 {
+      gap: 8px;
+    }
+
+    .frame-1410104065 {
+      gap: 8px;
+    }
+
+    .number,
+    .number_01,
+    .number_02,
+    .number_03,
+    .number_04,
+    .number_05 {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+    }
+
+    .f_span,
+    .f_span_01 {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .button,
+    .button_01 {
+      width: 44px;
+      height: 44px;
+    }
+  }
+
+  @media (max-width: 920px) {
+    .button_02,
+    .button_03 {
+      min-width: 48px;
+      width: 48px;
+      padding-left: 0;
+      padding-right: 0;
+      justify-content: center;
+    }
+
+    .button_02 .previous,
+    .button_03 .next {
+      display: none;
+    }
+  }
   
   @media (max-width: 800px) {
     .modal-overlay {
@@ -3704,11 +3787,12 @@
     .frame-1410103860_01 {
       display: none;
     }
-    .button {
-      position: inherit;
-    }
+    .button,
     .button_01 {
-      position: inherit;
+      position: relative;
+      width: 42px;
+      height: 42px;
+      padding: 8px;
     }
     .frame-1410104060 {
       display: none;
@@ -3785,6 +3869,27 @@
     }
   }
 
+  @media (max-width: 480px) {
+    .mobile-button-container {
+      gap: 8px;
+    }
+
+    .mobile-button_02,
+    .mobile-button_03 {
+      padding-left: 12px;
+      padding-right: 12px;
+      padding-top: 12px;
+      padding-bottom: 12px;
+      min-height: 44px;
+    }
+
+    .previous_span,
+    .next_span {
+      font-size: 14px;
+      line-height: 1.2;
+    }
+  }
+
 
   @media (max-width: 600px) {
     .copyright-page-wrapper {
@@ -3817,7 +3922,7 @@
       flex-direction: column;
     }
     .mobile-image-split.last-words-admin-one-page.fullscreen-split {
-      flex-direction: row;
+      flex-direction: column;
     }
     .cover-image-container.fullscreen-cover {
       height: auto;
