@@ -213,7 +213,7 @@
               "page5": "PAGE 5 PROMPT (BEDTIME ROUTINE, Ages 7-10):\nPage 5: Bedtime resolution in the sleep hygiene story for [CHARACTER_NAME].\n\nVARIABLES:\n[CHARACTER_NAME] = {child's character name}\n[ALLY_NAME] = Restful Heron\n[WORLD_NAME] = Enchanted Forest\n\nTASK: Write a 80-110 word closing paragraph for a bedtime story.\n\nREQUIREMENTS:\n- [CHARACTER_NAME] and [ALLY_NAME] settle in a peaceful sleeping spot\n- Very soft, drowsy language (\"breathing deeply,\" \"eyes closing,\" \"dream beginning\")\n- Explicit sleep language: \"As [CHARACTER_NAME]'s eyes grew heavy and [CHARACTER_NAME]'s body\n  settled...\"\n- Moral reflection: \"Sleep is a superpower. It makes you strong, smart, and happy\"\n- [ALLY_NAME] whispers goodbye: \"Sweet dreams, [CHARACTER_NAME]\"\n- [CHARACTER_NAME] drifts into sleep, peaceful and ready\n- Calming tone that actually primes sleep\n\nSTRUCTURE:\n1. Settling into sleep position\n2. Body and mind becoming peaceful\n3. Moral reflection\n4. [CHARACTER_NAME] drifting into dreams\n\nTONE: Very drowsy, peaceful, sleep-inducing.\n\nGenerate the story text now."
             }
           },
-          "10-11": {
+          "11-12": {
             "variables": {
               "characterName": "Jovanny",
               "allyName": "Restful Heron",
