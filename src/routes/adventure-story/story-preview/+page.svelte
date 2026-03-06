@@ -8,7 +8,7 @@
     import { getStoryById } from "../../../lib/database/stories";
     import { getUserProfile } from "../../../lib/auth";
     import { env } from "../../../lib/env";
-    import drawtopia from "../../../assets/logo.png";
+    import drawtopia from "../../../assets/logo.webp";
     import shieldstar from "../../../assets/ShieldStar.svg";
     import arrowleft from "../../../assets/ArrowLeft.svg";
     import floppydiskback from "../../../assets/FloppyDiskBack.svg";

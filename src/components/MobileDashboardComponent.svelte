@@ -16,7 +16,7 @@
     type Story,
   } from "../lib/database/stories";
   import { getGiftsForUser, type Gift } from "../lib/database/gifts";
-  import drawtopialogo from "../assets/logo.png";
+  import drawtopialogo from "../assets/logo.webp";
   import selectLayerIcon from "../assets/List.svg";
   import AccountDropdown from "./AccountDropdown.svelte";
   import MobileDashboardHomeComponent from "./MobileDashboardHomeComponent.svelte";

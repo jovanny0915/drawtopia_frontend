@@ -11,9 +11,9 @@
   import animal from "../../../assets/animal.svg";
   import magical from "../../../assets/monster.svg";
   import personFrame from "../../../assets/PersonFrame.svg";
-  import D3 from "../../../assets/3d_style.png";
-  import Cartoon from "../../../assets/cartoon_style.png";
-  import Anime from "../../../assets/anime_style.png";
+  import D3 from "../../../assets/3d_style.webp";
+  import Cartoon from "../../../assets/cartoon_style.webpp";
+  import Anime from "../../../assets/anime_style.webp";
   import greecheck from "../../../assets/SealCheck.svg";
   import warningIcon from "../../../assets/WhiteWarning.svg";
   import { goto } from "$app/navigation";
@@ -1836,7 +1836,7 @@
     cursor: pointer;
   }
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

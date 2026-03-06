@@ -639,7 +639,7 @@
 
 <style>
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

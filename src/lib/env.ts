@@ -4,7 +4,7 @@
  */
 
 /** Path to the Drawtopia logo (relative to app origin). Used for last admin page and back cover. */
-export const LOGO_PATH = '/assets/logo.png';
+export const LOGO_PATH = '/assets/logo.webp';
 
 export const env = {
 	// API Configuration

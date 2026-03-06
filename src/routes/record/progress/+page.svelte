@@ -9,8 +9,8 @@
 
   import stopIcon from "../../../assets/Stop.svg";
   import playIcon from "../../../assets/Play.svg"
-  import storyImg from "../../../assets/classic_storybook.png";
-  import childImg from "../../../assets/child_example.png";
+  import storyImg from "../../../assets/classic_storybook.webp";
+  import childImg from "../../../assets/child_example.webp";
 
   let showVideoConsentModal = false;
   let showReactionReadyModal = false;
@@ -685,7 +685,7 @@
     display: inline-flex;
   }
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

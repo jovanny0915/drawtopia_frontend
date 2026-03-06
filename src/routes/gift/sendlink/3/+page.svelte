@@ -8,12 +8,12 @@
   import { onMount } from "svelte";
   import { user, authLoading, isAuthenticated } from "../../../../lib/stores/auth";
   import { browser } from "$app/environment";
-  import school from '../../../../assets/school.png';
-  import birth from '../../../../assets/birth.png';
-  import grad from '../../../../assets/grad.png';
-  import holiday from '../../../../assets/holiday.png';
-  import baby from '../../../../assets/baby.png';
-  import just from '../../../../assets/just.png';
+  import school from '../../../../assets/school.webp';
+  import birth from '../../../../assets/birth.webp';
+  import grad from '../../../../assets/grad.webp';
+  import holiday from '../../../../assets/holiday.webp';
+  import baby from '../../../../assets/baby.webp';
+  import just from '../../../../assets/just.webp';
 
   // Sample story data
   const stories = [
@@ -283,7 +283,7 @@
 
 <style>
   .logo-img {
-    background-image: url("../../../../assets/logo.png");
+    background-image: url("../../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

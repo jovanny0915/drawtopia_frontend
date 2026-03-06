@@ -1,13 +1,13 @@
 <script lang="ts">
   export let selectedAgeGroup = "";
-  import img02 from '../assets/0-2.png';
-  import img35 from '../assets/3-5.png';
-  import img671 from '../assets/6-7-1.png';
-  import img672 from '../assets/6-7-2.png';
-  import img8101 from '../assets/8-10-1.png';
-  import img8102 from '../assets/8-10-2.png';
-  import img11121 from '../assets/11-12-1.png';
-  import img11122 from '../assets/11-12-2.png';
+  import img02 from '../assets/0-2.webp';
+  import img35 from '../assets/3-5.webp';
+  import img671 from '../assets/6-7-1.webp';
+  import img672 from '../assets/6-7-2.webp';
+  import img8101 from '../assets/8-10-1.webp';
+  import img8102 from '../assets/8-10-2.webp';
+  import img11121 from '../assets/11-12-1.webp';
+  import img11122 from '../assets/11-12-2.webp';
   
 
   // Map age groups to their corresponding images

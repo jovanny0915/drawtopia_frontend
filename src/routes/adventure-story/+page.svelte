@@ -1,13 +1,13 @@
 <script lang="ts">
-    import enchantedforest from "../../assets/cenchanted_forest.png";
-    import outerspace from "../../assets/couter_space.png";
-    import underwaterkingdom from "../../assets/cunderwater_kingdom.png";
-    import logo from "../../assets/logo.png";
+    import enchantedforest from "../../assets/cenchanted_forest.webp";
+    import outerspace from "../../assets/couter_space.webp";
+    import underwaterkingdom from "../../assets/cunderwater_kingdom.webp";
+    import logo from "../../assets/logo.webp";
     import arrowleft from "../../assets/WhiteArrowLeft.svg";
     import globehemispherewest from "../../assets/BlackGlobeHemiSphereWest.svg";
     import shieldstar from "../../assets/ShieldStar.svg";
-    import treasurehunt from "../../assets/treasure_hunt.png";
-    import helpfriend from "../../assets/help_friend.png";
+    import treasurehunt from "../../assets/treasure_hunt.webp";
+    import helpfriend from "../../assets/help_friend.webp";
     import { goto } from "$app/navigation";
 
     let selectedScene: string | null = null;

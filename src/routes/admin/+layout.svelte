@@ -6,7 +6,7 @@
   import { supabase } from '$lib/supabase';
   import { onMount } from 'svelte';
   import { Book, BarChart2, Users, LogOut, MessageSquareText } from 'lucide-svelte';
-  import logo from '../../assets/white-logo.png';
+  import logo from '../../assets/white-logo.webp';
 
   let userRole: string | null = null;
   let loading = true;

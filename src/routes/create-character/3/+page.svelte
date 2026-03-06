@@ -18,10 +18,10 @@
   import playIcon from "../../../assets/Inter-PlayCircle.svg";
   import bookIcon from "../../../assets/Inter-BookOpenText.svg";
   import headphoneIcon from "../../../assets/Inter-Headphones.svg";
-  import storyAdventure from "../../../assets/story_adventure.png";
-  import storyAdventureEg from "../../../assets/inter_story_eg.png";
-  import interactiveSearch from "../../../assets/interactive_search.png";
-  import interactiveSearchEg from "../../../assets/inter_search_eg.png";
+  import storyAdventure from "../../../assets/story_adventure.webp";
+  import storyAdventureEg from "../../../assets/inter_story_eg.webp";
+  import interactiveSearch from "../../../assets/interactive_search.webp";
+  import interactiveSearchEg from "../../../assets/inter_search_eg.webp";
   import xIcon from "../../../assets/X.svg";
   import whiteCheck from "../../../assets/WhiteCheck.svg";
 
@@ -719,7 +719,7 @@
     cursor: pointer;
   }
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -898,7 +898,7 @@
   }
 
   .preview-logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

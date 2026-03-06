@@ -4,7 +4,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
 
-  import logo from "../../../../assets/logo.png";
+  import logo from "../../../../assets/logo.webpp";
   import CalendarBlank from "../../../../assets/CalendarBlank.svg";
   import BookShareFooter from "../../../../components/BookShareFooter.svelte";
 
@@ -285,7 +285,7 @@
   }
 
   .logo-img {
-    background-image: url("../../../../assets/logo.png");
+    background-image: url("../../../../assets/logo.webpp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -350,7 +350,7 @@
     align-items: center;
     justify-content: center;
     background: #d4ede8;
-    background-image: url("../../../../assets/giftpackage1.png");
+    background-image: url("../../../../assets/giftpackage1.webpp");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

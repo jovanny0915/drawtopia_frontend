@@ -15,7 +15,7 @@
   import Play from "../../../assets/Play.svg";
   import CaretDown from "../../../assets/CaretDown.svg";
   import Link from "../../../assets/Link.svg";
-  import logo from "../../../assets/white-logo.png";
+  import logo from "../../../assets/white-logo.webp";
   import MobileBackBtn from "../../../components/MobileBackBtn.svelte";
   import ShareStoryModal from "../../../components/ShareStoryModal.svelte";
   import StoryInfoModal from "../../../components/StoryInfoModal.svelte";
@@ -1662,7 +1662,7 @@
     cursor: pointer;
   }
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

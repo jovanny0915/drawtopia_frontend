@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import logo from "../assets/logo.png";
+  import logo from "../assets/logo.webp";
   import xIcon from "../assets/X.svg";
   import ArrowsClockwise from "../assets/ArrowsClockwise.svg";
   import DownloadSimple from "../assets/DownloadSimple.svg";

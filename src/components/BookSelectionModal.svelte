@@ -12,7 +12,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { onMount } from "svelte";
-  import logo from "../assets/logo.png";
+  import logo from "../assets/logo.webp";
   import XIcon from "../assets/X.svg";
   import BookOpenText from "../assets/BookOpenText.svg";
   import LockKey from "../assets/LockKey.svg";

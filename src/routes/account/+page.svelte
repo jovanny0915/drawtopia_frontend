@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
     import { get } from "svelte/store";
-    import drawtopialogo from "../../assets/logo.png";
+    import drawtopialogo from "../../assets/logo.webpp";
     import arrowLeft from "../../assets/ArrowLeft.svg";
     import pencilSimple from "../../assets/WhitePencilSimple.svg";
     import check from "../../assets/Check.svg";

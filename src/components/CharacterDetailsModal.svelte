@@ -15,7 +15,7 @@
   import PencilSimple from "../assets/PencilSimple.svg";
   import Trash from "../assets/Trash.svg";
   import X from "../assets/X.svg";
-  import logo from "../assets/logo.png";
+  import logo from "../assets/logo.webp";
   import { formatDate } from "$lib/dateUtils";
 
   export let character: any;

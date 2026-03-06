@@ -1,8 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import logo from "../../../assets/logo.png";
-  import luna1 from "../../../assets/Luna1.png";
-  import luna2 from "../../../assets/Luna2.png";
+  import logo from "../../../assets/logo.webp";
+  import luna1 from "../../../assets/Luna1.webp";
+  import luna2 from "../../../assets/Luna2.webp";
   import fullscreen from "../../../assets/fullscreen.svg";
   import Play from "../../../assets/Play.svg";
   import SpeakerSimpleHigh from "../../../assets/SpeakerSimpleHigh.svg";

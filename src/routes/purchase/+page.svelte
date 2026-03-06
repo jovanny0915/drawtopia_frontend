@@ -6,10 +6,10 @@
   import purplecheck from "../../assets/purple-check.svg";
   import MobileBackBtn from "../../components/MobileBackBtn.svelte";
 
-  import physicalBookImg from "../../assets/physical-book.png";
-  import digitalBookImage from "../../assets/digital-book.png";
-  import bundleBookImage from "../../assets/bundle-book.png";
-  import classicStoryImage from "../../assets/classic_storybook.png";
+  import physicalBookImg from "../../assets/physical-book.webp";
+  import digitalBookImage from "../../assets/digital-book.webp";
+  import bundleBookImage from "../../assets/bundle-book.webp";
+  import classicStoryImage from "../../assets/classic_storybook.webp";
 
   import { goto } from '$app/navigation';
 

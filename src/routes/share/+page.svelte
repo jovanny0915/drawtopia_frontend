@@ -8,10 +8,10 @@
   import SpeakerSimpleHigh from "../../assets/SpeakerSimpleHigh.svg";
   import Play from "../../assets/Play.svg";
   import CornersOut from "../../assets/CornersOut.svg";
-  import forestBackground from "../../assets/forest_share_back.png";
-  import waterBackground from "../../assets/water_share_back.png";
-  import spaceBackground from "../../assets/space_share_back.png";
-  import dedicationLeft from "../../assets/dedicationleft.png";
+  import forestBackground from "../../assets/forest_share_back.webp";
+  import waterBackground from "../../assets/water_share_back.webp";
+  import spaceBackground from "../../assets/space_share_back.webp";
+  import dedicationLeft from "../../assets/dedicationleft.webp";
   import { getStoryById } from "../../lib/database/stories";
   import BookShareFooter from "../../components/BookShareFooter.svelte";
 

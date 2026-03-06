@@ -6,9 +6,9 @@
   import purplecheck from "../../assets/purple-check.svg";
   import arrowleft from "../../assets/ArrowLeft.svg";
 
-  import giantImage from "../../assets/Giant-book.png";
-  import splendidImage from "../../assets/splendid-book.png";
-  import stickerImage from "../../assets/sticker-pack.png";
+  import giantImage from "../../assets/Giant-book.webp";
+  import splendidImage from "../../assets/splendid-book.webp";
+  import stickerImage from "../../assets/sticker-pack.webp";
 
   // Track selected item (single selection)
   let selectedItem: 'giant' | 'splendid' | 'sticker' = 'splendid'; // Default to splendid
@@ -934,7 +934,7 @@
 }
 
 .logo-img {
-  background-image: url("../../assets/logo.png");
+  background-image: url("../../assets/logo.webp");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;

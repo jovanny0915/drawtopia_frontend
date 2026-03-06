@@ -1,5 +1,5 @@
 <script lang="ts">
-  import SmallImg from "../../../assets/small.png";
+  import SmallImg from "../../../assets/small.webp";
   import ArrowLeft from "../../../assets/ArrowLeft.svg";
   import Play from "../../../assets/Play.svg";
   import TreasureChest from "../../../assets/TreasureChest.svg";
@@ -452,7 +452,7 @@
     display: inline-flex;
   }
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

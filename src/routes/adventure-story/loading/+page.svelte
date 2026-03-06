@@ -16,16 +16,16 @@
     import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription } from '../../../lib/storyGenerationHelpers';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
-    import drawtopia from "../../../assets/logo.png";
+    import drawtopia from "../../../assets/logo.webp";
     import shieldstar from "../../../assets/ShieldStar.svg";
     import arrowleft from "../../../assets/ArrowLeft.svg";
     import magicalwand from "../../../assets/magic-wand.gif"; 
     import magicalwand1 from "../../../assets/magic-wand1.gif"; 
     import magicalwand2 from "../../../assets/magic-wand2.gif"; 
     import shootingstar from "../../../assets/ShootingStar.svg"
-    import firstGeneration from "../../../assets/first_generation.png";
-    import secondGeneration from "../../../assets/second_generation.png";
-    import thirdGeneration from "../../../assets/third_generation.png";
+    import firstGeneration from "../../../assets/first_generation.webp";
+    import secondGeneration from "../../../assets/second_generation.webp";
+    import thirdGeneration from "../../../assets/third_generation.webp";
     import spinnerGap from "../../../assets/SpinnerGap.svg";
     import ProgressBar from "../../../components/ProgressBar.svelte";
     import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";

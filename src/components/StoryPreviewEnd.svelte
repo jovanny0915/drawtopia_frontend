@@ -4,7 +4,7 @@
   import ArrowsClockwise from "../assets/ArrowsClockwise.svg";
   import DownloadSimple from "../assets/DownloadSimple.svg";
   import Plus from "../assets/Plus.svg";
-  import logo from "../assets/logo.png";
+  import logo from "../assets/logo.webp";
 
   export let storyTitle = "Luna's Adventure";
   export let pagesRead = 5;

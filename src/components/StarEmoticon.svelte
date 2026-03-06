@@ -4,7 +4,7 @@
     import star6 from '../assets/star6.svg';
     import eye from '../assets/eye.svg';
     import eyebrow from '../assets/eyebrow.svg';
-    import star from '../assets/star.png';
+    import star from '../assets/star.webp';
   </script>
 
   <div class="loopa">

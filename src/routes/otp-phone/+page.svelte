@@ -10,7 +10,7 @@
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import languageFlag from '../../assets/langbtnicon.svg';
-  import logo from '../../assets/logo.png';
+  import logo from '../../assets/logo.webp';
 
   // Any Country Code Alpha-2 (ISO 3166)
   let selectedCountry: CountryCode | null = "HU";
@@ -481,7 +481,7 @@
     align-self: stretch;
   }
   .logo-img {
-    background-image: url("../../assets/logo.png");
+    background-image: url("../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -594,7 +594,7 @@
     width: 48%;
     height: 98vh;
     position: relative;
-    background-image: url("../../assets/victorycele.png");
+    background-image: url("../../assets/victorycele.webp");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

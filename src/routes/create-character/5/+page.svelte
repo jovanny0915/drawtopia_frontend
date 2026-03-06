@@ -8,17 +8,17 @@
   import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";
   import { browser } from "$app/environment";
   import { onMount } from "svelte";
-  import forest from "../../../assets/cenchanted_forest.png";
-  import outspace from "../../../assets/couter_space.png";
-  import underwater from "../../../assets/cunderwater_kingdom.png";
-  import treasure from "../../../assets/treasure_hunt.png";
-  import helping from "../../../assets/help_friend.png";
+  import forest from "../../../assets/cenchanted_forest.webp";
+  import outspace from "../../../assets/couter_space.webp";
+  import underwater from "../../../assets/cunderwater_kingdom.webp";
+  import treasure from "../../../assets/treasure_hunt.webp";
+  import helping from "../../../assets/help_friend.webp";
   import globehemispherewest from "../../../assets/BlackGlobeHemiSphereWest.svg";
-  import kindnessEmpathyImg from "../../../assets/kindness.png";
-  import bedtimeRoutineSleepHygieneImg from "../../../assets/bedtime.png";
-  import courageImg from "../../../assets/courage.png";
-  import connectionImg from "../../../assets/connection.png";
-  import patienceEnduranceImg from "../../../assets/patience.png";
+  import kindnessEmpathyImg from "../../../assets/kindness.webp";
+  import bedtimeRoutineSleepHygieneImg from "../../../assets/bedtime.webp";
+  import courageImg from "../../../assets/courage.webp";
+  import connectionImg from "../../../assets/connection.webp";
+  import patienceEnduranceImg from "../../../assets/patience.webp";
   import { storyCreation } from "../../../lib/stores/storyCreation";
 
   let isMobile = false;
@@ -1140,7 +1140,7 @@
     cursor: pointer;
   }
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

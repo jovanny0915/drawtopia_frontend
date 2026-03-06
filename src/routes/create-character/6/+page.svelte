@@ -9,8 +9,8 @@
   import AdventureCard from "../../../components/AdventureCard.svelte";
   import { browser } from "$app/environment";
   import { onMount } from "svelte";
-  import treasure from "../../../assets/treasurehunt.png";
-  import helping from "../../../assets/helpfriend.png";
+  import treasure from "../../../assets/treasurehunt.webp";
+  import helping from "../../../assets/helpfriend.webp";
   import { 
     generateStyledImage,
     saveSelectedImageUrl,
@@ -583,7 +583,7 @@
     cursor: pointer;
   }
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

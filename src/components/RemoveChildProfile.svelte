@@ -2,7 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import x from "../assets/X.svg";
   import trash from "../assets/Trash.svg";
-  import drawtopia from "../assets/logo.png"
+  import drawtopia from "../assets/logo.webp"
 
   const dispatch = createEventDispatcher();
 

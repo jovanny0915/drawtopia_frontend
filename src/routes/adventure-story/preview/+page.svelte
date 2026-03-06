@@ -1,10 +1,10 @@
 <script lang="ts">
-    import logo from "../../../assets/logo.png";
+    import logo from "../../../assets/logo.webp";
     import shieldStar from "../../../assets/ShieldStar.svg";
-    import star from "../../../assets/star.png";
-    import classicStorybook from "../../../assets/classic_storybook.png";
-    import modernMinimalist from "../../../assets/modern_minimalist.png";
-    import adventureTheme from "../../../assets/adventure_theme.png";
+    import star from "../../../assets/star.webp";
+    import classicStorybook from "../../../assets/classic_storybook.webp";
+    import modernMinimalist from "../../../assets/modern_minimalist.webp";
+    import adventureTheme from "../../../assets/adventure_theme.webp";
     import arrowLeft from "../../../assets/ArrowLeft.svg";
     import { goto } from "$app/navigation";
 

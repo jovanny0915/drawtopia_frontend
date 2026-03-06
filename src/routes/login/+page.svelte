@@ -18,7 +18,7 @@
   import type { UserWithProfile } from "$lib/stores/auth";
 
   import languageFlag from "../../assets/langbtnicon.svg";
-  import logo from "../../assets/logo.png";
+  import logo from "../../assets/logo.webp";
 
   // Check if user is already authenticated; support ?method=phone for signup-with-phone link
   onMount(() => {
@@ -460,7 +460,7 @@
     align-self: stretch;
   }
   .logo-img {
-    background-image: url("../../assets/logo.png");
+    background-image: url("../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -559,7 +559,7 @@
     width: 48%;
     height: 98vh;
     position: relative;
-    background-image: url("../../assets/victorycele.png");
+    background-image: url("../../assets/victorycele.webp");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

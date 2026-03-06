@@ -3,8 +3,8 @@
   import ArrowLeft from "../../../assets/ArrowLeft.svg";
   import DevicePermissionModal from "../../../components/DevicePermissionModal.svelte";
 
-    import recordVideoImg from "../../../assets/record_video.png";
-    import previewStoryImg from "../../../assets/preview_story.png";
+    import recordVideoImg from "../../../assets/record_video.webp";
+    import previewStoryImg from "../../../assets/preview_story.webp";
 
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
@@ -688,7 +688,7 @@
     display: inline-flex;
   }
   .logo-img {
-    background-image: url("../../../assets/logo.png");
+    background-image: url("../../../assets/logo.webp");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

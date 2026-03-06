@@ -4,8 +4,8 @@
   import { onMount, onDestroy } from "svelte";
   import { page } from "$app/stores";
   import { supabase } from "../../../lib/supabase";
-  import logo from "../../../assets/logo.png";
-  import bookCover from "../../../assets/Luna1.png";
+  import logo from "../../../assets/logo.webp";
+  import bookCover from "../../../assets/Luna1.webp";
   import tempScene from "../../../assets/temp.jpg";
   import fullscreen from "../../../assets/fullscreen.svg";
   import coverIcon from "../../../assets/covericon.svg";
@@ -17,7 +17,7 @@
   import dotsThreeOutline from '../../../assets/DotsThreeOutline.svg';
   import zoomIcon from '../../../assets/zoomIcon.svg';
   import arrowleft from '../../../assets/ArrowLeft.svg';
-  import dedicationLeft from "../../../assets/dedicationleft.png";
+  import dedicationLeft from "../../../assets/dedicationleft.webp";
   import { enhance } from "$app/forms";
   import ShareStoryModal from "../../../components/ShareStoryModal.svelte";
   import StoryInfoModal from "../../../components/StoryInfoModal.svelte";
@@ -1170,7 +1170,7 @@
       // Convert blob to File
       const timestamp = Date.now();
       const randomString = Math.random().toString(36).substring(2, 15);
-      const fileName = `cropped_${timestamp}_${randomString}.png`;
+      const fileName = `cropped_${timestamp}_${randomString}.webp`;
       const file = new File([blob], fileName, { type: 'image/png' });
 
       // Upload to Supabase storage
@@ -1279,7 +1279,7 @@
       
       // Upload character image
       const timestamp = Date.now();
-      const charFileName = `compare_char_${timestamp}_${Math.random().toString(36).substring(2, 15)}.png`;
+      const charFileName = `compare_char_${timestamp}_${Math.random().toString(36).substring(2, 15)}.webp`;
       const charFile = new File([charBlob], charFileName, { type: 'image/png' });
       
       const { data: charData, error: charError } = await supabase.storage
@@ -1306,7 +1306,7 @@
       }
 
       // Upload cropped image
-      const croppedFileName = `compare_cropped_${timestamp}_${Math.random().toString(36).substring(2, 15)}.png`;
+      const croppedFileName = `compare_cropped_${timestamp}_${Math.random().toString(36).substring(2, 15)}.webp`;
       const croppedFile = new File([croppedBlob], croppedFileName, { type: 'image/png' });
       
       const { data: croppedData, error: croppedError } = await supabase.storage
@@ -1523,7 +1523,7 @@
     
     const link = document.createElement('a');
     link.href = croppedImageUrl;
-    link.download = `cropped-scene-${currentSceneIndex + 1}-${Date.now()}.png`;
+    link.download = `cropped-scene-${currentSceneIndex + 1}-${Date.now()}.webp`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

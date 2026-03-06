@@ -6,7 +6,7 @@
   import { get } from 'svelte/store';
   import { auth } from '../../../lib/stores/auth';
   import { getStoryById } from '../../../lib/database/stories';
-  import logo from "../../../assets/logo.png";
+  import logo from "../../../assets/logo.webp";
   import timeIcon from "../../../assets/redtimeicon.svg";
   import favorblueicon from "../../../assets/favorblueicon.svg";
   import hintpurpleicon from "../../../assets/hintpurpleicon.svg";
@@ -16,10 +16,10 @@
   import shareIcon from "../../../assets/Share.svg";
   
   // Fallback images
-  import magicalforest from "../../../assets/magicalforest.png";
-  import enchantedcastle from "../../../assets/enchantedcastle.png";
-  import crystalcave from "../../../assets/crystalcave.png";
-  import rainbowmeadow from "../../../assets/rainbowmeadow.png";
+  import magicalforest from "../../../assets/magicalforest.webp";
+  import enchantedcastle from "../../../assets/enchantedcastle.webp";
+  import crystalcave from "../../../assets/crystalcave.webp";
+  import rainbowmeadow from "../../../assets/rainbowmeadow.webp";
 
   type Scene = {
     id: number;

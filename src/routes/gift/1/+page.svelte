@@ -4,11 +4,11 @@
 
     import arrow_left from "../../../assets/ArrowLeft.svg";
     import people_svg from "../../../assets/people.svg";
-    import logo from "../../../assets/logo.png";
-    import createSend from "../../../assets/create-send.png"; // Two children with laptop and gift
-    import sendLink from "../../../assets/send-link.png"; // Woman and boy with laptop
+    import logo from "../../../assets/logo.webp";
+    import createSend from "../../../assets/create-send.webp"; // Two children with laptop and gift
+    import sendLink from "../../../assets/send-link.webp"; // Woman and boy with laptop
     import shieldstart from "../../../assets/ShieldStar.svg";
-    import star from "../../../assets/star.png";
+    import star from "../../../assets/star.webp";
 
     type GiftMode = "create" | "link" | null;
     let selectedMode: GiftMode = null;

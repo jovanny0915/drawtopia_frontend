@@ -1,9 +1,9 @@
 <script lang="ts">
-  import drawtopiaLogo from "../../../../assets/logo.png";
+  import drawtopiaLogo from "../../../../assets/logo.webp";
   import ShieldStar from "../../../../assets/ShieldStar.svg";
-  import star from "../../../../assets/star.png";
+  import star from "../../../../assets/star.webp";
   import ArrowLeft from "../../../../assets/ArrowLeft.svg";
-  import std_book_cover from "../../../../assets/std_book_cover.png";
+  import std_book_cover from "../../../../assets/std_book_cover.webp";
   import { goto } from "$app/navigation";
 
   const goToDashboard = () => {

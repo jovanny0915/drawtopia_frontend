@@ -2,7 +2,7 @@
     import { goto } from "$app/navigation";
     import { browser } from "$app/environment";
     import { page } from "$app/stores";
-    import drawtopia from "../../assets/logo.png";
+    import drawtopia from "../../assets/logo.webp";
     import xicon from "../../assets/X.svg";
     import checkicon from "../../assets/GrayCheck.svg";
     import bluecheckicon from "../../assets/Check_blue.svg";

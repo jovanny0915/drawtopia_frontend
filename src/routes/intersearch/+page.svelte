@@ -1,10 +1,10 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import ProgressBar from "../../components/ProgressBar.svelte";
-    import enchantedforest from "../../assets/enchanted_forest.png";
-    import outerspace from "../../assets/outer_space.png";
-    import underwaterkingdom from "../../assets/underwater_kingdom.png";
-    import logo from "../../assets/logo.png";
+    import enchantedforest from "../../assets/enchanted_forest.webp";
+    import outerspace from "../../assets/outer_space.webp";
+    import underwaterkingdom from "../../assets/underwater_kingdom.webp";
+    import logo from "../../assets/logo.webp";
     import arrowleft from "../../assets/WhiteArrowLeft.svg";
     import smiley from "../../assets/Smiley.svg";
     import globehemispherewest from "../../assets/BlackGlobeHemiSphereWest.svg";

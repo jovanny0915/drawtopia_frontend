@@ -4,13 +4,13 @@
   import { onMount } from "svelte";
 
   import arrow_left from "../../../../assets/ArrowLeft.svg";
-  import logo from "../../../../assets/logo.png";
+  import logo from "../../../../assets/logo.webp";
   import PaperPlaneTilt from "../../../../assets/PaperPlaneTilt.svg";
   import XIcon from "../../../../assets/X.svg";
 
-  import GiftPackaging1 from "../../../../assets/giftpackage1.png";
-  import GiftPackaging2 from "../../../../assets/giftpackage2.png";
-  import GiftPackaging3 from "../../../../assets/giftpackage3.png";
+  import GiftPackaging1 from "../../../../assets/giftpackage1.webp";
+  import GiftPackaging2 from "../../../../assets/giftpackage2.webp";
+  import GiftPackaging3 from "../../../../assets/giftpackage3.webp";
 
   import { giftCreation } from "../../../../lib/stores/giftCreation";
   import {
@@ -536,21 +536,21 @@
   }
 
   .blue-card {
-    background-image: url("../../../../assets/giftpackage1.png");
+    background-image: url("../../../../assets/giftpackage1.webp");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
   }
   
   .green-card {
-    background-image: url("../../../../assets/giftpackage2.png");
+    background-image: url("../../../../assets/giftpackage2.webp");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
   }
   
   .orange-card {
-    background-image: url("../../../../assets/giftpackage3.png");
+    background-image: url("../../../../assets/giftpackage3.webp");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -945,7 +945,7 @@
   }
 
   .blue-preview {
-    background-image: url("../../../../assets/giftpackage1.png");
+    background-image: url("../../../../assets/giftpackage1.webp");
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
@@ -953,7 +953,7 @@
   }
 
   .green-preview {
-    background-image: url("../../../../assets/giftpackage2.png");
+    background-image: url("../../../../assets/giftpackage2.webp");
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
@@ -961,7 +961,7 @@
   }
   
   .orange-preview {
-    background-image: url("../../../../assets/giftpackage3.png");
+    background-image: url("../../../../assets/giftpackage3.webp");
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;

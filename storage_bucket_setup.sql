@@ -2,13 +2,13 @@
 -- Run this in your Supabase SQL Editor
 -- 
 -- Storage Structure:
--- /book-templates/[template-name]/cover_image.png
--- /book-templates/[template-name]/copyright_page_image.png
--- /book-templates/[template-name]/dedication_page_image.png
--- /book-templates/[template-name]/story-page-1.png
--- /book-templates/[template-name]/story-page-2.png
--- /book-templates/[template-name]/last_story_page_image.png
--- /book-templates/[template-name]/back_cover_image.png
+-- /book-templates/[template-name]/cover_image.webp
+-- /book-templates/[template-name]/copyright_page_image.webp
+-- /book-templates/[template-name]/dedication_page_image.webp
+-- /book-templates/[template-name]/story-page-1.webp
+-- /book-templates/[template-name]/story-page-2.webp
+-- /book-templates/[template-name]/last_story_page_image.webp
+-- /book-templates/[template-name]/back_cover_image.webp
 
 -- Create the storage bucket for book images
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

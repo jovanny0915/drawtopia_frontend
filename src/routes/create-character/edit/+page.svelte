@@ -8,7 +8,7 @@
   import { uploadCharacterImage } from "../../../lib/storage";
   import { user } from "../../../lib/stores/auth";
   import { supabase } from "../../../lib/supabase";
-  import logo from "../../../assets/logo.png";
+  import logo from "../../../assets/logo.webp";
   import arrowLeft from "../../../assets/ArrowLeft.svg";
   import uploadSimple from "../../../assets/upload-icon.svg";
   import darkColors from "../../../assets/day.svg";
@@ -18,9 +18,9 @@
   import personFrame from "../../../assets/PersonFrame.svg";
   import animal from "../../../assets/animal.svg";
   import magical from "../../../assets/monster.svg";
-  import D3 from "../../../assets/3d_style.png";
-  import Cartoon from "../../../assets/cartoon_style.png";
-  import Anime from "../../../assets/anime_style.png";
+  import D3 from "../../../assets/3d_style.webp";
+  import Cartoon from "../../../assets/cartoon_style.webppp";
+  import Anime from "../../../assets/anime_style.webpp";
   import greecheck from "../../../assets/SealCheck.svg";
   import warningIcon from "../../../assets/WhiteWarning.svg";
   import PrimaryInput from "../../../components/PrimaryInput.svelte";

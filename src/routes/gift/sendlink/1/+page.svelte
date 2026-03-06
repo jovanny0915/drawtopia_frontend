@@ -4,9 +4,9 @@
     import { onMount } from "svelte";
 
     import arrow_left from "../../../../assets/ArrowLeft.svg";
-    import logo from "../../../../assets/logo.png";
+    import logo from "../../../../assets/logo.webp";
     import shieldstart from "../../../../assets/ShieldStar.svg";
-    import star from "../../../../assets/star.png";
+    import star from "../../../../assets/star.webp";
     import CalendarBlank from "../../../../assets/CalendarBlank.svg";
 
     import { giftCreation } from "../../../../lib/stores/giftCreation";
@@ -421,7 +421,7 @@
     }
 
     .logo-img {
-        background-image: url("../../../../assets/logo.png");
+        background-image: url("../../../../assets/logo.webp");
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;

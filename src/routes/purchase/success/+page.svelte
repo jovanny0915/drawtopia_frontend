@@ -5,7 +5,7 @@
     import { browser } from "$app/environment";
     import { user } from "../../../lib/stores/auth";
     import { sendReceiptEmail } from "../../../lib/emails";
-    import drawtopia from "../../../assets/logo.png";
+    import drawtopia from "../../../assets/logo.webp";
     
     const goToDashboard = () => {
         goto('/dashboard');
