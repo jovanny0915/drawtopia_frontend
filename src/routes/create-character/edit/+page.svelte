@@ -19,8 +19,8 @@
   import animal from "../../../assets/animal.svg";
   import magical from "../../../assets/monster.svg";
   import D3 from "../../../assets/3d_style.webp";
-  import Cartoon from "../../../assets/cartoon_style.webppp";
-  import Anime from "../../../assets/anime_style.webpp";
+  import Cartoon from "../../../assets/cartoon_style.webpp";
+  import Anime from "../../../assets/anime_style.webp";
   import greecheck from "../../../assets/SealCheck.svg";
   import warningIcon from "../../../assets/WhiteWarning.svg";
   import PrimaryInput from "../../../components/PrimaryInput.svelte";

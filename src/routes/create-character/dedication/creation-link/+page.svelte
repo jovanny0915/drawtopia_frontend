@@ -1,9 +1,9 @@
 <script lang="ts">
-    import drawtopiaLogo from "../../../../assets/logo.webpp"
+    import drawtopiaLogo from "../../../../assets/logo.webp"
     import ShieldStar from "../../../../assets/ShieldStar.svg"
     import ArrowLeft from "../../../../assets/ArrowLeft.svg"
-    import star from "../../../../assets/star.webpp"
-    import std_book_image from "../../../../assets/std_book_cover.webpp"
+    import star from "../../../../assets/star.webp"
+    import std_book_image from "../../../../assets/std_book_cover.webp"
     import { browser } from "$app/environment";
     import { goto } from "$app/navigation";
     import { onDestroy } from "svelte";

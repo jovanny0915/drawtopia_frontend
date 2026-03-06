@@ -4,12 +4,12 @@
  * 
  * Storage Structure:
  * All images are stored in: book-images/book-templates/[template-name]/
- * - cover_image.webpp
- * - copyright_page_image.webpp
- * - dedication_page_image.webpp
- * - story-page-1.webpp, story-page-.webpbp, etc.
- * - last_story_page_image.webpp
- * - back_cover_image.webpp
+ * - cover_image.webp
+ * - copyright_page_image.webp
+ * - dedication_page_image.webp
+ * - story-page-1.webp, story-page-.webpbp, etc.
+ * - last_story_page_image.webp
+ * - back_cover_image.webp
  */
 
 import { supabase } from '../supabase';
