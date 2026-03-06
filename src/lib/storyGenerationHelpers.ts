@@ -43,10 +43,10 @@ const TEMP_MAIN_STORY_PAGE_ALLY_CHARACTER_PROMPT: string | null =
 
 const PAGE_ALLY_CHARACTER_PROMPTS: { [key: number]: string } = {
   1: "Ally character - ally character should be not in this image.",
-  2: "Ally character - ally character should be not removed in this image.",
-  3: "Ally character - ally character should be not removed in this image.",
-  4: "Ally character - ally character should be not removed in this image.",
-  5: "Ally character - ally character should be not removed in this image."
+  2: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replace with reference character image.",
+  3: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replace with reference character image.",
+  4: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replace with reference character image.",
+  5: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replace with reference character image."
 };
 
 const PAGE_MAIN_CHARACTER_POSE_ACTION_EMOTION_PROMPTS: { [key: number]: string } = {
