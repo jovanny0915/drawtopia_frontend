@@ -47,7 +47,7 @@ const createStoryCreationStore = () => {
         const characterStyle = sessionStorage.getItem('selectedStyle');
         const selectedFormat = sessionStorage.getItem('selectedFormat');
         const storyWorld = sessionStorage.getItem('selectedWorld');
-        const adventureType = sessionStorage.getItem('selectedAdventure');
+        const themeName = sessionStorage.getItem('storyTheme');
         const originalImageUrl = sessionStorage.getItem('characterImageUrl')
           || sessionStorage.getItem('selectedCharacterEnhancedImage');
         const storyTitle = sessionStorage.getItem('storyTitle');
@@ -79,7 +79,7 @@ const createStoryCreationStore = () => {
           characterStyle: characterStyle as any || undefined,
           selectedFormat: selectedFormat as any || undefined,
           storyWorld: storyWorld as any || undefined,
-          adventureType: adventureType as any || undefined,
+          themeName: themeName as any || undefined,
           originalImageUrl: originalImageUrl || undefined,
           enhancedImages: enhancedImages.length > 0 ? enhancedImages : undefined,
           storyTitle: storyTitle || undefined,

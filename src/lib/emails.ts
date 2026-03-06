@@ -174,7 +174,7 @@ export async function sendBookCompletionEmail(
   previewLink: string,
   downloadLink: string,
   storyWorld?: string,
-  adventureType?: string,
+  themeName?: string,
   ageGroup?: string
 ): Promise<EmailResult> {
   try {
@@ -197,7 +197,7 @@ export async function sendBookCompletionEmail(
         : {
             ...baseBody,
             ...(storyWorld != null && { story_world: storyWorld }),
-            ...(adventureType != null && { adventure_type: adventureType }),
+            ...(themeName != null && { themeName: themeName }),
             ...(ageGroup != null && { age_group: ageGroup }),
           };
 

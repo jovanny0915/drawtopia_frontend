@@ -820,7 +820,7 @@
             const characterType = storyState.characterType || 'Character';
             const specialAbility = storyState.specialAbility || 'special powers';
             const storyWorld = storyState.storyWorld;
-            const adventureType = storyState.adventureType;
+            const storyTheme = storyState.storyTheme;
 
             // Send book completion email (variables sent depend on bookFormat: interactive_search vs adventure-story)
             console.log('Sending book completion email...');
@@ -836,7 +836,7 @@
                 previewLink,
                 downloadLink,
                 storyWorld,
-                adventureType,
+                storyTheme,
                 ageGroup
             );
 
