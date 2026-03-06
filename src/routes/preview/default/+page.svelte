@@ -3932,7 +3932,7 @@
     }
     .story-main-text-overlay {
       width: 100%;
-      height: 70%;
+      height: 60%;
     }
     .story-main-text-overlay-bottom {
       bottom: 0px;
