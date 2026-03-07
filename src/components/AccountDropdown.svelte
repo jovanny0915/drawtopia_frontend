@@ -35,7 +35,9 @@
       'premium': 'Premium Plan',
       'free plan': 'Free Plan',
       'trial': 'Trial Plan',
-      'basic': 'Basic Plan'
+      'basic': 'Basic Plan',
+      'cancelled': 'Free Plan',
+      'canceled': 'Free Plan'
     };
     
     const normalizedStatus = status.toLowerCase();
