@@ -20,6 +20,20 @@
     let savedStoryId: string | null = null; // Story ID from URL or sessionStorage
     let savedSceneIndex: string | null = null; // Scene index from URL
     let emailSent = false; // Track if emails have been sent
+    const TEMP_UNLOCK_KEY_PREFIX = 'preview_temp_unlock_';
+
+    function markTemporaryStoryUnlock(storyId: string) {
+        if (!browser || !storyId) return;
+        try {
+            sessionStorage.setItem(
+                `${TEMP_UNLOCK_KEY_PREFIX}${storyId}`,
+                JSON.stringify({ unlockedAt: Date.now() })
+            );
+            console.log(`[subscription/success] Marked temporary unlock for story ${storyId}`);
+        } catch (error) {
+            console.error('[subscription/success] Failed to store temporary unlock:', error);
+        }
+    }
 
     // Helper function to send payment confirmation emails
     async function sendPaymentEmails(sessionData: any) {
@@ -168,6 +182,10 @@
                 }
             }
 
+            if (verificationSuccess && savedStoryId) {
+                markTemporaryStoryUnlock(savedStoryId);
+            }
+
             // If user came from story-preview to buy credits, return there (sessionStorage preserved)
             const returnUrl = sessionStorage.getItem('postPaymentReturnUrl');
             if (returnUrl && verificationSuccess) {
@@ -189,7 +207,8 @@
 
     function handleContinueReading() {
         if (savedStoryId) {
-            goto(`/preview/default?storyId=${savedStoryId}`);
+            const sceneParam = savedSceneIndex ? `&sceneIndex=${savedSceneIndex}` : '';
+            goto(`/preview/default?storyId=${savedStoryId}${sceneParam}`);
         } else {
             // Fallback to dashboard if no story ID found
             goto('/dashboard');

@@ -51,6 +51,7 @@
   let audioListened = "0 min";
   let isFreePlan = true; // Default to free plan for safety
   let isPurchased = false; // Whether the current story has been purchased
+  let hasTemporaryStoryUnlock = false; // Temporary unlock after verified Stripe payment
   let currentStoryId: string | null = null; // Current story ID
   let isLoading = true;
   let loadError = "";
@@ -146,6 +147,32 @@
     }
   };
 
+  const TEMP_UNLOCK_KEY_PREFIX = 'preview_temp_unlock_';
+  const TEMP_UNLOCK_TTL_MS = 60 * 60 * 1000; // 1 hour grace for backend sync
+
+  function getTemporaryUnlock(storyId: string): boolean {
+    if (!browser) return false;
+    try {
+      const raw = sessionStorage.getItem(`${TEMP_UNLOCK_KEY_PREFIX}${storyId}`);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as { unlockedAt?: number };
+      if (!parsed?.unlockedAt || typeof parsed.unlockedAt !== 'number') {
+        sessionStorage.removeItem(`${TEMP_UNLOCK_KEY_PREFIX}${storyId}`);
+        return false;
+      }
+      const isFresh = Date.now() - parsed.unlockedAt < TEMP_UNLOCK_TTL_MS;
+      if (!isFresh) {
+        sessionStorage.removeItem(`${TEMP_UNLOCK_KEY_PREFIX}${storyId}`);
+      }
+      return isFresh;
+    } catch (error) {
+      console.error('[preview] Failed to parse temporary unlock state:', error);
+      return false;
+    }
+  }
+
+  $: canAccessLockedPages = isPurchased || !isFreePlan || hasTemporaryStoryUnlock;
+
   // Load story data from database
   onMount(async () => {
     if (browser) {
@@ -154,6 +181,7 @@
       
       // Get story ID from URL query params
       const storyId = $page.url.searchParams.get('storyId');
+      const sceneIndexFromUrl = $page.url.searchParams.get('sceneIndex');
       
       if (!storyId) {
         loadError = "No story ID provided";
@@ -165,6 +193,7 @@
       try {
         // Store current story ID
         currentStoryId = storyId;
+        hasTemporaryStoryUnlock = getTemporaryUnlock(storyId);
         
         // Fetch story from database
         const result = await getStoryById(storyId);
@@ -321,9 +350,19 @@
           
           // Check if we have a stored scene index for this story (from returning after payment)
           let savedSceneIndex: number | null = null;
+
+          // Highest priority: scene index passed directly in URL
+          if (sceneIndexFromUrl !== null) {
+            const parsedUrlSceneIndex = parseInt(sceneIndexFromUrl, 10);
+            if (!isNaN(parsedUrlSceneIndex) && parsedUrlSceneIndex >= 0 && parsedUrlSceneIndex < loadedScenes.length) {
+              savedSceneIndex = parsedUrlSceneIndex;
+              console.log(`[preview] Using scene index ${savedSceneIndex} from URL for story ${currentStoryId}`);
+            }
+          }
+
           if (browser && currentStoryId) {
             const savedIndex = sessionStorage.getItem(`preview_scene_index_${currentStoryId}`);
-            if (savedIndex !== null) {
+            if (savedSceneIndex === null && savedIndex !== null) {
               const parsedIndex = parseInt(savedIndex, 10);
               if (!isNaN(parsedIndex) && parsedIndex >= 0 && parsedIndex < loadedScenes.length) {
                 savedSceneIndex = parsedIndex;
@@ -334,7 +373,7 @@
           
           // If story is purchased or user has premium subscription, restore saved scene index
           // Otherwise start at the beginning
-          if (savedSceneIndex !== null && (isPurchased || !isFreePlan)) {
+          if (savedSceneIndex !== null && canAccessLockedPages) {
             currentSceneIndex = savedSceneIndex;
             // Clear the saved index after restoring it
             if (browser && currentStoryId) {
@@ -471,7 +510,7 @@
     
     // Check if trying to go beyond page 2 for free plan users who haven't purchased
     // Story page index 1 = page 2 (0-indexed: page 1 = index 0, page 2 = index 1)
-    if (nextStoryPageIndex > 1 && isFreePlan && !isPurchased) {
+    if (nextStoryPageIndex > 1 && !canAccessLockedPages) {
       showPreviewLockModal = true;
       return;
     }
@@ -535,7 +574,7 @@
     
     // Prevent navigation to pages beyond page 2 for free plan users who haven't purchased
     // Story page index 1 = page 2, so we allow index 0 (page 1) and index 1 (page 2)
-    if (storyPageIndex > 1 && isFreePlan && !isPurchased) {
+    if (storyPageIndex > 1 && !canAccessLockedPages) {
       console.log("[preview] Showing lock modal via goToScene - index:", index, "storyPageIndex:", storyPageIndex, "isFreePlan:", isFreePlan, "isPurchased:", isPurchased);
       showPreviewLockModal = true;
       return;
@@ -1475,7 +1514,7 @@
                         class:active={currentSceneIndex === idx}
                         on:click={() => goToScene(idx)}
                         on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && goToScene(idx)}
-                        class:locked={idx > 2 && isFreePlan && !isPurchased}
+                        class:locked={idx > 2 && !canAccessLockedPages}
                         role="button" 
                         tabindex="0"
                       >
@@ -1487,7 +1526,7 @@
                         class:active={currentSceneIndex === idx}
                         on:click={() => goToScene(idx)}
                         on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && goToScene(idx)}
-                        class:locked={idx > 1 && isFreePlan && !isPurchased}
+                        class:locked={idx > 1 && !canAccessLockedPages}
                         role="button" 
                         tabindex="0"
                       >

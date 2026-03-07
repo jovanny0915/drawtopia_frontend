@@ -341,7 +341,8 @@
               scene_images: story.scene_images,
               story_content: story.story_content,
               story_type: story.story_type,
-              uid: story.uid
+              uid: story.uid,
+              purchased: story.purchased === true
             }),
           )
           .filter((story) => story.id); // Ensure all stories have valid ids

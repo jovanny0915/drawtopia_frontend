@@ -20,6 +20,20 @@
     let savedStoryId: string | null = null; // Story ID from URL or sessionStorage
     let savedSceneIndex: string | null = null; // Scene index from URL
     let emailSent = false; // Track if emails have been sent
+    const TEMP_UNLOCK_KEY_PREFIX = 'preview_temp_unlock_';
+
+    function markTemporaryStoryUnlock(storyId: string) {
+        if (!browser || !storyId) return;
+        try {
+            sessionStorage.setItem(
+                `${TEMP_UNLOCK_KEY_PREFIX}${storyId}`,
+                JSON.stringify({ unlockedAt: Date.now() })
+            );
+            console.log(`[purchase/success] Marked temporary unlock for story ${storyId}`);
+        } catch (error) {
+            console.error('[purchase/success] Failed to store temporary unlock:', error);
+        }
+    }
 
     // Helper function to send payment confirmation emails
     async function sendPaymentEmails(sessionData: any) {
@@ -71,11 +85,21 @@
         if (browser) {
             // Get session_id from URL
             sessionId = $page.url.searchParams.get('session_id');
+            const urlStoryId = $page.url.searchParams.get('storyId');
+            const urlSceneIndex = $page.url.searchParams.get('sceneIndex');
+            const currentUserId = $user?.id || null;
             
             if (sessionId) {
                 try {
                     // Fetch session details from backend
-                    const response = await fetch(`${BACKEND_URL}/api/stripe/session/${sessionId}`);
+                    const verifyUrl = new URL(`${BACKEND_URL}/api/stripe/session/${sessionId}`);
+                    if (urlStoryId) {
+                        verifyUrl.searchParams.set('fallback_story_id', urlStoryId);
+                    }
+                    if (currentUserId) {
+                        verifyUrl.searchParams.set('fallback_user_id', currentUserId);
+                    }
+                    const response = await fetch(verifyUrl.toString());
                     
                     if (response.ok) {
                         const sessionData = await response.json();
@@ -98,10 +122,6 @@
             } else {
                 errorMessage = "No session found";
             }
-            
-            // Get story ID and scene index from URL parameters (passed through Stripe redirect)
-            const urlStoryId = $page.url.searchParams.get('storyId');
-            const urlSceneIndex = $page.url.searchParams.get('sceneIndex');
             
             if (urlStoryId) {
                 savedStoryId = urlStoryId;
@@ -149,6 +169,10 @@
                 }
             }
 
+            if (verificationSuccess && savedStoryId) {
+                markTemporaryStoryUnlock(savedStoryId);
+            }
+
             // If user came from story-preview to buy credits, return there (sessionStorage preserved)
             const returnUrl = sessionStorage.getItem('postPaymentReturnUrl');
             if (returnUrl && verificationSuccess) {
@@ -170,7 +194,8 @@
 
     function handleContinueReading() {
         if (savedStoryId) {
-            goto(`/preview/default?storyId=${savedStoryId}`);
+            const sceneParam = savedSceneIndex ? `&sceneIndex=${savedSceneIndex}` : '';
+            goto(`/preview/default?storyId=${savedStoryId}${sceneParam}`);
         } else {
             // Fallback to dashboard if no story ID found
             goto('/dashboard');

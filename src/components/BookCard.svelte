@@ -20,6 +20,7 @@
   
   // Loading state for PDF download
   let isDownloadingPDF = false;
+  let isPurchased = false;
 
   // Determine the card type/tag based on story_type (fallback to status)
   const getCardType = () => {
@@ -33,6 +34,7 @@
   };
 
   const cardType = getCardType();
+  $: isPurchased = item?.purchased === true;
 
   // Get status icon and text
   const getStatusInfo = () => {
@@ -282,6 +284,11 @@
 </script>
 
 <div class="cardd">
+  {#if isPurchased}
+    <div class="purchased-tag">
+      <span class="purchased_tag_span">Purchased</span>
+    </div>
+  {/if}
   <div class="image" style="background-image: url({getImageSrc()})">
     <div class="frame-1410103869">
       <div class="book">
@@ -650,6 +657,31 @@
     display: flex;
   }
 
+  .purchased-tag {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 3;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    outline: 1px #22c55e solid;
+    outline-offset: -1px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .purchased_tag_span {
+    color: #15803d;
+    font-size: 12px;
+    font-family: Quicksand;
+    font-weight: 700;
+    line-height: 16.8px;
+    letter-spacing: 0.2px;
+    word-wrap: break-word;
+  }
+
   .frame-1410103870 {
     padding-top: 6px;
     padding-bottom: 6px;
@@ -813,6 +845,7 @@
   }
 
   .cardd {
+    position: relative;
     width: 100%;
     height: 100%;
     padding: 12px;
