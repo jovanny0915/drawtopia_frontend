@@ -89,9 +89,11 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
+      <!--
       <div class="privacy-policy">
         <span class="privacypolicy_span">Privacy Policy</span>
       </div>
+      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>

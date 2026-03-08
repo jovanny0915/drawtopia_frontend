@@ -89,10 +89,12 @@
     </section>
   </main>
 
+  <!--
   <footer class="privacy-footer">
     <a href="/">Home</a>
     <a href="/login">Login</a>
   </footer>
+  -->
 </div>
 
 <style>

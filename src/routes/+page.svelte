@@ -16,10 +16,12 @@
   <div class="home-content">
     <p>Redirecting...</p>
   </div>
+  <!--
   <footer class="home-footer">
     <a href="/privacy">Privacy Policy</a>
     <a href="/login">Login</a>
   </footer>
+  -->
 </div>
 
 <style>

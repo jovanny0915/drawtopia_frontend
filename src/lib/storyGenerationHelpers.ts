@@ -37,16 +37,16 @@ export function replacePlaceholders(text: string, replacements: { [key: string]:
  */
 /** Temporary fixed prompt for main story page (page 1) on /adventure-story/loading. Set to null to use prompt builder again. */
 const TEMP_MAIN_STORY_PAGE_PROMPT: string | null =
-  "The main character of template background image should be replaced with the reference image character. Replace the main character of attached template image with the main character of template background image keeping the appearance of the reference image character. The replaced character should precisely match the pose, action, and emotions of the original main character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).";
+  "The girl main character image should be replaced and removed from the attached template image with the reference image character. Replace the main character of attached template image with the main character of template background image keeping the appearance of the reference image character. The replaced character should precisely match the pose, action, and emotions of the original main character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).";
 const TEMP_MAIN_STORY_PAGE_ALLY_CHARACTER_PROMPT: string | null =
   "The fox ally character of template background image should be replaced with [ally_name] character. Replace the fox ally character of attached templage image with [ally_name] character keeping the original fox ally character. The replaced character should precisely match the pose, action, and emotions of the original fox ally character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).";
 
 const PAGE_ALLY_CHARACTER_PROMPTS: { [key: number]: string } = {
   1: "Ally character - ally character should be not in this image.",
-  2: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replace with reference character image.",
-  3: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replace with reference character image.",
-  4: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replace with reference character image.",
-  5: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replace with reference character image."
+  2: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+  3: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+  4: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+  5: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character"
 };
 
 const PAGE_MAIN_CHARACTER_POSE_ACTION_EMOTION_PROMPTS: { [key: number]: string } = {
@@ -136,7 +136,7 @@ export function buildStoryPagePrompt(
   // TEMPORARY: use fixed base prompt for story page generation on /adventure-story/loading.
   // Unset TEMP_MAIN_STORY_PAGE_PROMPT (set to null) to use the prompt builder again.
   if (TEMP_MAIN_STORY_PAGE_PROMPT != null) {
-    const fixedPrompt = pageNumber > 1 && allyReplacementPrompt
+    const fixedPrompt = allyReplacementPrompt
       ? `${TEMP_MAIN_STORY_PAGE_PROMPT}\n\n${allyReplacementPrompt}`
       : TEMP_MAIN_STORY_PAGE_PROMPT;
     return appendPageSpecificStoryRules(fixedPrompt, pageNumber);
@@ -166,7 +166,7 @@ export function buildStoryPagePrompt(
   });
 
   const basePromptWithRules = `${prompt}\n\nTEMPLATE LOCK (HIGHEST PRIORITY):\n- Keep the provided template artwork structurally unchanged.\n- Do not redesign background layout, props, perspective, camera, or composition.\n- If any instruction conflicts with template preservation, preserve the template and adapt only character integration.\n- Mood/style updates must be subtle and global (light/tone/color grading), not repainting.\n\nSTORY-TO-SCENE MAPPING (SECOND PRIORITY):\n- Use the exact page story text as the source of truth for action, emotion, and atmosphere.\n- Keep expressions, body language, and lighting aligned with this page's emotional beat.\n- If the story text implies calm or sleep, prefer gentle, natural poses over exaggerated action.\n\nPAGE STORY TEXT (SOURCE OF TRUTH):\n${storyText}\n\nSCENE SIGNALS DERIVED FROM STORY:\n- Character Action: ${characterAction}\n- Character Emotion: ${derivedEmotion}\n- Atmosphere: ${derivedAtmosphere}\n\nPOSE CONSTRAINTS:\n- Avoid static front-facing, T-pose, idle, or reference-sheet poses.\n- Use movement and posture that match the story beat (active, gentle, or sleepy as needed).\n- Body language and facial expression must reinforce the page emotion.\n\nFACIAL CONSISTENCY (CRITICAL ACROSS PAGES 1-5):\n- Keep the same core facial features from the reference in every story scene (face shape, eyes, eyebrows, nose, mouth, ears).\n- Do not add, remove, or swap facial features between pages (example: if the character has a visible nose, it must remain visible in all main story scenes).\n- Maintain recognizable facial proportions and feature placement while only changing expression for the page emotion.\n\nCOMPANION CONSTRAINTS:\n- Always include the fox companion with the main character in every story scene page (1-5).\n- The fox companion should be clearly visible and naturally interacting with the main character.\n\nLAYOUT CONSTRAINTS:\n- Always position the main character on the LEFT HALF of the page scene (for story pages 1-5).\n- Keep the character fully within the left half and preserve template composition.`;
-  const promptWithAllyReplacement = pageNumber > 1 && allyReplacementPrompt
+  const promptWithAllyReplacement = allyReplacementPrompt
     ? `${basePromptWithRules}\n\n${allyReplacementPrompt}`
     : basePromptWithRules;
 

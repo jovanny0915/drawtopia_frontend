@@ -93,9 +93,11 @@
 </main>
 
 <!-- Footer with Privacy Policy link (required for Google OAuth branding verification) -->
+<!--
 <footer class="app-footer">
   <a href="/privacy">Privacy Policy</a>
 </footer>
+-->
 
 <!-- Global notification container -->
 <NotificationContainer />
