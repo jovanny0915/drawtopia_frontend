@@ -1,3 +1,194 @@
+import promptStory from './prompt_story.json';
+
+type AgeGroupKey = '3-6' | '7-10' | '11-12';
+
+type PlaceholderValues = Record<string, string>;
+
+interface PromptBuilderInput {
+  ageGroup: AgeGroupKey;
+  placeholderValues: PlaceholderValues;
+}
+
+interface StoryTemplate {
+  master_story_architecture: {
+    acts: Array<{
+      act: number;
+      pages: string;
+      beat_name: string;
+      core_story_function: string;
+      learning_theme_influence: string;
+    }>;
+  };
+  age_groups: Record<
+    AgeGroupKey,
+    {
+      label: string;
+      story_constraints: Record<string, string>;
+      poetic_structure: {
+        required: boolean;
+        description: string;
+      };
+      development_notes?: string[];
+      prompt_placeholders: string[];
+      acts: Array<{
+        act: number;
+        pages: string;
+        title: string;
+        objective: Record<string, string>;
+        key_dialogue_lines: string[];
+        humor_or_magic_moments: string[];
+        poetic_sample_template?: string[];
+        prose_sample_template?: string[];
+        lullaby_close_template?: string[];
+        breath_mirror_close_template?: string[];
+      }>;
+      generation_prompt_template: {
+        instructions: string[];
+      };
+    }
+  >;
+}
+
+function toTokenKey(rawKey: string): string {
+  const key = rawKey.trim();
+  return key.startsWith('[') && key.endsWith(']') ? key : `[${key}]`;
+}
+
+function replacePlaceholdersInText(text: string, values: PlaceholderValues): string {
+  return Object.entries(values).reduce((result, [rawKey, rawValue]) => {
+    const token = toTokenKey(rawKey);
+    return result.split(token).join(rawValue);
+  }, text);
+}
+
+function replacePlaceholdersDeep<T>(value: T, values: PlaceholderValues): T {
+  if (typeof value === 'string') {
+    return replacePlaceholdersInText(value, values) as T;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => replacePlaceholdersDeep(item, values)) as T;
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+      k,
+      replacePlaceholdersDeep(v, values)
+    ]);
+    return Object.fromEntries(entries) as T;
+  }
+
+  return value;
+}
+
+function formatMap(title: string, map: Record<string, string>): string {
+  const lines = Object.entries(map).map(([k, v]) => `- ${k}: ${v}`);
+  return `${title}\n${lines.join('\n')}`;
+}
+
+export function buildStoryGenerationPrompt(input: PromptBuilderInput): string {
+  const storyTemplate = promptStory as StoryTemplate;
+  const selectedAgeGroup = storyTemplate.age_groups[input.ageGroup];
+
+  if (!selectedAgeGroup) {
+    throw new Error(`Unsupported age group "${input.ageGroup}".`);
+  }
+
+  const architecture = replacePlaceholdersDeep(
+    storyTemplate.master_story_architecture,
+    input.placeholderValues
+  );
+  const ageGroupTemplate = replacePlaceholdersDeep(selectedAgeGroup, input.placeholderValues);
+
+  const architectureSection = architecture.acts
+    .map(
+      (act) =>
+        `Act ${act.act} (Pages ${act.pages}) - ${act.beat_name}\n` +
+        `- Core story function: ${act.core_story_function}\n` +
+        `- Learning theme influence: ${act.learning_theme_influence}`
+    )
+    .join('\n\n');
+
+  const actsSection = ageGroupTemplate.acts
+    .map((act) => {
+      const objective = Object.entries(act.objective)
+        .map(([k, v]) => `  - ${k}: ${v}`)
+        .join('\n');
+      const keyDialogue = act.key_dialogue_lines.map((line) => `  - ${line}`).join('\n');
+      const magicMoments = act.humor_or_magic_moments.map((line) => `  - ${line}`).join('\n');
+      const sampleTemplate =
+        act.poetic_sample_template ||
+        act.prose_sample_template ||
+        act.lullaby_close_template ||
+        act.breath_mirror_close_template ||
+        [];
+      const sample = sampleTemplate.map((line) => `  - ${line}`).join('\n');
+
+      return (
+        `Act ${act.act} (Pages ${act.pages}) - ${act.title}\n` +
+        `- Objective:\n${objective}\n` +
+        `- Key dialogue lines:\n${keyDialogue}\n` +
+        `- Humor or magic moments:\n${magicMoments}\n` +
+        `- Sample template:\n${sample}`
+      );
+    })
+    .join('\n\n');
+
+  const constraintsSection = formatMap('Story constraints:', ageGroupTemplate.story_constraints);
+  const poeticStructureSection =
+    `Poetic structure required: ${ageGroupTemplate.poetic_structure.required}\n` +
+    `Poetic structure notes: ${ageGroupTemplate.poetic_structure.description}`;
+  const generationInstructions = ageGroupTemplate.generation_prompt_template.instructions
+    .map((instruction) => `- ${instruction}`)
+    .join('\n');
+
+  return [
+    'You are writing the final story text for pages 4-13.',
+    `Age group: ${input.ageGroup} (${ageGroupTemplate.label})`,
+    '',
+    'Resolved placeholders:',
+    `- CHARACTER_NAME: ${input.placeholderValues.CHARACTER_NAME ?? ''}`,
+    `- WORLD_NAME: ${input.placeholderValues.WORLD_NAME ?? ''}`,
+    `- ALLY_NAME: ${input.placeholderValues.ALLY_NAME ?? ''}`,
+    `- ALLY_TYPE: ${input.placeholderValues.ALLY_TYPE ?? ''}`,
+    `- SPECIAL_ABILITY: ${input.placeholderValues.SPECIAL_ABILITY ?? ''}`,
+    `- LEARNING_THEME: ${input.placeholderValues.LEARNING_THEME ?? ''}`,
+    '',
+    'Master story architecture:',
+    architectureSection,
+    '',
+    constraintsSection,
+    poeticStructureSection,
+    '',
+    ageGroupTemplate.development_notes?.length
+      ? `Development notes:\n${ageGroupTemplate.development_notes.map((note) => `- ${note}`).join('\n')}`
+      : '',
+    '',
+    'Act-by-act guidance:',
+    actsSection,
+    '',
+    'Generation instructions:',
+    generationInstructions,
+    '',
+    'Now generate only pages 4-13 as the final story output.'
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+export function sampleCompositedPrompt(): string {
+  return buildStoryGenerationPrompt({
+    ageGroup: '7-10',
+    placeholderValues: {
+      CHARACTER_NAME: 'Milo',
+      WORLD_NAME: 'Moonreef',
+      ALLY_NAME: 'Tala',
+      ALLY_TYPE: 'star otter',
+      SPECIAL_ABILITY: 'Echo Glow',
+      LEARNING_THEME: 'Courage'
+    }
+  });
+}
 import prompt1Data from './prompt1.json';
 
 interface PromptBuilderOptions {

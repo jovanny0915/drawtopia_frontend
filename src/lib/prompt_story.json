@@ -1,0 +1,558 @@
+{
+  "master_story_architecture": {
+    "acts": [
+      {
+        "act": 1,
+        "pages": "4-5",
+        "beat_name": "The Wish & The Restlessness",
+        "core_story_function": "Character wide awake; the world glows; child sees themselves validated.",
+        "learning_theme_influence": "None. Restlessness is universal across all themes."
+      },
+      {
+        "act": 2,
+        "pages": "6-7",
+        "beat_name": "The World & The Ally",
+        "core_story_function": "Ally appears; gently surfaces sleep resistance; introduces bedtime as magic.",
+        "learning_theme_influence": "Ally personality colors match theme (for example, empathetic for Kindness, steadfast for Patience)."
+      },
+      {
+        "act": 3,
+        "pages": "8-9",
+        "beat_name": "The Challenge & The Ability",
+        "core_story_function": "A challenge needs solving; character uses [SPECIAL_ABILITY]; breathing introduced through action.",
+        "learning_theme_influence": "Challenge type is set by [LEARNING_THEME]."
+      },
+      {
+        "act": 4,
+        "pages": "10-11",
+        "beat_name": "The Transformation",
+        "core_story_function": "Obstacle overcome; body begins to relax; earned insight revealed.",
+        "learning_theme_influence": "Insight content is set by [LEARNING_THEME] and deepens lesson without lecture."
+      },
+      {
+        "act": 5,
+        "pages": "12-13",
+        "beat_name": "The Resolution & Rest",
+        "core_story_function": "World settles; deep peaceful tiredness; ritual close; child mirrored to sleep.",
+        "learning_theme_influence": "Closing ritual phrase varies by [LEARNING_THEME]."
+      }
+    ]
+  },
+  "age_groups": {
+    "3-6": {
+      "label": "Kindergarten Level",
+      "story_constraints": {
+        "sentence_length_words": "5-8",
+        "total_words": "100-150",
+        "paragraph_length_sentences": "1-2",
+        "reading_time_per_page": "~1 minute",
+        "vocabulary": "Kindergarten (200-300 sight words), simple single-clause sentences, bright emotional language.",
+        "tone": "Warm, safe, slightly silly. Short wonder-packed beats. Parent reads aloud; child is swept into the world."
+      },
+      "poetic_structure": {
+        "required": true,
+        "description": "Prose follows a 6/4/6/4 syllable cadence with a Drowsy Descent in Acts 4-5."
+      },
+      "prompt_placeholders": [
+        "[CHARACTER_NAME]",
+        "[WORLD_NAME]",
+        "[ALLY_NAME]",
+        "[ALLY_TYPE]",
+        "[SPECIAL_ABILITY]",
+        "[LEARNING_THEME]"
+      ],
+      "acts": [
+        {
+          "act": 1,
+          "pages": "4-5",
+          "title": "The Wish & The Restlessness",
+          "objective": {
+            "narrative": "[CHARACTER_NAME] is wide awake. The [WORLD_NAME] glows at night. Other creatures are sleeping.",
+            "emotional": "Child sees themselves in the character. The familiar feeling of not wanting to sleep is validated.",
+            "educational": "First gentle seed: sleep is coming, and it is not scary."
+          },
+          "key_dialogue_lines": [
+            "I am NOT sleepy!",
+            "My eyes feel heavy. But my heart wants to play.",
+            "The [WORLD_NAME] gets quiet at night."
+          ],
+          "humor_or_magic_moments": [
+            "Character yawns before finishing the sentence for read-aloud physical comedy.",
+            "Eyes dramatically droop then pop back open for a shared laugh.",
+            "Stars or world lights wink one by one to model rest."
+          ],
+          "poetic_sample_template": [
+            "The [WORLD_NAME] grew quiet.",
+            "The lights went soft and low.",
+            "[CHARACTER_NAME] looked around-",
+            "Everybody was slow.",
+            "\"I'm not tired,\" they said.",
+            "(But both their eyes said: oh.)"
+          ]
+        },
+        {
+          "act": 2,
+          "pages": "6-7",
+          "title": "The World & The Ally",
+          "objective": {
+            "narrative": "Ally appears. Ally is funny, warm, and world-appropriate. Ally invites [CHARACTER_NAME] on a gentle walk.",
+            "emotional": "A friend has arrived. Character no longer faces bedtime alone.",
+            "educational": "Ally introduces bedtime routine through slowing movement and a softer world."
+          },
+          "key_dialogue_lines": [
+            "Hello! I am [ALLY_NAME], said the friendly [ALLY_TYPE].",
+            "Would you like to see something magical?",
+            "The best adventures start with being still."
+          ],
+          "humor_or_magic_moments": [
+            "Ally does something endearingly goofy (trips, puffs up, or glows by accident).",
+            "Ally movement sparks delight (tail wags, spines rattle, or fins flash).",
+            "Ally demonstrates stillness, then sneezes magnificently."
+          ],
+          "poetic_sample_template": [
+            "[ALLY_NAME] came swimming near.",
+            "With big kind eyes and a glow.",
+            "\"Come with me,\" said [ALLY_NAME],",
+            "\"I have a secret to show.\"",
+            "[CHARACTER_NAME] leaned in close-",
+            "and whispered soft: \"Let's go.\""
+          ]
+        },
+        {
+          "act": 3,
+          "pages": "8-9",
+          "title": "The Challenge & The Ability",
+          "objective": {
+            "narrative": "A small, gentle challenge appears. The world needs quiet. [CHARACTER_NAME] uses [SPECIAL_ABILITY] to help.",
+            "emotional": "Character feels powerful. Calm is strength, not weakness.",
+            "educational": "4-count breathing is embedded in action and mirrored by the world."
+          },
+          "key_dialogue_lines": [
+            "Use your special power!",
+            "[CHARACTER_NAME] took a big slow breath. And it worked!",
+            "Breathe in... 1... 2... 3... 4... Breathe out..."
+          ],
+          "humor_or_magic_moments": [
+            "[SPECIAL_ABILITY] creates a beautiful magical effect (sparkles, soft glow, or gentle rumble).",
+            "Ally reacts with huge exaggerated joy (spinning or bouncing).",
+            "The world visibly calms as [CHARACTER_NAME] breathes."
+          ],
+          "poetic_sample_template": [
+            "Something needed quiet.",
+            "Something needed care.",
+            "[CHARACTER_NAME] breathed in slow-",
+            "One. Two. Three. Four.",
+            "And breathed it all back out.",
+            "The [WORLD_NAME] was still once more."
+          ]
+        },
+        {
+          "act": 4,
+          "pages": "10-11",
+          "title": "The Transformation",
+          "objective": {
+            "narrative": "The challenge is solved. Body feels warm and heavy in a good way. World is peaceful.",
+            "emotional": "Earned magic moment. Tiredness is reframed as a superpower.",
+            "educational": "One gentle line: sleep helps learning and courage."
+          },
+          "key_dialogue_lines": [
+            "I did it.",
+            "When you rest, you grow stronger.",
+            "Sleep helps your brain remember the fun."
+          ],
+          "humor_or_magic_moments": [
+            "Character notices drooping eyes and smiles because it feels good.",
+            "Ally curls up beside [CHARACTER_NAME] contentedly.",
+            "A tiny dream-glimpse floats by like an adventure bubble."
+          ],
+          "poetic_sample_template": [
+            "The [WORLD_NAME] felt warm.",
+            "[CHARACTER_NAME] felt warm too.",
+            "\"Sleep makes you brave,\"",
+            "said [ALLY_NAME] soft and true.",
+            "The heavy felt so good.",
+            "The quiet felt like: you."
+          ]
+        },
+        {
+          "act": 5,
+          "pages": "12-13",
+          "title": "The Resolution & Rest",
+          "objective": {
+            "narrative": "All settles. [CHARACTER_NAME] and [ALLY_NAME] find a soft resting place. The [WORLD_NAME] hums a lullaby.",
+            "emotional": "Child is mirrored into sleep. The character's peace becomes the child's peace.",
+            "educational": "Sleep as superpower is felt and reinforced with the softest closing rhythm."
+          },
+          "key_dialogue_lines": [
+            "Rest now, brave [CHARACTER_NAME].",
+            "Sweet dreams. Tomorrow you will wake up stronger.",
+            "Sleep is a superpower, [CHARACTER_NAME]. It makes you strong, smart, and happy."
+          ],
+          "humor_or_magic_moments": [
+            "A rhyming lullaby couplet closes the page with the slowest line in the book.",
+            "Ally watches over [CHARACTER_NAME] in complete safety.",
+            "Read this page barely above a whisper."
+          ],
+          "poetic_sample_template": [
+            "The [WORLD_NAME] grew still.",
+            "[ALLY_NAME] stayed close and near.",
+            "Breath in... breath out...",
+            "No need to fear.",
+            "Rest now, brave [CHARACTER_NAME].",
+            "Sleep now. I'm here."
+          ]
+        }
+      ],
+      "generation_prompt_template": {
+        "instructions": [
+          "Generate pages 4-13 only using the 5-act architecture above.",
+          "Maintain 5-8 words per sentence and 1-2 short sentences per paragraph.",
+          "Keep total output between 100-150 words.",
+          "Use warm, safe, slightly silly language.",
+          "Use poetic rhythm with a gentle 6/4/6/4 feel when possible.",
+          "Apply Drowsy Descent in Acts 4-5 (slower, softer, sleepier wording).",
+          "Embed breath pacing in Act 3 exactly once.",
+          "Do not lecture; teach through imagery and action.",
+          "Ensure [LEARNING_THEME] shapes challenge and insight without breaking bedtime calm."
+        ]
+      }
+    },
+    "7-10": {
+      "label": "Early Reader Level",
+      "story_constraints": {
+        "sentence_length_words": "10-15",
+        "total_words": "200-300",
+        "paragraph_length_sentences": "2-3",
+        "reading_time_per_page": "~2 minutes",
+        "vocabulary": "Grade 2-4 chapter-book range, compound sentences, and gently introduced metaphor.",
+        "tone": "Adventurous and slightly mysterious. Challenge feels real but emotionally safe. Child reads along with parent."
+      },
+      "poetic_structure": {
+        "required": true,
+        "description": "Prose rhythm with consistent paragraph length. Pages 12-13 close with a lullaby-style cadence."
+      },
+      "development_notes": [
+        "Uses the same five-act arc with deeper beats than ages 3-6.",
+        "Challenge has clearer consequences, but emotional safety remains intact.",
+        "Ally guidance is more nuanced and reflective.",
+        "Earned insight includes one age-appropriate sleep science fact.",
+        "[LEARNING_THEME] is named directly in character growth and dialogue."
+      ],
+      "prompt_placeholders": [
+        "[CHARACTER_NAME]",
+        "[WORLD_NAME]",
+        "[ALLY_NAME]",
+        "[ALLY_TYPE]",
+        "[SPECIAL_ABILITY]",
+        "[LEARNING_THEME]"
+      ],
+      "acts": [
+        {
+          "act": 1,
+          "pages": "4-5",
+          "title": "The Wish & The Restlessness",
+          "objective": {
+            "narrative": "[CHARACTER_NAME] is still awake while the [WORLD_NAME] grows quieter. Sleep pressure is present, but curiosity pulls harder.",
+            "emotional": "The child recognizes the push-pull between wanting one more adventure and feeling truly tired.",
+            "educational": "Restlessness is normalized as a transition, not a problem."
+          },
+          "key_dialogue_lines": [
+            "I know I should sleep, but my mind is still racing.",
+            "Everything is quiet, yet I feel full of sparks.",
+            "Maybe being tired is the start of something new."
+          ],
+          "humor_or_magic_moments": [
+            "A dramatic yawn interrupts an attempt to sound brave.",
+            "A tiny world detail mirrors tiredness (lanterns dim, waves hush, or leaves fold).",
+            "Metaphor appears gently: thoughts flutter like fireflies before settling."
+          ],
+          "prose_sample_template": [
+            "At the edge of bedtime, the [WORLD_NAME] seemed to hold its breath and listen.",
+            "[CHARACTER_NAME] wanted one more moment of wonder, even as sleep brushed their eyes like soft rain."
+          ]
+        },
+        {
+          "act": 2,
+          "pages": "6-7",
+          "title": "The World & The Ally",
+          "objective": {
+            "narrative": "[ALLY_NAME], a warm and slightly quirky [ALLY_TYPE], appears and invites [CHARACTER_NAME] into a quieter kind of adventure.",
+            "emotional": "Connection reduces resistance. Bedtime shifts from command to shared journey.",
+            "educational": "The ally models a wind-down sequence through story action and pacing, not direct instruction."
+          },
+          "key_dialogue_lines": [
+            "You do not have to be fearless to begin.",
+            "The bravest adventures start by getting calm enough to notice.",
+            "Come with me, and we will listen to the night together."
+          ],
+          "humor_or_magic_moments": [
+            "Ally has a charming mishap before recovering with playful dignity.",
+            "A world cue responds to slower movement (glow softens, sounds space out).",
+            "Character and ally share a small laugh that lowers tension."
+          ],
+          "prose_sample_template": [
+            "[ALLY_NAME] drifted beside [CHARACTER_NAME] with a smile that felt like a lantern in the dark.",
+            "Instead of hurrying forward, they moved slowly, and the [WORLD_NAME] seemed to soften around them."
+          ]
+        },
+        {
+          "act": 3,
+          "pages": "8-9",
+          "title": "The Challenge & The Ability",
+          "objective": {
+            "narrative": "A meaningful challenge appears and needs calm courage. [CHARACTER_NAME] applies [SPECIAL_ABILITY] with guided breathing.",
+            "emotional": "Courage is reframed as action with fear present, tied clearly to [LEARNING_THEME].",
+            "educational": "A single 4-count breath sequence regulates the moment and is integrated into plot stakes."
+          },
+          "key_dialogue_lines": [
+            "Courage is not the absence of fear. It is taking the next step anyway.",
+            "Breathe in slowly - one, two, three, four - then breathe out and choose.",
+            "Your [SPECIAL_ABILITY] becomes stronger when your breath becomes steadier."
+          ],
+          "humor_or_magic_moments": [
+            "[SPECIAL_ABILITY] creates a striking but soothing effect that opens the path.",
+            "Ally balances seriousness with one light line to keep emotional safety.",
+            "The world visibly responds to each steady breath."
+          ],
+          "prose_sample_template": [
+            "The darkness at the edge of the [WORLD_NAME] did not look like somewhere [CHARACTER_NAME] wanted to go.",
+            "[ALLY_NAME] floated close. \"Courage is not not being scared,\" [ALLY_NAME] said quietly. \"It is going anyway.\"",
+            "[CHARACTER_NAME] took a slow breath in - one, two, three, four - and stepped forward into the dark."
+          ]
+        },
+        {
+          "act": 4,
+          "pages": "10-11",
+          "title": "The Transformation",
+          "objective": {
+            "narrative": "The challenge resolves through grounded effort. The body shifts from alert to deeply settled.",
+            "emotional": "Character can name what they learned through [LEARNING_THEME] and feels earned pride.",
+            "educational": "Include one sleep science fact in plain language, woven naturally into dialogue."
+          },
+          "key_dialogue_lines": [
+            "I was scared, and I still did it.",
+            "That is [LEARNING_THEME], and you practiced it tonight.",
+            "While you sleep, your brain organizes memories so learning sticks better tomorrow."
+          ],
+          "humor_or_magic_moments": [
+            "A small post-victory wobble or sleepy stumble adds warmth.",
+            "World details transition from active shimmer to resting glow.",
+            "Ally mirrors calm with a cozy gesture beside [CHARACTER_NAME]."
+          ],
+          "prose_sample_template": [
+            "As the danger passed, [CHARACTER_NAME] felt a different kind of strength: steady, quiet, and real.",
+            "\"Sleep is when your brain sorts what you learned today,\" [ALLY_NAME] said, \"so tomorrow feels clearer and braver.\""
+          ]
+        },
+        {
+          "act": 5,
+          "pages": "12-13",
+          "title": "The Resolution & Rest",
+          "objective": {
+            "narrative": "[CHARACTER_NAME] and [ALLY_NAME] reach a safe resting place as the [WORLD_NAME] settles into lullaby rhythm.",
+            "emotional": "Peace is transferred from character to reader through slower cadence and reassurance.",
+            "educational": "Sleep as strength is reinforced through felt experience, then sealed with a soft closing ritual."
+          },
+          "key_dialogue_lines": [
+            "Rest now, brave [CHARACTER_NAME]; you have done enough for tonight.",
+            "Tomorrow your mind and heart will wake with fresh strength.",
+            "Breathe in calm, breathe out wonder; the night is holding you."
+          ],
+          "humor_or_magic_moments": [
+            "Final image emphasizes protection, warmth, and belonging.",
+            "A two-line lullaby close ends the story at its slowest pace.",
+            "Voice target is soft and steady, inviting drowsiness."
+          ],
+          "lullaby_close_template": [
+            "The [WORLD_NAME] is quiet, and starlight keeps watch.",
+            "[ALLY_NAME] stays near while your breathing grows slow.",
+            "Rest now, brave [CHARACTER_NAME], the night is on your side.",
+            "Sleep now, dear heart, and gently let go."
+          ]
+        }
+      ],
+      "generation_prompt_template": {
+        "instructions": [
+          "Generate pages 4-13 only using the shared five-act architecture.",
+          "Maintain 10-15 words per sentence and 2-3 sentences per paragraph.",
+          "Keep total output between 200-300 words.",
+          "Use adventurous, slightly mysterious language while preserving emotional safety.",
+          "Use consistent paragraph rhythm across pages.",
+          "Use one gentle metaphor per act where natural.",
+          "Integrate [LEARNING_THEME] explicitly in challenge, dialogue, and earned insight.",
+          "Embed one 4-count breath sequence in Act 3 as part of the plot action.",
+          "Include exactly one age-appropriate sleep science fact in Act 4.",
+          "Close pages 12-13 with lullaby cadence and the softest pacing."
+        ]
+      }
+    },
+    "11-12": {
+      "label": "Independent Reader Level",
+      "story_constraints": {
+        "sentence_length_words": "15-20",
+        "total_words": "250-350",
+        "paragraph_length_sentences": "3-4",
+        "reading_time_per_page": "~3 minutes",
+        "vocabulary": "Grade 5-6 level with complex ideas, emotional nuance, and occasional philosophical reflection.",
+        "tone": "Reflective and epic. Character carries genuine inner conflict. Insight feels discovered, not delivered."
+      },
+      "poetic_structure": {
+        "required": true,
+        "description": "Elevated prose with internal rhythm. Final page mirrors breathing pace. Avoid obvious rhyme; let cadence carry the music."
+      },
+      "development_notes": [
+        "This age band presents the deepest expression of [LEARNING_THEME].",
+        "The ally supports the journey but does not deliver the core lesson.",
+        "[CHARACTER_NAME] discovers the insight through consequence, silence, and choice.",
+        "Include one brief, explicit sleep-science paragraph.",
+        "The final word of the full story must be the child's name: [CHARACTER_NAME]."
+      ],
+      "prompt_placeholders": [
+        "[CHARACTER_NAME]",
+        "[WORLD_NAME]",
+        "[ALLY_NAME]",
+        "[ALLY_TYPE]",
+        "[SPECIAL_ABILITY]",
+        "[LEARNING_THEME]"
+      ],
+      "acts": [
+        {
+          "act": 1,
+          "pages": "4-5",
+          "title": "The Wish & The Restlessness",
+          "objective": {
+            "narrative": "[CHARACTER_NAME] resists sleep because unfinished thoughts and unanswered questions feel more urgent than rest.",
+            "emotional": "Inner conflict is explicit: the desire for control and momentum versus the body's honest need to recover.",
+            "educational": "Restlessness is framed as a human threshold moment where mind and body negotiate."
+          },
+          "key_dialogue_lines": [
+            "If I stop now, I might lose the feeling of this moment.",
+            "I am tired, but I am not ready to be done.",
+            "Why does night always ask for surrender right when I want answers?"
+          ],
+          "humor_or_magic_moments": [
+            "A confident declaration is interrupted by a very real yawn.",
+            "The world reflects tension with subtle symbolic shifts (flickering lights, watchful wind, echoing silence).",
+            "A gentle metaphor frames thought overload (ideas stacking like books that refuse to close)."
+          ],
+          "prose_sample_template": [
+            "Across the [WORLD_NAME], everything seemed to understand the hour except [CHARACTER_NAME], who held wakefulness like a shield.",
+            "Questions pressed at the edges of thought, bright and insistent, while sleep waited like a door that asked to be trusted."
+          ]
+        },
+        {
+          "act": 2,
+          "pages": "6-7",
+          "title": "The World & The Ally",
+          "objective": {
+            "narrative": "[ALLY_NAME], an observant [ALLY_TYPE], joins without fixing anything and offers companionship through uncertainty.",
+            "emotional": "The relationship creates safety for vulnerability while preserving [CHARACTER_NAME]'s agency.",
+            "educational": "Wind-down appears as deliberate pacing, sensory narrowing, and attention shifting inward."
+          },
+          "key_dialogue_lines": [
+            "You do not have to solve the whole night at once.",
+            "Some answers arrive only after you stop chasing them.",
+            "Walk with me; we will let the world become quieter together."
+          ],
+          "humor_or_magic_moments": [
+            "Ally breaks intensity with one dry, well-timed observation.",
+            "Ambient world sounds space out as movement slows, signaling nervous-system settling.",
+            "Shared silence becomes meaningful, not awkward."
+          ],
+          "prose_sample_template": [
+            "[ALLY_NAME] stayed beside [CHARACTER_NAME] without instructions, which somehow felt more helpful than advice.",
+            "As they moved through the dim edges of the [WORLD_NAME], urgency loosened, and details once ignored became steady and clear."
+          ]
+        },
+        {
+          "act": 3,
+          "pages": "8-9",
+          "title": "The Challenge & The Ability",
+          "objective": {
+            "narrative": "A consequential challenge emerges and cannot be avoided. [CHARACTER_NAME] must use [SPECIAL_ABILITY] under pressure.",
+            "emotional": "[LEARNING_THEME] becomes a conscious choice in real time, not a label applied after success.",
+            "educational": "A single guided 4-count breath sequence stabilizes focus before action."
+          },
+          "key_dialogue_lines": [
+            "You can be afraid and still choose the next right step.",
+            "Breathe in for four, hold the line, then breathe out and decide.",
+            "Your [SPECIAL_ABILITY] follows your attention; steady attention begins with steady breath."
+          ],
+          "humor_or_magic_moments": [
+            "A brief flash of awkwardness humanizes the high-stakes moment.",
+            "The world responds physically as [SPECIAL_ABILITY] is used with precision.",
+            "Ally offers grounding presence rather than a rescue."
+          ],
+          "prose_sample_template": [
+            "At the boundary where the [WORLD_NAME] grew uncertain, [CHARACTER_NAME] felt fear rise fast enough to scatter every plan.",
+            "Instead of retreating, [CHARACTER_NAME] inhaled slowly - one, two, three, four - and let the exhale gather thought into direction."
+          ]
+        },
+        {
+          "act": 4,
+          "pages": "10-11",
+          "title": "The Transformation",
+          "objective": {
+            "narrative": "The obstacle breaks through earned effort, and calm arrives as consequence, not command.",
+            "emotional": "[CHARACTER_NAME] recognizes [LEARNING_THEME] through lived experience and names it personally.",
+            "educational": "Insert one explicit paragraph on sleep science in clear age-appropriate language."
+          },
+          "key_dialogue_lines": [
+            "I thought strength meant carrying everything alone; I was wrong.",
+            "This is [LEARNING_THEME], and I know it now because I lived it.",
+            "During sleep, the brain consolidates memory, regulates emotion, and restores attention for better choices tomorrow."
+          ],
+          "humor_or_magic_moments": [
+            "Ally's silence affirms growth more strongly than praise.",
+            "Residual adrenaline gives way to a grounded heaviness that feels safe.",
+            "A symbolic world image marks transition from effort to restoration."
+          ],
+          "prose_sample_template": [
+            "For the first time, [CHARACTER_NAME] understood that the hardest challenges were never meant to be faced alone - not because they could not manage, but because sharing the weight was its own kind of strength.",
+            "[ALLY_NAME] did not speak. They did not need to. The quiet between them carried the truth completely."
+          ]
+        },
+        {
+          "act": 5,
+          "pages": "12-13",
+          "title": "The Resolution & Rest",
+          "objective": {
+            "narrative": "The world settles into deep safety as [CHARACTER_NAME] chooses rest with intention rather than collapse.",
+            "emotional": "The ending mirrors the reader's own breathing and closes with belonging, trust, and release.",
+            "educational": "Sleep is framed as an active partnership with growth, memory, and emotional balance."
+          },
+          "key_dialogue_lines": [
+            "Tonight is complete; nothing important is lost by resting.",
+            "Inhale slowly, exhale longer, and let the day become light enough to set down.",
+            "Sleep now, and wake carrying what matters most, [CHARACTER_NAME]."
+          ],
+          "humor_or_magic_moments": [
+            "Final visual emphasizes protection and quiet scale.",
+            "Cadence slows line by line to entrain breathing naturally.",
+            "No rhyme required; rhythm and image do the work."
+          ],
+          "breath_mirror_close_template": [
+            "In... and the shoulders soften.",
+            "Out... and the noise of the day grows smaller.",
+            "In... and the heart remembers it is safe.",
+            "Out... and the story comes to rest with [CHARACTER_NAME]"
+          ]
+        }
+      ],
+      "generation_prompt_template": {
+        "instructions": [
+          "Generate pages 4-13 only using the shared five-act architecture.",
+          "Maintain 15-20 words per sentence and 3-4 sentences per paragraph.",
+          "Keep total output between 250-350 words.",
+          "Use reflective, epic prose with emotional nuance and internal conflict.",
+          "Allow philosophical questions where natural, but keep emotional safety intact.",
+          "Ensure [CHARACTER_NAME] discovers [LEARNING_THEME] through events; ally supports but does not preach.",
+          "Embed one 4-count breath sequence in Act 3 as action guidance.",
+          "Include exactly one explicit sleep-science paragraph in Act 4.",
+          "Use final-page cadence to mirror inhaling and exhaling.",
+          "Do not end with punctuation after the final token. The final word of the full output must be [CHARACTER_NAME]"
+        ]
+      }
+    }
+  }
+}

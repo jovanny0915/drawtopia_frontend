@@ -11,8 +11,7 @@
     import { updateGift } from '../../../lib/database/gifts';
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
-    import { buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt } from '../../../lib/promptBuilder';
-    import { buildStoryTextPrompt, NOT_MATCHED_TEXT } from '../../../lib/storyPromptBuilder';
+    import { buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt, buildStoryGenerationPrompt } from '../../../lib/promptBuilder';
     import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription } from '../../../lib/storyGenerationHelpers';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
@@ -183,6 +182,43 @@
         return themeMap[themeKey] || themeMap[themeKey.toLowerCase()] || null;
     }
 
+    function getDefaultAllyName(themeKey: string | undefined): string {
+        if (!themeKey) return 'Luna';
+        const normalized = themeKey.toLowerCase();
+        const allyNameMap: { [key: string]: string } = {
+            kindnessempathy: 'Lumi',
+            kindness_empathy: 'Lumi',
+            'kindness-empathy': 'Lumi',
+            bedtime_routine_sleep_hygiene: 'Nora',
+            'bedtime-routine-sleep-hygiene': 'Nora',
+            bedtimeroutinesleephygiene: 'Nora',
+            courage: 'Tala',
+            connection: 'Milo',
+            patience_endurance: 'Sage',
+            'patience-endurance': 'Sage',
+            patienceendurance: 'Sage'
+        };
+        return allyNameMap[normalized] || 'Luna';
+    }
+
+    function getDefaultAllyType(world: string | undefined): string {
+        if (!world) return 'friendly guide';
+        const normalized = world.toLowerCase();
+        const allyTypeMap: { [key: string]: string } = {
+            forest: 'wise firefly',
+            'enchanted-forest': 'wise firefly',
+            enchanted_forest: 'wise firefly',
+            space: 'star otter',
+            'outer-space': 'star otter',
+            outer_space: 'star otter',
+            outerspace: 'star otter',
+            underwater: 'glowfin dolphin',
+            'underwater-kingdom': 'glowfin dolphin',
+            underwater_kingdom: 'glowfin dolphin'
+        };
+        return allyTypeMap[normalized] || 'friendly guide';
+    }
+
     function showToastrError(message: string) {
         if (!browser) return;
         const toastWindow = window as Window & {
@@ -193,6 +229,14 @@
             return;
         }
         console.error(message);
+    }
+
+    function stripPageLabelFromText(text: string): string {
+        if (!text) return text;
+        return text
+            .replace(/^\s*page\s+\d+\s*-\s*\d+\s*[:\-]?\s*/i, '')
+            .replace(/^\s*page\s+\d+\s*[:\-]?\s*/i, '')
+            .trim();
     }
 
     // Helper function to normalize age group to backend format
@@ -890,7 +934,7 @@
             const storyContent = {
                 pages: storyPages.map((page, index) => ({
                     pageNumber: page.pageNumber || index + 1,
-                    text: page.text,
+                    text: stripPageLabelFromText(page.text),
                     sceneImage: page.scene || sceneImages[index] || null
                 }))
             };
@@ -1107,12 +1151,19 @@
                 return;
             }
 
-            const storyTextPrompt = buildStoryTextPrompt(themeName, worldName, ageGroup);
-            if (storyTextPrompt === NOT_MATCHED_TEXT) {
-                showToastrError(NOT_MATCHED_TEXT);
-                if (browser) sessionStorage.setItem('storyGenerationError', 'true');
-                return;
-            }
+            const allyName = (browser ? sessionStorage.getItem('allyName') : null) || getDefaultAllyName(rawThemeName);
+            const allyType = (browser ? sessionStorage.getItem('allyType') : null) || getDefaultAllyType(rawWorldName);
+            const storyTextPrompt = buildStoryGenerationPrompt({
+                ageGroup: ageGroup as '3-6' | '7-10' | '11-12',
+                placeholderValues: {
+                    CHARACTER_NAME: characterName,
+                    WORLD_NAME: worldName,
+                    ALLY_NAME: allyName,
+                    ALLY_TYPE: allyType,
+                    SPECIAL_ABILITY: specialAbility,
+                    LEARNING_THEME: themeName
+                }
+            });
 
             let readingLevel = ageGroup === '3-6' ? 'early_reader' : ageGroup === '11-12' ? 'independent_reader' : 'developing_reader';
 
