@@ -189,7 +189,7 @@ export async function getChildProfileById(profileId: string | number): Promise<D
     }
     const { data, error } = await supabase
       .from('child_profiles')
-      .select('id, first_name')
+      .select('id, first_name, age_group')
       .eq('id', id)
       .maybeSingle();
 

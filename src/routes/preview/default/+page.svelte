@@ -88,6 +88,7 @@
   let lastWordPageImage = '';
   let lastAdminPageImage = '';
   let backCoverImage = '';
+  let backCoverAgeText = '[Age 6-12]';
   let hasLastWordsAdmin = false;
 
   // Audio playback state
@@ -172,6 +173,14 @@
   }
 
   $: canAccessLockedPages = isPurchased || !isFreePlan || hasTemporaryStoryUnlock;
+
+  function formatBackCoverAge(ageGroup?: string | null): string {
+    const normalized = (ageGroup || '').trim();
+    if (!normalized) return '[Age 6-12]';
+    if (/^\[.*\]$/.test(normalized)) return normalized;
+    if (/^age\s+/i.test(normalized)) return `[${normalized}]`;
+    return `[Age ${normalized}]`;
+  }
 
   // Load story data from database
   onMount(async () => {
@@ -262,11 +271,15 @@
             dedicationImage = story[0].dedication_image ? story[0].dedication_image.split("?")[0] : '';
             // Copyright page personalized names
             copyrightCharacterName = storyData?.character_name || '[CHARACTER_NAME]';
+            backCoverAgeText = formatBackCoverAge(storyData?.age_group);
             const childProfileId = storyData?.child_profile_id;
             if (childProfileId) {
               const childResult = await getChildProfileById(childProfileId);
-              if (childResult.success && childResult.data?.first_name) {
-                copyrightChildName = childResult.data.first_name;
+              if (childResult.success && childResult.data) {
+                if (childResult.data.first_name) {
+                  copyrightChildName = childResult.data.first_name;
+                }
+                backCoverAgeText = formatBackCoverAge(childResult.data.age_group ?? storyData?.age_group);
               }
             }
             
@@ -1212,7 +1225,7 @@
                                 <text x="60" y="58" text-anchor="middle" fill="#000000" font-size="9" font-family="Arial, sans-serif" font-weight="400">1 234567 890128&gt;</text>
                               </svg>
                               </div>
-                              <p class="back-cover-age">[Age 6-12]</p>
+                              <p class="back-cover-age">{backCoverAgeText}</p>
                             </div>
                           </div>
                           <div class="inner-shadow"></div>

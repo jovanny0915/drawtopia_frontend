@@ -11,8 +11,11 @@
   import forestBackground from "../../assets/forest_share_back.webp";
   import waterBackground from "../../assets/water_share_back.webp";
   import spaceBackground from "../../assets/space_share_back.webp";
-  import dedicationLeft from "../../assets/dedicationleft.webp";
+  import Link from "../../assets/Link.svg";
+  import logo from "../../assets/white-logo.webp";
+  import ISBNBarcode from "../../assets/ISBNBarcode.svg";
   import { getStoryById } from "../../lib/database/stories";
+  import { supabase } from "../../lib/supabase";
   import BookShareFooter from "../../components/BookShareFooter.svelte";
 
   export let data: {
@@ -37,11 +40,35 @@
   let dedicationImage = '';
   let copyrightImage = '';
   let hasDedication = false;
+  let copyrightChildName = 'your child';
+  let copyrightCharacterName = 'your character';
   
   let lastWordPageImage = '';
   let lastAdminPageImage = '';
   let backCoverImage = '';
   let hasLastWordsAdmin = false;
+  let currentPageText = '';
+  let currentStoryPageNumber = -1;
+  let showStoryTextOverlay = false;
+  let backCoverAgeText = 'Ages 6-12';
+
+  function formatAgeGroupLabel(ageGroup: string | null | undefined): string {
+    const normalized = (ageGroup || '').trim();
+    return normalized ? `Ages ${normalized}` : 'Ages 6-12';
+  }
+
+  $: dedicationParsed = (() => {
+    const raw = (dedicationText || '').trim();
+    if (!raw) return { body: '', signature: '' };
+    const dashMatch = raw.match(/\s+[—–-]\s+(.+)$/);
+    if (dashMatch) {
+      return {
+        body: raw.slice(0, dashMatch.index).trim(),
+        signature: (dashMatch[1] || '').trim() ? `— ${dashMatch[1].trim()}` : ''
+      };
+    }
+    return { body: raw, signature: '' };
+  })();
 
   // Audio playback state
   let audioUrls: (string | null)[] = [];
@@ -85,6 +112,25 @@
         const storyData = Array.isArray(story) ? story[0] : story;
         storyTitle = storyData.story_title || "Untitled Story";
         storyWorld = storyData.story_world || '';
+        backCoverAgeText = formatAgeGroupLabel(storyData.age_group);
+        copyrightChildName = storyData.child_name || storyData.child_first_name || 'your child';
+        if (storyData.child_profile_id) {
+          const { data: childProfile, error: childProfileError } = await supabase
+            .from('child_profiles')
+            .select('first_name, age_group')
+            .eq('id', storyData.child_profile_id)
+            .maybeSingle();
+
+          if (childProfileError) {
+            console.warn('[share] Failed to fetch child profile first_name:', childProfileError);
+          } else if (childProfile?.first_name?.trim()) {
+            copyrightChildName = childProfile.first_name.trim();
+          }
+          if (!storyData.age_group && childProfile?.age_group) {
+            backCoverAgeText = formatAgeGroupLabel(childProfile.age_group);
+          }
+        }
+        copyrightCharacterName = storyData.character_name || 'your character';
         
         // Set background image based on story world
         if (storyWorld === 'forest') {
@@ -305,6 +351,24 @@
     shareAudioIndex = getStoryPageIndex(currentSceneIndex);
   }
 
+  $: currentPageText = (() => {
+    if (isSpecialSceneIndex(currentSceneIndex)) return '';
+    const pageIndex = getStoryPageIndex(currentSceneIndex);
+    return storyPages.length > 0 && pageIndex >= 0 && pageIndex < storyPages.length
+      ? storyPages[pageIndex].text
+      : '';
+  })();
+
+  $: currentStoryPageNumber = (() => {
+    const pageIndex = getStoryPageIndex(currentSceneIndex);
+    return pageIndex >= 0 ? pageIndex + 1 : -1;
+  })();
+
+  $: showStoryTextOverlay =
+    !isSpecialSceneIndex(currentSceneIndex) &&
+    currentStoryPageNumber >= 1 &&
+    !!currentPageText?.trim();
+
   function toggleAudio() {
     if (isSpecialSceneIndex(currentSceneIndex)) {
       console.log("[share] No audio available for this page");
@@ -498,10 +562,6 @@
           <span>Back</span>
         </button>
       </div>
-      <div class="header-center">
-        <h1 class="story-title">{storyTitle}</h1>
-      </div>
-      <div class="header-right"></div>
     </div>
 
     <!-- Main Story Viewer -->
@@ -522,65 +582,92 @@
             </div>
           </div>
         {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'COPYRIGHT_DEDICATION_PAGE'}
-          <!-- Copyright/Dedication Page: Left copyright, Right dedication image and text -->
           <div class="mobile-image-split">
-            <div class="mobile-image-half mobile-image-left dedication-blank">
-              <div class="image dedication-blank-page">
-                {#if copyrightImage}
-                  <!-- Copyright image on left page -->
-                  <img
-                    src={copyrightImage}
-                    alt="Copyright"
-                    class="dedication-image"
-                    draggable="false"
-                  />
-                {:else}
-                  <!-- Fallback to blank page if no copyright image -->
-                  <img
-                    src={dedicationLeft}
-                    alt="Copyright"
-                    class="dedication-image"
-                    draggable="false"
-                  />
-                {/if}
+            <div class="mobile-image-half mobile-image-left dedication-blank copyright-page-wrapper" style="position: relative;">
+              <div class="copyright-page-bg" style={copyrightImage ? `background-image: url(${copyrightImage});` : ''}></div>
+              <div class="center-blur-decoration" aria-hidden="true"></div>
+              <div class="copyright-page-right-blur" aria-hidden="true"></div>
+              <div class="copyright-page-content">
+                <div class="copyright-page-text-container">
+                  <p class="copyright-page-p">This one-of-a-kind adventure story<br />was created just for <b style="font-weight: 800; font-size: 1.2rem;">{copyrightChildName}</b>.</p>
+                  <p class="copyright-page-p">Beyond these pages lies a magical world<br />filled with wonder, mystery, and brave moments.<br />Every scene unfolds a new chapter in the journey.</p>
+                  <p class="copyright-page-p">Follow {copyrightCharacterName} through lands of shadow<br />and light, where courage is tested and imagination<br />guides the way forward.</p>
+                  <p class="copyright-page-p">This story celebrates <b style="font-weight: 800; font-size: 1.2rem;">{copyrightChildName}</b>'s creativity<br />and courage. Turn the page and begin your adventure<br />into the unknown-where magic awaits.</p>
+                </div>
+                <p class="copyright-page-footer">© 2026 Drawtopia. All rights reserved.<br />Published by Drawtopia | drawtopia.ai</p>
               </div>
             </div>
-            <div class="mobile-image-half mobile-image-right dedication-page">
-              <div class="image dedication-content">
-                {#if dedicationImage}
-                  <img
-                    src={dedicationImage}
-                    alt="Dedication"
-                    class="dedication-image"
-                    draggable="false"
-                  />
+            <div class="mobile-image-half mobile-image-right dedication-page dedication-page-wrapper">
+              <div class="dedication-page-bg" style={dedicationImage ? `background-image: url(${dedicationImage});` : ''}></div>
+              <div class="dedication-page-left-blur" aria-hidden="true"></div>
+              <div class="dedication-page-content">
+                <h2 class="dedication-greeting">Dear {copyrightChildName}</h2>
+                {#if dedicationParsed.body}
+                  <p class="dedication-body">{dedicationParsed.body}</p>
+                {:else}
+                  <p class="dedication-body">In every tiny thing you do each day, never forget that you are loved enormously</p>
                 {/if}
-                {#if dedicationText}
-                  <div class="dedication-text-container">
-                    <p class="dedication-text">{dedicationText}</p>
-                  </div>
+                {#if dedicationParsed.signature}
+                  <p class="dedication-signature">{dedicationParsed.signature}</p>
                 {/if}
-                <div class="inner-shadow"></div>
               </div>
             </div>
           </div>
         {:else if hasLastWordsAdmin && storyScenes[currentSceneIndex] === 'LAST_WORDS_ADMIN_PAGE'}
           <div class="mobile-image-split">
-            <div class="mobile-image-half mobile-image-left">
+            <div class="mobile-image-half mobile-image-left last-words-page-wrapper">
               <div class="image">
-                {#if lastWordPageImage}
-                  <img src={lastWordPageImage} alt="Last Words" class="scene-main-image scene-image-left" draggable="false" />
-                {/if}
+                <div class="last-words-page-bg" style={lastWordPageImage ? `background-image: url(${lastWordPageImage});` : ''}></div>
+                <div class="center-blur-decoration" aria-hidden="true"></div>
+                <div class="last-words-page-content">
+                  <h2 class="last-words-page-title">A Special Thank You</h2>
+                  <p class="last-words-page-body">This magical adventure wouldn't exist without the incredible imagination of {copyrightChildName}. Thank you for sharing your creativity with the world!</p>
+                  <p class="last-words-page-tagline">Every drawing tells a story. Yours told this one.</p>
+                </div>
                 <div class="inner-shadow"></div>
               </div>
             </div>
-            <div class="mobile-image-half mobile-image-right">
-              <div class="image">
-                {#if lastAdminPageImage}
-                  <img src={lastAdminPageImage} alt="Final Scene" class="scene-main-image scene-image-right" draggable="false" />
-                {/if}
+            <div class="mobile-image-half mobile-image-right last-admin-page-wrapper">
+              <div class="image_01" style="position: relative;">
+                <div class="last-admin-page-bg" style={lastAdminPageImage ? `background-image: url(${lastAdminPageImage});` : ''}></div>
+                <div class="last-admin-page-left-blur" aria-hidden="true"></div>
+                <div style="z-index: 1; display: flex; justify-content: center;">
+                  <img src={logo} alt="Drawtopia" class="last-admin-page-logo" style="position: absolute; justify-self: anchor-center;" />
+                  <div class="last-admin-page-content">
+                    <h2 class="last-admin-page-title">Where Every Child Becomes a Storyteller</h2>
+                    <p class="last-admin-page-tagline">Their imagination. Their characters. Their stories. Enhanced, not replaced.</p>
+                    <p class="last-admin-page-body">At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance - never replace - your child's authentic artwork, turning their imagination into adventures they'll treasure forever.</p>
+                  </div>
+                </div>
                 <div class="inner-shadow"></div>
+                <a href="https://app.drawtopia.ai" target="_blank" rel="noopener noreferrer" class="last-admin-page-cta last-admin-page-cta-clickable">
+                  <img src={Link} alt="" class="last-admin-page-cta-icon" />
+                  <span>Drawtopia.ai</span>
+                </a>
               </div>
+            </div>
+          </div>
+        {:else if backCoverImage && currentSceneIndex === storyScenes.length - 1}
+          <div class="cover-image-container">
+            <div class="image cover-image back-cover-wrapper">
+              <div class="back-cover-bg" style={backCoverImage ? `background-image: url(${backCoverImage});` : ''}></div>
+              <div class="back-cover-content">
+                <div class="back-cover-title-blur" aria-hidden="true"></div>
+                <div class="back-cover-bottom-blur" aria-hidden="true"></div>
+                <h1 class="back-cover-title">Drawtopia Makes<br />Every Child a<br />Storyteller</h1>
+                <p class="back-cover-description">At Drawtopia, we believe every child's drawing holds a story waiting to be told. We use the magic of AI to enhance - never replace - your child's authentic artwork, turning their imagination into adventures they'll treasure forever.</p>
+                <div class="back-cover-bottom-left">
+                  <img src={logo} alt="Drawtopia" class="back-cover-logo" />
+                  <p class="back-cover-tagline">Their imagination. Their characters.<br /> Their stories. Enhanced, not replaced.</p>
+                  <p class="back-cover-website">drawtopia.ai</p>
+                </div>
+                <div class="back-cover-bottom-right">
+                  <p class="back-cover-isbn">ISBN placeholder</p>
+                  <img src={ISBNBarcode} alt="ISBN barcode" class="back-cover-isbn-barcode" />
+                  <p class="back-cover-age">{backCoverAgeText}</p>
+                </div>
+              </div>
+              <div class="inner-shadow"></div>
             </div>
           </div>
         {:else}
@@ -608,6 +695,12 @@
                     draggable="false"
                   />
                 {/if}
+                {#if showStoryTextOverlay}
+                  <div class="story-main-text-overlay">
+                    <div class="story-main-text-blur-layer"></div>
+                    <p class="story-main-text">{currentPageText}</p>
+                  </div>
+                {/if}
                 <div class="inner-shadow"></div>
               </div>
             </div>
@@ -625,13 +718,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Story Text (if available and not cover or dedication) -->
-      <!-- {#if currentSceneIndex > 0 && !(hasDedication && currentSceneIndex === 1) && storyPages[currentSceneIndex - (hasDedication ? 2 : 1)]}
-        <div class="story-text-container">
-          <p class="story-text">{storyPages[currentSceneIndex - (hasDedication ? 2 : 1)].text}</p>
-        </div>
-      {/if} -->
 
       {#if shareAudioIndex >= 0 && audioUrls[shareAudioIndex]}
         <div class="audio-controls">
@@ -852,7 +938,7 @@
 
   .story-title {
     color: white;
-    font-size: 32px;
+    font-size: 1.5rem;
     font-weight: 700;
     margin: 0;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
@@ -861,7 +947,7 @@
   /* Story Viewer */
   .story-viewer {
     flex: 1;
-    max-width: 1200px;
+    max-width: 980px;
     width: 100%;
     margin: 0 auto;
     display: flex;
@@ -892,8 +978,9 @@
     border-radius: 24px;
     box-shadow: -2px 10px 0px black;
     overflow: hidden;
-    max-width: 600px;
+    max-width: 400px;
     width: 100%;
+    height: 60dvh;
     position: relative;
   }
 
@@ -901,8 +988,8 @@
     display: block;
     max-width: 100%;
     width: 100%;
-    height: auto;
-    object-fit: contain;
+    height: 100%;
+    object-fit: cover;
     border-radius: 0;
     pointer-events: none;
     position: relative;
@@ -916,12 +1003,13 @@
     gap: 2px;
     width: 100%;
     justify-content: center;
+    height: 60dvh;
   }
 
   .mobile-image-half {
     position: relative;
     width: 50%;
-    max-width: 500px;
+    max-width: 410px;
     overflow: hidden;
     border-radius: 24px;
     background: white;
@@ -976,86 +1064,406 @@
     pointer-events: none;
   }
 
-  /* Dedication Page Styles */
-  .dedication-blank {
-    background: white;
-  }
-
-  .dedication-blank-page {
-    background: white;
-    min-height: 100%;
-    width: 100%;
-  }
-
+  /* Special pages styles (aligned with /preview/default) */
+  .dedication-blank,
   .dedication-page {
-    background: white;
+    background: transparent;
   }
 
-  .dedication-content {
-    background: white;
+  .dedication-page-wrapper,
+  .copyright-page-wrapper {
+    position: relative;
     min-height: 100%;
-    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .dedication-page-bg,
+  .copyright-page-bg,
+  .last-words-page-bg,
+  .last-admin-page-bg,
+  .back-cover-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #1a2f38;
+    background-image: linear-gradient(180deg, #1a3540 0%, #152f38 20%, #14323a 40%, #163a3e 60%, #152f36 80%, #1a3540 100%);
+  }
+
+  .dedication-page-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 2.5rem 2rem;
+    max-width: 70%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 30px;
-    position: relative;
+    gap: 1.75rem;
   }
 
-  .dedication-image {
-    max-width: 100%;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    border-radius: 12px;
-    flex-shrink: 0;
-  }
-
-  .dedication-text-container {
-    width: 70%;
-    display: flex;
-    justify-content: center;
-    margin-top: 100px;
-    padding: 20px;
-    flex-shrink: 0;
-    position: absolute;
-  }
-
-  .dedication-text {
-    font-size: 32px;
-    line-height: 1.8;
-    color: #333;
-    margin: 0;
+  .dedication-greeting {
     font-family: 'Quicksand', sans-serif;
     font-weight: 500;
-    text-align: center;
-    max-width: 100%;
-    word-wrap: break-word;
-  }
-
-  /* Story Text */
-  .story-text-container {
-    padding: 30px;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 20px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  }
-
-  .story-text {
-    font-size: 18px;
-    line-height: 1.8;
-    color: #333;
+    font-size: 1.8rem;
+    line-height: 1.3;
+    color: #ffffff;
     margin: 0;
+  }
+
+  .dedication-body {
     font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: 1.3rem;
+    line-height: 1.65;
+    color: #ffffff;
+    margin: 0;
+  }
+
+  .dedication-signature {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: 1.1rem;
+    line-height: 1.4;
+    color: #ffffff;
+    margin: 0;
+  }
+
+  .copyright-page-text-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .copyright-page-content {
+    z-index: 1;
+    text-align: center;
+    max-width: 85%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8rem;
+  }
+
+  .copyright-page-p,
+  .copyright-page-footer {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+    margin: 0;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  }
+
+  .copyright-page-p {
+    font-size: 0.8rem;
+    line-height: 1;
+  }
+
+  .copyright-page-footer {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    position: absolute;
+    bottom: 50px;
+  }
+
+  .center-blur-decoration {
+    position: absolute;
+    width: 100%;
+    height: 50%;
+    background: #44789e;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .copyright-page-right-blur {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    right: 0;
+    top: 0;
+    background: linear-gradient(270deg, #44789f 0%, rgba(68, 120, 159, 0) 100%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .dedication-page-left-blur,
+  .last-admin-page-left-blur {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    left: 0;
+    top: 0;
+    background: linear-gradient(270deg, #44789f 0%, rgba(68, 120, 159, 0) 100%);
+    transform: matrix(-1, 0, 0, 1, 0, 0);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .last-words-page-wrapper .image,
+  .last-admin-page-wrapper .image_01 {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .last-words-page-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 2rem 1.75rem;
+    max-width: 60%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .last-admin-page-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 2rem 1.75rem;
+    max-width: 85%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .last-admin-page-logo {
+    z-index: 2;
+    width: 8rem;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: 0.25rem;
+    top: 50px;
+  }
+
+  .last-words-page-title {
+    font-family: 'DM Serif Display', serif !important;
+    font-weight: 400;
+    font-size: 1.3rem;
+    line-height: 110%;
+    text-align: center;
+    color: #ffffff;
+    margin: 0;
+  }
+
+  .last-admin-page-title {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1.3;
+    color: #ffffff;
+    margin: 0;
+  }
+
+  .last-words-page-body,
+  .last-admin-page-body,
+  .last-words-page-tagline,
+  .last-admin-page-tagline {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+  }
+
+  .last-admin-page-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.8rem 0.8rem;
+    background: #438bff;
+    color: #ffffff;
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    text-decoration: underline;
+    border-radius: 15px;
+    transition: background 0.2s ease;
+  }
+
+  .last-admin-page-cta:hover {
+    background: #3a7ae8;
+  }
+
+  .last-admin-page-wrapper .image_01 .last-admin-page-cta-clickable {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    bottom: 50px;
+  }
+
+  .last-admin-page-cta-icon {
+    width: 1rem;
+    height: 1rem;
+    object-fit: contain;
+  }
+
+  .back-cover-wrapper {
+    position: relative;
+    overflow: hidden;
+    min-height: 60dvh;
+    aspect-ratio: 2 / 3;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .back-cover-content {
+    position: relative;
+    z-index: 1;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 4rem 2rem 1.5rem;
+    box-sizing: border-box;
+  }
+
+  .back-cover-title-blur,
+  .back-cover-bottom-blur {
+    position: absolute;
+    width: 100%;
+    height: 40%;
+    background: linear-gradient(180.18deg, #5b99af 0.15%, rgba(91, 153, 175, 0) 99.84%);
+    pointer-events: none;
+    z-index: -2;
+  }
+
+  .back-cover-title-blur { top: 0; }
+  .back-cover-bottom-blur { bottom: 0; transform: matrix(1, 0, 0, -1, 0, 0); }
+
+  .back-cover-title {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    font-size: clamp(0.65rem, 2.1vw, 2.2rem);
+    line-height: 100%;
+    color: #ffffff;
+    text-align: center;
+    margin: 0.75rem 0 1.25rem;
+    -webkit-text-stroke: clamp(2.6px, 0.58vw, 10px) #1c596f;
+    paint-order: stroke fill;
+    text-shadow: 0 0 70px rgba(255, 255, 255, 0.9), 0 9px 0 rgba(15, 10, 59, 0.5);
+  }
+
+  .back-cover-description {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 400;
+    font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+    line-height: 1.55;
+    color: #ffffff;
+    text-align: center;
+    max-width: 88%;
+    margin: 0 0 auto;
+    flex: 1;
+  }
+
+  .back-cover-bottom-left {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 1.75rem;
+    display: flex;
+    max-width: 50%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .back-cover-logo {
+    width: 6rem;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .back-cover-tagline,
+  .back-cover-website,
+  .back-cover-isbn {
+    font-family: 'Quicksand', sans-serif;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+    font-size: clamp(0.6rem, 1.2vw, 0.8rem);
+    line-height: 1.1;
+  }
+
+  .back-cover-age {
+    width: 100%;
+
+    font-family: 'Quicksand', sans-serif;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+    font-size: clamp(0.7rem, 1.2vw, 0.8rem);
+    line-height: 1.2;
+  }
+
+  .back-cover-bottom-right {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: center;
+    gap: 0.3rem;
+  }
+
+  .back-cover-isbn-barcode {
+    width: clamp(5rem, 10vw, 6.5rem);
+    height: auto;
+    background: #ffffff;
+    border-radius: 0.25rem;
+  }
+
+  .story-main-text-overlay {
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 3;
+    width: 78%;
+    height: 100%;
+    padding: 20px;
+    pointer-events: none;
+  }
+
+  .story-main-text-blur-layer {
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    left: calc(50% - 110px);
+    top: calc(50% - 110px);
+    background: #3b778b;
+    filter: blur(70px);
+    z-index: 0;
+  }
+
+  .story-main-text {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    color: #fddac6;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.5;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
   }
 
   /* Fullscreen Button */
   .fullscreen-button-container {
     display: flex;
     justify-content: center;
-    margin-top: 20px;
   }
 
   .fullscreen-button {
@@ -1297,15 +1705,6 @@
       font-size: 24px;
     }
 
-    .story-text {
-      font-size: 16px;
-      line-height: 1.6;
-    }
-
-    .story-text-container {
-      padding: 20px;
-    }
-
     .navigation-controls {
       flex-direction: column;
       gap: 15px;
@@ -1373,7 +1772,7 @@
 
   @media (max-width: 1024px) {
     .mobile-image-half {
-      max-width: 450px;
+      max-width: 380px;
     }
 
     .navigation-controls {

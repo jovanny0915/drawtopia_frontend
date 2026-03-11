@@ -1,0 +1,49 @@
+<svg width="230" height="116" viewBox="0 0 230 116" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="230" height="116" rx="6" fill="white"/>
+  <g fill="black">
+    <rect x="12" y="12" width="2" height="72"/>
+    <rect x="16" y="12" width="1.5" height="72"/>
+    <rect x="20" y="12" width="3" height="72"/>
+    <rect x="26" y="12" width="1.5" height="72"/>
+    <rect x="30" y="12" width="2.5" height="72"/>
+    <rect x="35" y="12" width="1.5" height="72"/>
+    <rect x="39" y="12" width="3.5" height="72"/>
+    <rect x="45" y="12" width="1.5" height="72"/>
+    <rect x="49" y="12" width="2" height="72"/>
+    <rect x="53" y="12" width="4" height="72"/>
+    <rect x="60" y="12" width="1.5" height="72"/>
+    <rect x="64" y="12" width="2.5" height="72"/>
+    <rect x="69" y="12" width="1.5" height="72"/>
+    <rect x="73" y="12" width="4" height="72"/>
+    <rect x="80" y="12" width="2" height="72"/>
+    <rect x="84" y="12" width="1.5" height="72"/>
+    <rect x="88" y="12" width="3.5" height="72"/>
+    <rect x="94" y="12" width="1.5" height="72"/>
+    <rect x="98" y="12" width="2.5" height="72"/>
+    <rect x="103" y="12" width="1.5" height="72"/>
+    <rect x="107" y="12" width="4" height="72"/>
+    <rect x="114" y="12" width="2" height="72"/>
+    <rect x="118" y="12" width="1.5" height="72"/>
+    <rect x="122" y="12" width="3.5" height="72"/>
+    <rect x="128" y="12" width="1.5" height="72"/>
+    <rect x="132" y="12" width="2.5" height="72"/>
+    <rect x="137" y="12" width="1.5" height="72"/>
+    <rect x="141" y="12" width="4" height="72"/>
+    <rect x="148" y="12" width="2" height="72"/>
+    <rect x="152" y="12" width="1.5" height="72"/>
+    <rect x="156" y="12" width="3.5" height="72"/>
+    <rect x="162" y="12" width="1.5" height="72"/>
+    <rect x="166" y="12" width="2.5" height="72"/>
+    <rect x="171" y="12" width="1.5" height="72"/>
+    <rect x="175" y="12" width="4" height="72"/>
+    <rect x="182" y="12" width="2" height="72"/>
+    <rect x="186" y="12" width="1.5" height="72"/>
+    <rect x="190" y="12" width="3.5" height="72"/>
+    <rect x="196" y="12" width="1.5" height="72"/>
+    <rect x="200" y="12" width="2.5" height="72"/>
+    <rect x="205" y="12" width="3" height="72"/>
+    <rect x="210" y="12" width="2" height="72"/>
+    <rect x="214" y="12" width="1.5" height="72"/>
+  </g>
+  <text x="115" y="102" text-anchor="middle" fill="black" font-family="Arial, sans-serif" font-size="14" letter-spacing="0.8">978-1-23456-789-0</text>
+</svg>

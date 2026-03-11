@@ -250,7 +250,6 @@
     font-weight: 600;
     line-height: 33.6px;
     word-wrap: break-word;
-    text-wrap-mode: nowrap;
   }
 
   .leteveryoneseethewonderfulstoryyoucreated_span {
