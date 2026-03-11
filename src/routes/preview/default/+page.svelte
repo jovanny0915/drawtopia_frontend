@@ -1964,19 +1964,6 @@
     background: #ededed;
   }
 
-  .privacypolicy_span {
-    color: #141414;
-    font-size: 18px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 25.2px;
-    word-wrap: break-word;
-  }
-
-  .privacy-policy {
-    text-align: center;
-  }
-
   .termsofservice_span {
     color: #141414;
     font-size: 18px;

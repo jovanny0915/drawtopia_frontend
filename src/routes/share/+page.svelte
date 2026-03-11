@@ -755,20 +755,6 @@
 
       <!-- Navigation Controls -->
       <div class="navigation-controls">
-        <button 
-          class="button-prev" 
-          on:click={previousScene}
-          disabled={currentSceneIndex === 0 || storyScenes.length === 0}
-          class:disabled={currentSceneIndex === 0 || storyScenes.length === 0}
-        >
-          <div class="arrowleft">
-            <img src={ArrowLeft} alt="arrow" />
-          </div>
-          <div class="previous">
-            <span class="previous_span">Previous</span>
-          </div>
-        </button>
-
         <div class="page-indicators">
           {#if storyScenes.length > 0}
             {#each storyScenes as _, idx}
@@ -783,17 +769,33 @@
           {/if}
         </div>
 
-        <button 
-          class="button-next" 
-          on:click={nextScene}
-          disabled={storyScenes.length === 0 || currentSceneIndex >= storyScenes.length - 1}
-          class:disabled={storyScenes.length === 0 || currentSceneIndex >= storyScenes.length - 1}
-        >
-          <div class="next"><span class="next_span">Next</span></div>
-          <div class="arrowleft">
-            <img src={ArrowRight} alt="arrow" />
-          </div>
-        </button>
+        <div class="navigation-buttons">
+          <button 
+            class="button-prev" 
+            on:click={previousScene}
+            disabled={currentSceneIndex === 0 || storyScenes.length === 0}
+            class:disabled={currentSceneIndex === 0 || storyScenes.length === 0}
+          >
+            <div class="arrowleft">
+              <img src={ArrowLeft} alt="arrow" />
+            </div>
+            <div class="previous">
+              <span class="previous_span">Previous</span>
+            </div>
+          </button>
+
+          <button 
+            class="button-next" 
+            on:click={nextScene}
+            disabled={storyScenes.length === 0 || currentSceneIndex >= storyScenes.length - 1}
+            class:disabled={storyScenes.length === 0 || currentSceneIndex >= storyScenes.length - 1}
+          >
+            <div class="next"><span class="next_span">Next</span></div>
+            <div class="arrowleft">
+              <img src={ArrowRight} alt="arrow" />
+            </div>
+          </button>  
+        </div>
       </div>
     </div>
   {/if}
@@ -899,14 +901,8 @@
     margin-right: auto;
   }
 
-  .header-left,
-  .header-right {
+  .header-left {
     flex: 1;
-  }
-
-  .header-center {
-    flex: 2;
-    text-align: center;
   }
 
   .btn-back {
@@ -934,14 +930,6 @@
     width: 20px;
     height: 20px;
     filter: brightness(0) invert(1);
-  }
-
-  .story-title {
-    color: white;
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   }
 
   /* Story Viewer */
@@ -1249,7 +1237,7 @@
   .last-words-page-title {
     font-family: 'DM Serif Display', serif !important;
     font-weight: 400;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     line-height: 110%;
     text-align: center;
     color: #ffffff;
@@ -1499,7 +1487,16 @@
     align-items: center;
     justify-content: space-between;
     gap: 20px;
-    margin-top: 20px;
+    position: relative;
+  }
+
+  .navigation-buttons{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    position: absolute;
   }
 
   .button-prev,
@@ -1682,6 +1679,7 @@
   @media (max-width: 768px) {
     .story-preview-container {
       padding: 10px;
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
     }
 
     .story-header {
@@ -1690,9 +1688,7 @@
       margin-bottom: 20px;
     }
 
-    .header-left,
-    .header-center,
-    .header-right {
+    .header-left {
       flex: none;
       width: 100%;
     }
@@ -1701,18 +1697,19 @@
       width: fit-content;
     }
 
-    .story-title {
-      font-size: 24px;
+    .navigation-controls {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
-    .navigation-controls {
-      flex-direction: column;
-      gap: 15px;
+    .navigation-buttons {
+      position: relative;
     }
 
     .button-prev,
     .button-next {
-      width: 100%;
+      width: calc(50% - 6px);
       justify-content: center;
     }
 
@@ -1740,11 +1737,19 @@
     .mobile-image-split {
       flex-direction: column;
       gap: 20px;
+      height: auto;
     }
 
     .mobile-image-half {
       width: 100%;
       max-width: 100%;
+      min-height: 60dvh;
+    }
+
+    .back-cover-title {
+      font-size: clamp(1.35rem, 6.8vw, 1.9rem);
+      -webkit-text-stroke: clamp(1.8px, 0.8vw, 3.6px) #1c596f;
+      line-height: 1.05;
     }
 
     .fullscreen-button {
