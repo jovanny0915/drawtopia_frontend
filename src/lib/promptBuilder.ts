@@ -144,6 +144,7 @@ export function buildStoryGenerationPrompt(input: PromptBuilderInput): string {
 
   return [
     'You are writing the final story text for pages 4-13.',
+    'Do not include prefixes like "Page X", "Pages X-X", or any similar page/range labels in the output text.',
     `Age group: ${input.ageGroup} (${ageGroupTemplate.label})`,
     '',
     'Resolved placeholders:',
@@ -503,6 +504,7 @@ export function buildStoryTextPrompt(options: StoryTextGenerationPromptOptions):
 - Return exactly 5 paragraphs, one per page, in order
 - Separate each page with exactly one blank line
 - Do NOT include labels like "PAGE 1", headings, or bullet points
+- Do NOT include any page/range prefixes in story text (for example: "Page 1", "Pages 4-5", "Page 4-5", "pages 8-9")
 - Keep continuity across all pages (same characters, tone, and story arc)`
   );
 
