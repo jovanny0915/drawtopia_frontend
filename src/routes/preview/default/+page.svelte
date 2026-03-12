@@ -1072,6 +1072,7 @@
                             class="scene-main-image cover-main-image"
                             draggable="false"
                           />
+                          <img src={logo} alt="Drawtopia logo" class="cover-bottom-logo" />
                           <div class="inner-shadow"></div>
                         </div>
                       </div>
@@ -1096,7 +1097,6 @@
                           <div class="dedication-page-bg" style={dedicationImage ? `background-image: url(${dedicationImage});` : ''}></div>
                           <div class="dedication-page-left-blur" aria-hidden="true"></div>
                           <div class="dedication-page-content">
-                            <h2 class="dedication-greeting">Dear {copyrightChildName}</h2>
                             {#if dedicationParsed.body}
                               <p class="dedication-body">{dedicationParsed.body}</p>
                             {:else}
@@ -2979,6 +2979,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
     background: white;
     border-radius: 24px;
     box-shadow: -2px 10px 0px black;
@@ -2997,6 +2998,17 @@
     pointer-events: none;
     position: relative;
     z-index: 1;
+  }
+
+  .cover-bottom-logo {
+    position: absolute;
+    left: 50%;
+    bottom: 50px;
+    transform: translateX(-50%);
+    width: clamp(120px, 30%, 190px);
+    height: auto;
+    z-index: 2;
+    pointer-events: none;
   }
 
   /* Mobile image split container - book style */
@@ -3230,16 +3242,6 @@
     flex-direction: column;
     align-items: center;
     gap: 1.75rem;
-  }
-
-  .dedication-greeting {
-    font-family: 'Quicksand', sans-serif;
-    font-weight: 500;
-    font-size: 1.8rem;
-    line-height: 1.3;
-    color: #ffffff;
-    margin: 0;
-    word-wrap: break-word;
   }
 
   .dedication-body {
@@ -3876,6 +3878,11 @@
       max-height: 70vh;
       width: 100%;
     }
+
+    .cover-bottom-logo {
+      bottom: 14px;
+      width: clamp(96px, 34%, 150px);
+    }
     
     .two-pageview_span {
       font-size: 14px;
@@ -3949,9 +3956,6 @@
     .dedication-page-content {
       gap: 1rem;
       
-    }
-    .dedication-greeting {
-      font-size: 1.5rem;
     }
     .dedication-body {
       font-size: 0.8rem;

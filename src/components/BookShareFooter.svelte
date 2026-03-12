@@ -1,6 +1,6 @@
 <div class="book-share-footer">
   Created with <span class="heart" aria-label="love">❤️</span> on
-  <a href="https://drawtopia.com" target="_blank" rel="noopener noreferrer">Drawtopia</a>
+  <a href="https://drawtopia.ai" target="_blank" rel="noopener noreferrer">Drawtopia</a>
 </div>
 
 <style>

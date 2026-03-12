@@ -578,6 +578,7 @@
                 class="cover-main-image"
                 draggable="false"
               />
+              <img src={logo} alt="Drawtopia logo" class="cover-bottom-logo" />
               <div class="inner-shadow"></div>
             </div>
           </div>
@@ -640,7 +641,7 @@
                   </div>
                 </div>
                 <div class="inner-shadow"></div>
-                <a href="https://app.drawtopia.ai" target="_blank" rel="noopener noreferrer" class="last-admin-page-cta last-admin-page-cta-clickable">
+                <a href="https://drawtopia.ai" target="_blank" rel="noopener noreferrer" class="last-admin-page-cta last-admin-page-cta-clickable">
                   <img src={Link} alt="" class="last-admin-page-cta-icon" />
                   <span>Drawtopia.ai</span>
                 </a>
@@ -982,6 +983,17 @@
     pointer-events: none;
     position: relative;
     z-index: 1;
+  }
+
+  .cover-bottom-logo {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    width: clamp(96px, 30%, 140px);
+    height: auto;
+    z-index: 2;
+    pointer-events: none;
   }
 
   /* Two-Page Spread Styles */
@@ -1744,6 +1756,11 @@
       width: 100%;
       max-width: 100%;
       min-height: 60dvh;
+    }
+
+    .cover-bottom-logo {
+      bottom: 12px;
+      width: clamp(84px, 34%, 120px);
     }
 
     .back-cover-title {
