@@ -920,7 +920,7 @@ export async function generateCoverImageWithTemplate(options: {
           ageGroup: age,
           storyTitle: normalizedTitle
         })
-      : `Insert the character from the reference image onto the provided book cover template. The character should be placed in the lower-middle section of the cover, standing confidently with a radiant smile and open hands, as if gesturing invitingly. Blend them naturally with the background magical forest, ensuring correct scale, lighting, and shadows consistent with the template's glowing elements. The character should be integrated into the existing forest background of the template The ratio of image will be gnerated must be (2:3=width:height).`;
+      : `Replace the reference image with the character in the template. The character stands in an underwater scene surrounded by coral, fish, and ancient ruins. The character's arms are relaxed at her sides. She is looking directly at us with a slight smile. The character stands in the center of the image. The ratio of image will be generated must be (2:3=width:height).`;
 
     // Call the backend API endpoint with three parts: prompt, character image URL, and template cover URL
     const response = await fetch('https://image-edit-five.vercel.app/generate-cover-image', {

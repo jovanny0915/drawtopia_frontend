@@ -130,7 +130,7 @@
                     const isFreePlan = subscriptionStatus === "free plan";
 
                     if (isFreePlan) {
-                        creditErrorModalMessage = "You need more stories to create this one. Check your subscription or add credits.";
+                        creditErrorModalMessage = "You need more credits to create this one. Check your subscription or add credits.";
                         showCreditErrorModal = true;
                     } else {
                         const renewalDate = profile?.subscription_expires

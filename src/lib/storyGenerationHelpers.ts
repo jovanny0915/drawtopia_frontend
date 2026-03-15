@@ -35,31 +35,95 @@ export function replacePlaceholders(text: string, replacements: { [key: string]:
 /**
  * Build story page prompt with story text, character action, and scene description
  */
-/** Temporary fixed prompt for main story page (page 1) on /adventure-story/loading. Set to null to use prompt builder again. */
-const TEMP_MAIN_STORY_PAGE_PROMPT: string | null =
-  "The girl main character image should be replaced and removed from the attached template image with the reference image character. Replace the main character of attached template image with the main character of template background image keeping the appearance of the reference image character. The replaced character should precisely match the pose, action, and emotions of the original main character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).";
-const TEMP_MAIN_STORY_PAGE_ALLY_CHARACTER_PROMPT: string | null =
-  "The fox ally character of template background image should be replaced with [ally_name] character. Replace the fox ally character of attached templage image with [ally_name] character keeping the original fox ally character. The replaced character should precisely match the pose, action, and emotions of the original fox ally character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).";
+/** World keys used for story page prompts (forest, outerspace, underwater). */
+type StoryWorldKey = 'forest' | 'outerspace' | 'underwater';
 
-const PAGE_ALLY_CHARACTER_PROMPTS: { [key: number]: string } = {
-  1: "Ally character - ally character should be not in this image.",
-  2: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
-  3: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
-  4: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
-  5: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character"
+/** Temporary fixed prompt for main story page. Set to null to use prompt builder again. */
+interface WorldStoryPagePrompts {
+  tempMainStoryPagePrompt: string | null;
+  tempMainStoryPageAllyCharacterPrompt: string | null;
+  pageAllyCharacterPrompts: { [key: number]: string };
+  pageMainCharacterPoseActionEmotionPrompts: { [key: number]: string };
+}
+
+const WORLD_STORY_PAGE_PROMPTS: Record<StoryWorldKey, WorldStoryPagePrompts> = {
+  forest: {
+    tempMainStoryPagePrompt:
+      "The boy main character image should be replaced and removed from the attached template image with the reference image character. Replace the main character of attached template image with the character of reference character image keeping the appearance of the reference image character. The replaced character should precisely match the pose, action, and emotions of the original main character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical outerspace template background, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
+    tempMainStoryPageAllyCharacterPrompt:
+      "The fox ally character of template background image should be replaced with [ally_name] character. Replace the fox ally character of attached templage image with [ally_name] character keeping the original fox ally character. The replaced character should precisely match the pose, action, and emotions of the original fox ally character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
+    pageAllyCharacterPrompts: {
+      1: "Ally character - ally character should be not in this image.",
+      2: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      3: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      4: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      5: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character"
+    },
+    pageMainCharacterPoseActionEmotionPrompts: {
+      1: "The character stands in a magical treehouse dwelling. The character's hands gently cupped as if holding or observing something delicate. And he/she seems to look at us. The placement of character stands in the a slightly left from center.",
+      2: "A bright-eyed, the adventurous character stands smiling at the stone entrance to a magical, glowing forest path. The character's ready for the journey, accompanied by a friendly ally character.",
+      3: "The character and fox ally companion character pause on a mossy stone path in a deeply enchanted, twilight forest. The character looks on with wide-eyed curiosity and a touch of awe, one hand slightly raised.",
+      4: "The character stands in a powerful, slightly crouched pose on a mystical forest path, actively casting a swirling, blue-green magic from he/her outstretched hand. The character's gaze is intensely focused forward. The character stands in the left of fox companion character.",
+      5: "The warm and welcoming character stands confidently on a cobblestone path before the open, ornate gates of a magnificent, brightly lit castle at night. With a radiant smile and open hands, the character gestures invitingly, accompanied by the character's happy fox companion. The character should stand on the left to the fox on my perspective."
+    }
+  },
+  outerspace: {
+    tempMainStoryPagePrompt:
+      "The main character image should be replaced and removed from the attached template image with the reference image character. Replace the main character of attached template image with the main character of template background image keeping the appearance of the reference image character. The replaced character should precisely match the pose, action, and emotions of the original main character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the cosmic space setting (spacecraft, stars, nebula), ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
+    tempMainStoryPageAllyCharacterPrompt:
+      "The glowing fox alley companion character of template background image should be replaced with [alley_name] character. Replace the ally character of attached template image with [alley_name] character keeping the original ally's pose and role. The replaced character should precisely match the pose, action, and emotions of the original ally character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new ally into the cosmic space setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
+    pageAllyCharacterPrompts: {
+      1: "Ally character - ally character should be not in this image.",
+      2: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      3: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      4: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      5: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character"
+    },
+    pageMainCharacterPoseActionEmotionPrompts: {
+      1: "A thoughtful the main character stands on a glowing, elevated platform. The main character's expression is one of slight worry or contemplation, with his right hand gently resting on his chin, seemingly lost in thought while observing the vast, star-filled nebula around him. He is positioned a little to the right of the image's center.",
+      2: "The main character space explorer is in mid-flight amidst a vibrant galaxy by accomplished with alley character. The main character has an expression of wonder and readiness for adventure, extending his hand slightly towards his companion character as they navigate the star-filled expanse, past distant spaceships and cosmic debris, towards a central swirling light.",
+      3: "An adventurous main character, a young boy in a futuristic space suit, floats through an asteroid field, holding a glowing sci-fi blaster. His expression is focused and determined, ready for action, accompanied by his luminous, fox-like alien companion who floats beside him. They are positioned in the middle of a dense field of asteroids and cosmic dust, with a vibrant purple nebula forming the backdrop.",
+      4: "A dynamic character, a boy in a sleek space suit, is caught in a moment of intense action, firing a vibrant energy weapon that illuminates the scene. His glowing spirit animal companion, a fox-like creature, floats protectively nearby. They are enveloped by swirling ribbons of cosmic energy and surrounded by a star-dusted asteroid field and a dramatic nebula, indicating a thrilling space encounter.",
+      5: "A joyful boy in a sleek, glowing-accented space suit stands with an open, inviting posture, engaging with his adorable, translucent blue fox-like creature. The creature, equally happy, reaches a paw towards the boy's hand. They are situated in the center of a spacious, futuristic room dominated by purple and blue neon lighting, vast observation windows, and a central glowing portal or device, conveying a moment of heartwarming companionship and discovery."
+    }
+  },
+  underwater: {
+    tempMainStoryPagePrompt:
+      "The main character image should be replaced and removed from the attached template image with the reference image character. Replace the main character of attached template image with the main character of template background image keeping the appearance of the reference image character. The replaced character should precisely match the pose, action, and emotions of the original main character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the underwater kingdom setting (coral, bioluminescence, clear water), ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
+    tempMainStoryPageAllyCharacterPrompt:
+      "The dolphin ally character (Coral) of template background image should be replaced with [ally_name] character. Replace the dolphin ally character of attached template image with [ally_name] character keeping the original dolphin ally's pose and role. The replaced character should precisely match the pose, action, and emotions of the original ally character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new ally into the underwater kingdom setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
+    pageAllyCharacterPrompts: {
+      1: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      2: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      3: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      4: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character",
+      5: "Ally character - ally character should be not removed in this image. Ally character of template background image must be replaced with [ally_name] character"
+    },
+    pageMainCharacterPoseActionEmotionPrompts: {
+      1: "The main character is underwater, amidst coral and sand. The character's left hand is extended towards alley companion character, seemingly interacting with it. The main character is looking towards the alley companion character. The character is positioned slightly to the left of the center and the alley companion character is positioned slightly to the right of the center.",
+      2: "The main character is underwater, swimming alongside the alley companion character with coral and rocks in the background. The main character's right hand is placed on their chest, and their left arm is slightly extended forward. The main character is looking towards the right side of the image. The character is positioned to the left of the center and the alley companion character is positioned to the left of the character.",
+      3: "The main character is underwater in what appears to be ancient ruins, holding a glowing staff with alley companion character. The character's left arm is extended forward, holding the staff, and their right arm is slightly bent at the elbow. The character is looking towards the left side of the image with a determined expression. The character is positioned to the left of the center and the alley character is positioned to the right of the center.",
+      4: "The main character is underwater in a vibrant coral reef, generating a swirling magical effect with their hands. Both of the character's arms are extended upwards and outwards, creating the magical swirl. The main character is looking towards the upper left of the image with alley companion character. The main character is positioned to the left of the center and the alley companion character is positioned in the center.",
+      5: "The main character is sitting cross-legged on the floor of an elegant underwater structure, high-fiving the alley companion character. Both of the character's hands are raised in a high-five gesture with the alley companion character. The main character is looking towards the alley companion character. The main character and the alley companion character are  positioned to the left of the center and the alley companion character is right to the main character."
+    }
+  }
 };
 
-const PAGE_MAIN_CHARACTER_POSE_ACTION_EMOTION_PROMPTS: { [key: number]: string } = {
-  1: "The character stands in a magical treehouse dwelling. The character's hands gently cupped as if holding or observing something delicate. And he/she seems to look at us. The placement of character stands in the a slightly left from center.",
-  2: "A bright-eyed, the adventurous character stands smiling at the stone entrance to a magical, glowing forest path. The character's ready for the journey, accompanied by a friendly ally character.",
-  3: "The character and fox ally companion character pause on a mossy stone path in a deeply enchanted, twilight forest. The character looks on with wide-eyed curiosity and a touch of awe, one hand slightly raised.",
-  4: "The character stands in a powerful, slightly crouched pose on a mystical forest path, actively casting a swirling, blue-green magic from he/her outstretched hand. The character's gaze is intensely focused forward. The character stands in the left of fox companion character.",
-  5: "The warm and welcoming character stands confidently on a cobblestone path before the open, ornate gates of a magnificent, brightly lit castle at night. With a radiant smile and open hands, the character gestures invitingly, accompanied by the character's happy fox companion. The character should stand on the left to the fox on my perspective."
-};
+function getWorldKeyForPrompts(storyWorld: string): StoryWorldKey {
+  const lower = (storyWorld || '').toLowerCase();
+  if (lower.includes('forest') || lower === 'enchanted-forest' || lower === 'enchanted_forest') return 'forest';
+  if (lower.includes('underwater') || lower.includes('kingdom')) return 'underwater';
+  if (lower.includes('space') || lower.includes('outer')) return 'outerspace';
+  return 'forest';
+}
 
-function appendPageSpecificStoryRules(basePrompt: string, pageNumber: number): string {
-  const allyPrompt = PAGE_ALLY_CHARACTER_PROMPTS[pageNumber];
-  const posePrompt = PAGE_MAIN_CHARACTER_POSE_ACTION_EMOTION_PROMPTS[pageNumber];
+function appendPageSpecificStoryRules(
+  basePrompt: string,
+  pageNumber: number,
+  worldPrompts: WorldStoryPagePrompts
+): string {
+  const allyPrompt = worldPrompts.pageAllyCharacterPrompts[pageNumber];
+  const posePrompt = worldPrompts.pageMainCharacterPoseActionEmotionPrompts[pageNumber];
   const sections: string[] = [basePrompt];
 
   if (allyPrompt) {
@@ -128,18 +192,21 @@ export function buildStoryPagePrompt(
     characterImageUrl: string;
   }
 ): string {
+  const worldKey = getWorldKeyForPrompts(options.storyWorld);
+  const worldPrompts = WORLD_STORY_PAGE_PROMPTS[worldKey];
+
   const allyName = resolveAllyNameFromPromptData(options.storyTheme, options.ageGroup);
-  const allyReplacementPrompt = TEMP_MAIN_STORY_PAGE_ALLY_CHARACTER_PROMPT
-    ? TEMP_MAIN_STORY_PAGE_ALLY_CHARACTER_PROMPT.replace(/\[ally_name\]/g, allyName)
+  const allyReplacementPrompt = worldPrompts.tempMainStoryPageAllyCharacterPrompt
+    ? worldPrompts.tempMainStoryPageAllyCharacterPrompt.replace(/\[ally_name\]/g, allyName)
     : null;
 
   // TEMPORARY: use fixed base prompt for story page generation on /adventure-story/loading.
-  // Unset TEMP_MAIN_STORY_PAGE_PROMPT (set to null) to use the prompt builder again.
-  if (TEMP_MAIN_STORY_PAGE_PROMPT != null) {
+  // Set tempMainStoryPagePrompt to null in a world to use the prompt builder again for that world.
+  if (worldPrompts.tempMainStoryPagePrompt != null) {
     const fixedPrompt = allyReplacementPrompt
-      ? `${TEMP_MAIN_STORY_PAGE_PROMPT}\n\n${allyReplacementPrompt}`
-      : TEMP_MAIN_STORY_PAGE_PROMPT;
-    return appendPageSpecificStoryRules(fixedPrompt, pageNumber);
+      ? `${worldPrompts.tempMainStoryPagePrompt}\n\n${allyReplacementPrompt}`
+      : worldPrompts.tempMainStoryPagePrompt;
+    return appendPageSpecificStoryRules(fixedPrompt, pageNumber, worldPrompts);
   }
 
   const derivedEmotion = generateCharacterEmotion(pageNumber, storyText);
@@ -165,12 +232,12 @@ export function buildStoryPagePrompt(
     characterPlacement: 'left-half'
   });
 
-  const basePromptWithRules = `${prompt}\n\nTEMPLATE LOCK (HIGHEST PRIORITY):\n- Keep the provided template artwork structurally unchanged.\n- Do not redesign background layout, props, perspective, camera, or composition.\n- If any instruction conflicts with template preservation, preserve the template and adapt only character integration.\n- Mood/style updates must be subtle and global (light/tone/color grading), not repainting.\n\nSTORY-TO-SCENE MAPPING (SECOND PRIORITY):\n- Use the exact page story text as the source of truth for action, emotion, and atmosphere.\n- Keep expressions, body language, and lighting aligned with this page's emotional beat.\n- If the story text implies calm or sleep, prefer gentle, natural poses over exaggerated action.\n\nPAGE STORY TEXT (SOURCE OF TRUTH):\n${storyText}\n\nSCENE SIGNALS DERIVED FROM STORY:\n- Character Action: ${characterAction}\n- Character Emotion: ${derivedEmotion}\n- Atmosphere: ${derivedAtmosphere}\n\nPOSE CONSTRAINTS:\n- Avoid static front-facing, T-pose, idle, or reference-sheet poses.\n- Use movement and posture that match the story beat (active, gentle, or sleepy as needed).\n- Body language and facial expression must reinforce the page emotion.\n\nFACIAL CONSISTENCY (CRITICAL ACROSS PAGES 1-5):\n- Keep the same core facial features from the reference in every story scene (face shape, eyes, eyebrows, nose, mouth, ears).\n- Do not add, remove, or swap facial features between pages (example: if the character has a visible nose, it must remain visible in all main story scenes).\n- Maintain recognizable facial proportions and feature placement while only changing expression for the page emotion.\n\nCOMPANION CONSTRAINTS:\n- Always include the fox companion with the main character in every story scene page (1-5).\n- The fox companion should be clearly visible and naturally interacting with the main character.\n\nLAYOUT CONSTRAINTS:\n- Always position the main character on the LEFT HALF of the page scene (for story pages 1-5).\n- Keep the character fully within the left half and preserve template composition.`;
+  const basePromptWithRules = `${prompt}\n\nTEMPLATE LOCK (HIGHEST PRIORITY):\n- Keep the provided template artwork structurally unchanged.\n- Do not redesign background layout, props, perspective, camera, or composition.\n- If any instruction conflicts with template preservation, preserve the template and adapt only character integration.\n- Mood/style updates must be subtle and global (light/tone/color grading), not repainting.\n\nSTORY-TO-SCENE MAPPING (SECOND PRIORITY):\n- Use the exact page story text as the source of truth for action, emotion, and atmosphere.\n- Keep expressions, body language, and lighting aligned with this page's emotional beat.\n- If the story text implies calm or sleep, prefer gentle, natural poses over exaggerated action.\n\nPAGE STORY TEXT (SOURCE OF TRUTH):\n${storyText}\n\nSCENE SIGNALS DERIVED FROM STORY:\n- Character Action: ${characterAction}\n- Character Emotion: ${derivedEmotion}\n- Atmosphere: ${derivedAtmosphere}\n\nPOSE CONSTRAINTS:\n- Avoid static front-facing, T-pose, idle, or reference-sheet poses.\n- Use movement and posture that match the story beat (active, gentle, or sleepy as needed).\n- Body language and facial expression must reinforce the page emotion.\n\nFACIAL CONSISTENCY (CRITICAL ACROSS PAGES 1-5):\n- Keep the same core facial features from the reference in every story scene (face shape, eyes, eyebrows, nose, mouth, ears).\n- Do not add, remove, or swap facial features between pages (example: if the character has a visible nose, it must remain visible in all main story scenes).\n- Maintain recognizable facial proportions and feature placement while only changing expression for the page emotion.\n\nCOMPANION CONSTRAINTS:\n- Always include the ally companion with the main character in every story scene page (1-5).\n- The ally companion should be clearly visible and naturally interacting with the main character.\n\nLAYOUT CONSTRAINTS:\n- Always position the main character on the LEFT HALF of the page scene (for story pages 1-5).\n- Keep the character fully within the left half and preserve template composition.`;
   const promptWithAllyReplacement = allyReplacementPrompt
     ? `${basePromptWithRules}\n\n${allyReplacementPrompt}`
     : basePromptWithRules;
 
-  return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber);
+  return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber, worldPrompts);
 }
 
 /**
