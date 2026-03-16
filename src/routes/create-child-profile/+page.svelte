@@ -207,7 +207,7 @@
     //   type: 'success',
     //   message: 'Child profiles saved successfully! Redirecting to dashboard...'
     // });
-    goto("/gift/1");
+    goto("/dashboard");
   };
 
   const handleSaveChild = (data: {
@@ -255,9 +255,9 @@
   <div class="profile-creation-default">
     <div class="main-pane">
       <div class="navbar" style="justify-content: center;">
-        <div class="logo-text-full">
+        <a href="/dashboard" class="logo-text-full logo-link" aria-label="Go to dashboard">
           <div class="logo-img"></div>
-        </div>
+        </a>
       </div>
       <MobileBackBtn backText="Back" backRoute="/dashboard" />
       <div class="back-btn-container">
@@ -554,6 +554,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  .logo-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
   }
   .logo-img {
     background-image: url("../../assets/logo.webp");
