@@ -126,9 +126,9 @@ function appendPageSpecificStoryRules(
   const posePrompt = worldPrompts.pageMainCharacterPoseActionEmotionPrompts[pageNumber];
   const sections: string[] = [basePrompt];
 
-  if (allyPrompt) {
-    sections.push(`PAGE-SPECIFIC ALLY CHARACTER RULE:\n- ${allyPrompt}`);
-  }
+  // if (allyPrompt) {
+  //   }sections.push(`PAGE-SPECIFIC ALLY CHARACTER RULE:\n- ${allyPrompt`);
+  // }
   if (posePrompt) {
     sections.push(`PAGE-SPECIFIC MAIN CHARACTER POSE/ACTION/EMOTION RULE:\n- ${posePrompt}`);
   }
@@ -204,7 +204,8 @@ export function buildStoryPagePrompt(
   // Set tempMainStoryPagePrompt to null in a world to use the prompt builder again for that world.
   if (worldPrompts.tempMainStoryPagePrompt != null) {
     const fixedPrompt = allyReplacementPrompt
-      ? `${worldPrompts.tempMainStoryPagePrompt}\n\n${allyReplacementPrompt}`
+      // ? `${worldPrompts.tempMainStoryPagePrompt}\n\n${allyReplacementPrompt}`
+      ? `${worldPrompts.tempMainStoryPagePrompt}`
       : worldPrompts.tempMainStoryPagePrompt;
     return appendPageSpecificStoryRules(fixedPrompt, pageNumber, worldPrompts);
   }
