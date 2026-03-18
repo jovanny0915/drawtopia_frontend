@@ -9,6 +9,7 @@
   import { browser } from "$app/environment";
   import { onMount } from "svelte";
   import spinner from "../../../assets/Spinner.svg";
+  import logo from "../../../assets/white-logo.webp";
   import { storyCreation } from "../../../lib/stores/storyCreation";
   import { saveSelectedImageUrl, generateCoverImageWithTemplate, overlayCoverTitleOnImage } from "../../../lib/imageGeneration";
   import { generateStoryTitles } from "../../../lib/api/storyTitles";
@@ -311,10 +312,12 @@
           {:else if selectedImageFromStep6}
             <div class="cover-preview-wrapper">
               <img
-                class="image"
+                class="image step7-cover-main-image"
                 src={selectedImageFromStep6}
-                alt="image_card_1"
+                alt="Story cover preview"
               />
+              <div class="cover-logo-blur-layer" aria-hidden="true"></div>
+              <img src={logo} alt="Drawtopia logo" class="cover-bottom-logo" />
             </div>
           {:else}
             <div class="no-cover-placeholder">
@@ -848,12 +851,6 @@
     background: #cccccc;
   }
 
-  .image {
-    position: relative;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-  }
-
   .coverbookpreview_span {
     color: black;
     font-size: 20px;
@@ -867,11 +864,16 @@
     text-align: center;
   }
 
-  .image {
+  .image.step7-cover-main-image {
     align-self: center;
+    display: block;
+    width: 100%;
     height: 837px;
+    object-fit: contain;
     position: relative;
     border-radius: 12px;
+    z-index: 1;
+    pointer-events: none;
   }
 
   .cover-preview-wrapper {
@@ -879,6 +881,34 @@
     display: inline-flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
+    border-radius: 12px;
+    max-width: 100%;
+  }
+
+  .cover-logo-blur-layer {
+    position: absolute;
+    left: 50%;
+    bottom: 32px;
+    transform: translateX(-50%);
+    width: clamp(96px, 26%, 170px);
+    height: clamp(96px, 26%, 170px);
+    border-radius: 50%;
+    background: #44789e;
+    filter: blur(40px);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .cover-bottom-logo {
+    position: absolute;
+    left: 50%;
+    bottom: 50px;
+    transform: translateX(-50%);
+    width: clamp(120px, 30%, 190px);
+    height: auto;
+    z-index: 3;
+    pointer-events: none;
   }
 
 
@@ -1358,8 +1388,20 @@
       justify-content: center;
     }
 
-    .image {
+    .image.step7-cover-main-image {
       height: 400px;
+    }
+
+    .cover-logo-blur-layer {
+      bottom: 4px;
+      width: clamp(72px, 30%, 120px);
+      height: clamp(72px, 30%, 120px);
+      filter: blur(28px);
+    }
+
+    .cover-bottom-logo {
+      bottom: 14px;
+      width: clamp(96px, 34%, 150px);
     }
 
     .coverbookpreview_span,

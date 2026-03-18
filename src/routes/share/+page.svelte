@@ -578,8 +578,9 @@
                 class="cover-main-image"
                 draggable="false"
               />
-              <img src={logo} alt="Drawtopia logo" class="cover-bottom-logo" />
+              <div class="cover-logo-blur-layer" aria-hidden="true"></div>
               <div class="inner-shadow"></div>
+              <img src={logo} alt="Drawtopia logo" class="cover-bottom-logo" />
             </div>
           </div>
         {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'COPYRIGHT_DEDICATION_PAGE'}
@@ -985,6 +986,20 @@
     z-index: 1;
   }
 
+  .cover-logo-blur-layer {
+    position: absolute;
+    left: 50%;
+    bottom: 6px;
+    transform: translateX(-50%);
+    width: clamp(88px, 26%, 150px);
+    height: clamp(88px, 26%, 150px);
+    border-radius: 50%;
+    background: #44789e;
+    filter: blur(36px);
+    pointer-events: none;
+    z-index: 1;
+  }
+
   .cover-bottom-logo {
     position: absolute;
     left: 50%;
@@ -992,7 +1007,7 @@
     transform: translateX(-50%);
     width: clamp(96px, 30%, 140px);
     height: auto;
-    z-index: 2;
+    z-index: 3;
     pointer-events: none;
   }
 
@@ -1756,6 +1771,13 @@
       width: 100%;
       max-width: 100%;
       min-height: 60dvh;
+    }
+
+    .cover-logo-blur-layer {
+      bottom: 0;
+      width: clamp(64px, 28%, 100px);
+      height: clamp(64px, 28%, 100px);
+      filter: blur(24px);
     }
 
     .cover-bottom-logo {
