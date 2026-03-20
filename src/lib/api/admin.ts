@@ -7,10 +7,21 @@ import { env } from '$lib/env';
 
 const API_URL = env.API_BASE_URL;
 
+export type TemplateStoryStyle =
+  | '3d'
+  | 'anime'
+  | 'cartoon'
+  | 'story'
+  | 'search'
+  | 'adventure'
+  | 'search-and-find';
+
 export interface BookTemplate {
   id: string;
   name: string;
   story_world?: 'forest' | 'underwater' | 'outerspace';
+  story_style?: TemplateStoryStyle | string;
+  story_type?: TemplateStoryStyle | string;
   cover_image?: string;
   copyright_page_image?: string;
   dedication_page_image?: string;
@@ -249,11 +260,19 @@ export async function getTemplates(): Promise<ApiResponse<BookTemplate[]>> {
  * Uses backend service-level DB access, avoiding frontend RLS visibility issues.
  */
 export async function getRandomTemplateByStoryWorld(
-  storyWorld: 'forest' | 'underwater' | 'outerspace'
+  storyWorld: 'forest' | 'underwater' | 'outerspace',
+  storyStyle?: string
 ): Promise<ApiResponse<BookTemplate>> {
   try {
+    const query = new URLSearchParams({
+      story_world: storyWorld
+    });
+    if (storyStyle && storyStyle.trim()) {
+      query.set('story_style', storyStyle.trim().toLowerCase());
+    }
+
     const response = await fetch(
-      `${API_URL}/templates/random?story_world=${encodeURIComponent(storyWorld)}`,
+      `${API_URL}/templates/random?${query.toString()}`,
       {
         method: 'GET',
         headers: {
@@ -293,14 +312,18 @@ export async function getRandomTemplateByStoryWorld(
 /**
  * Create a new book template
  */
-export async function createTemplate(name: string, storyWorld?: 'forest' | 'underwater' | 'outerspace'): Promise<ApiResponse<BookTemplate>> {
+export async function createTemplate(
+  name: string,
+  storyWorld?: 'forest' | 'underwater' | 'outerspace',
+  storyStyle?: TemplateStoryStyle | string
+): Promise<ApiResponse<BookTemplate>> {
   try {
     const response = await fetch(`${API_URL}/admin/templates`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ name, story_world: storyWorld })
+      body: JSON.stringify({ name, story_world: storyWorld, story_style: storyStyle })
     });
 
     if (!response.ok) {
@@ -363,14 +386,12 @@ export async function deleteTemplate(templateId: string): Promise<ApiResponse<vo
 export async function uploadTemplateImage(
   templateId: string,
   file: File,
-  fieldKey: string,
-  templateName: string
+  fieldKey: string
 ): Promise<ApiResponse<BookTemplate>> {
   try {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('field_key', fieldKey);
-    formData.append('template_name', templateName);
 
     const response = await fetch(`${API_URL}/admin/templates/${templateId}/upload-image`, {
       method: 'POST',
@@ -404,13 +425,11 @@ export async function uploadTemplateImage(
 export async function uploadStoryPage(
   templateId: string,
   file: File,
-  templateName: string,
   pageIndex: number
 ): Promise<ApiResponse<BookTemplate>> {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('template_name', templateName);
     formData.append('page_index', pageIndex.toString());
 
     const response = await fetch(`${API_URL}/admin/templates/${templateId}/upload-story-page`, {
@@ -445,7 +464,6 @@ export async function uploadStoryPage(
 export async function uploadStoryPages(
   templateId: string,
   files: File[],
-  templateName: string,
   existingImages: string[]
 ): Promise<ApiResponse<BookTemplate>> {
   try {
@@ -457,7 +475,7 @@ export async function uploadStoryPages(
       const pageIndex = startIndex + i;
       const file = files[i];
       
-      const result = await uploadStoryPage(templateId, file, templateName, pageIndex);
+      const result = await uploadStoryPage(templateId, file, pageIndex);
       
       if (!result.success || result.error) {
         return {
@@ -562,6 +580,8 @@ export async function updateTemplate(
   updates: {
     name?: string;
     story_world?: 'forest' | 'underwater' | 'outerspace' | null;
+    story_style?: TemplateStoryStyle | string | null;
+    story_type?: TemplateStoryStyle | string | null;
     cover_image?: string | null;
     copyright_page_image?: string | null;
     dedication_page_image?: string | null;

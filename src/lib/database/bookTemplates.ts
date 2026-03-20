@@ -3,7 +3,7 @@
  * Templates store image URLs for book pages.
  * 
  * Storage Structure:
- * All images are stored in: book-images/book-templates/[template-name]/
+ * All images are stored in: book-images/book-templates/[template-id]/
  * - cover_image.webp
  * - copyright_page_image.webp
  * - dedication_page_image.webp
@@ -20,19 +20,25 @@ export interface BookTemplate {
   name: string;
   /** Story world theme: forest, underwater, or outerspace */
   story_world?: 'forest' | 'underwater' | 'outerspace';
-  /** URL to cover image stored in Supabase storage at: book-templates/[template-name]/cover_image.* */
+  /**
+   * Story template type/style metadata.
+   * Legacy values: 3d, anime, cartoon
+   * Current values may include: story/adventure or interactive/search-and-find
+   */
+  story_style?: string;
+  /** URL to cover image stored in Supabase storage at: book-templates/[template-id]/cover_image.* */
   cover_image?: string;
-  /** URL to copyright page image stored in Supabase storage at: book-templates/[template-name]/copyright_page_image.* */
+  /** URL to copyright page image stored in Supabase storage at: book-templates/[template-id]/copyright_page_image.* */
   copyright_page_image?: string;
-  /** URL to dedication page image stored in Supabase storage at: book-templates/[template-name]/dedication_page_image.* */
+  /** URL to dedication page image stored in Supabase storage at: book-templates/[template-id]/dedication_page_image.* */
   dedication_page_image?: string;
-  /** Array of URLs to story page images stored in Supabase storage at: book-templates/[template-name]/story-page-[N].* */
+  /** Array of URLs to story page images stored in Supabase storage at: book-templates/[template-id]/story-page-[N].* */
   story_page_images?: string[];
-  /** URL to last words page image (left half of final spread) at: book-templates/[template-name]/last_words_page_image.* */
+  /** URL to last words page image (left half of final spread) at: book-templates/[template-id]/last_words_page_image.* */
   last_words_page_image?: string;
-  /** URL to last story/admin page image (right half of final spread) at: book-templates/[template-name]/last_story_page_image.* */
+  /** URL to last story/admin page image (right half of final spread) at: book-templates/[template-id]/last_story_page_image.* */
   last_story_page_image?: string;
-  /** URL to back cover image stored in Supabase storage at: book-templates/[template-name]/back_cover_image.* */
+  /** URL to back cover image stored in Supabase storage at: book-templates/[template-id]/back_cover_image.* */
   back_cover_image?: string;
   created_at?: string;
 }
@@ -40,6 +46,7 @@ export interface BookTemplate {
 export interface BookTemplateInsert {
   name: string;
   story_world?: 'forest' | 'underwater' | 'outerspace';
+  story_style?: string;
   cover_image?: string;
   copyright_page_image?: string;
   dedication_page_image?: string;

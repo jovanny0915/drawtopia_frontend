@@ -83,6 +83,17 @@
     }
     return { body: raw, signature: '' };
   })();
+
+  $: isUnderwaterTheme = (() => {
+    const s = storyWorldRaw.toLowerCase();
+    return s === 'underwater' || s.includes('underwater');
+  })();
+
+  /** Space / outer space stories: no decorative blur on copyright, dedication, special thanks, or last admin spreads. */
+  $: isSpaceTheme = (() => {
+    const s = String(storyWorldRaw || '').toLowerCase();
+    return s.includes('outerspace') || s.includes('space');
+  })();
   
   // Last words + admin last spread and back cover
   let lastWordPageImage = '';
@@ -90,6 +101,8 @@
   let backCoverImage = '';
   let backCoverAgeText = '[Age 6-12]';
   let hasLastWordsAdmin = false;
+  /** Raw `story_world` from DB (may be a short key or a longer label). */
+  let storyWorldRaw = '';
 
   // Audio playback state
   let audioUrls: string[] = []; // Array of audio URLs from database
@@ -223,6 +236,7 @@
         // Check if story has been purchased
         // Ensure we properly check the purchased field from the database
         const storyData = Array.isArray(story) ? story[0] : story;
+        storyWorldRaw = String(storyData?.story_world ?? '');
         isPurchased = storyData?.purchased === true;
         console.log("[preview] Story purchased status:", isPurchased);
         console.log("[preview] Story ID:", currentStoryId);
@@ -1079,11 +1093,13 @@
                       </div>
                     {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'COPYRIGHT_DEDICATION_PAGE'}
                       <!-- Copyright/Dedication Page: Left copyright text page, Right dedication image and text -->
-                      <div class="mobile-image-split" style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
+                      <div class="mobile-image-split" class:world-underwater={isUnderwaterTheme} style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left dedication-blank copyright-page-wrapper" style="position: relative;">
                           <div class="copyright-page-bg" style={copyrightImage ? `background-image: url(${copyrightImage});` : ''}></div>
-                          <div class="center-blur-decoration" aria-hidden="true"></div>
-                          <div class="copyright-page-right-blur" aria-hidden="true"></div>
+                          {#if !isSpaceTheme}
+                            <div class="center-blur-decoration" aria-hidden="true"></div>
+                            <div class="copyright-page-right-blur" aria-hidden="true"></div>
+                          {/if}
                           <div class="copyright-page-content">
                             <div class="copyright-page-text-container">
                               <p class="copyright-page-p">This one-of-a-kind adventure story<br />was created just for <b style="font-weight: 800; font-size: 1.2rem;">{copyrightChildName}</b>.</p>
@@ -1096,7 +1112,9 @@
                         </div>
                         <div class="mobile-image-half mobile-image-right dedication-page dedication-page-wrapper">
                           <div class="dedication-page-bg" style={dedicationImage ? `background-image: url(${dedicationImage});` : ''}></div>
-                          <div class="dedication-page-left-blur" aria-hidden="true"></div>
+                          {#if !isSpaceTheme}
+                            <div class="dedication-page-left-blur" aria-hidden="true"></div>
+                          {/if}
                           <div class="dedication-page-content">
                             {#if dedicationParsed.body}
                               <p class="dedication-body">{dedicationParsed.body}</p>
@@ -1111,12 +1129,14 @@
                       </div>
                     {:else if hasLastWordsAdmin && storyScenes[currentSceneIndex] === 'LAST_WORDS_ADMIN_PAGE'}
                       <!-- One page: left half = last words (thank you), right half = last admin (thank you) - side by side -->
-                      <div class="mobile-image-split last-words-admin-one-page" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
+                      <div class="mobile-image-split last-words-admin-one-page" class:world-underwater-last-spread={isUnderwaterTheme} class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
                         <!-- Last word page (left): thank-you text overlay -->
                         <div class="mobile-image-half mobile-image-left last-words-page-wrapper" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image">
                             <div class="last-words-page-bg" style={lastWordPageImage ? `background-image: url(${lastWordPageImage});` : ''}></div>
-                            <div class="center-blur-decoration" aria-hidden="true"></div>
+                            {#if !isSpaceTheme}
+                              <div class="center-blur-decoration" aria-hidden="true"></div>
+                            {/if}
                             <div class="last-words-page-content">
                               <h2 class="last-words-page-title">A Special Thank You</h2>
                               <p class="last-words-page-body">This magical adventure wouldn't exist without the incredible imagination of {copyrightChildName}. Thank you for sharing your creativity with the world!</p>
@@ -1136,7 +1156,9 @@
                         <div class="mobile-image-half mobile-image-right last-admin-page-wrapper" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image_01" style="position: relative;">
                             <div class="last-admin-page-bg" style={lastAdminPageImage ? `background-image: url(${lastAdminPageImage});` : ''}></div>
-                            <div class="last-admin-page-left-blur" aria-hidden="true"></div>
+                            {#if !isSpaceTheme}
+                              <div class="last-admin-page-left-blur" aria-hidden="true"></div>
+                            {/if}
                             <div style="z-index: 1; display: flex; justify-content: center;">
                               <img src={logo} alt="Drawtopia" class="last-admin-page-logo" style="position: absolute; justify-self: anchor-center;" />
                               <div class="last-admin-page-content">
@@ -1275,9 +1297,9 @@
                                 </div>
                               </div>
                               {#if showStoryTextOverlay}
-                                <div class="story-main-text-overlay" class:story-main-text-overlay-top={!isFirstStoryPage} class:story-main-text-overlay-bottom={isFirstStoryPage}>
-                                  <div class="story-main-text-blur-layer"></div>
-                                  <p class="story-main-text">{currentPageText}</p>
+                                <div class="story-main-text-overlay" class:story-world-underwater={isUnderwaterTheme} class:story-main-text-overlay-top={!isFirstStoryPage} class:story-main-text-overlay-bottom={isFirstStoryPage}>
+                                  <div class="story-main-text-blur-layer" class:story-world-underwater={isUnderwaterTheme} class:underwater-story-page-3={isUnderwaterTheme && currentStoryPageNumber === 3}></div>
+                                  <p class="story-main-text" class:story-world-underwater={isUnderwaterTheme} class:story-world-outerspace={isSpaceTheme && currentStoryPageNumber >= 1 && currentStoryPageNumber <= 5} class:underwater-story-page-3={isUnderwaterTheme && currentStoryPageNumber === 3}>{currentPageText}</p>
                                 </div>
                               {/if}
                               <div class="inner-shadow"></div>
@@ -1326,9 +1348,9 @@
                               </div>
                             </div>
                             {#if showStoryTextOverlay}
-                              <div class="story-main-text-overlay" class:story-main-text-overlay-top={!isFirstStoryPage} class:story-main-text-overlay-bottom={isFirstStoryPage}>
-                                <div class="story-main-text-blur-layer"></div>
-                                <p class="story-main-text">{currentPageText}</p>
+                              <div class="story-main-text-overlay" class:story-world-underwater={isUnderwaterTheme} class:story-main-text-overlay-top={!isFirstStoryPage} class:story-main-text-overlay-bottom={isFirstStoryPage}>
+                                <div class="story-main-text-blur-layer" class:story-world-underwater={isUnderwaterTheme} class:underwater-story-page-3={isUnderwaterTheme && currentStoryPageNumber === 3}></div>
+                                <p class="story-main-text" class:story-world-underwater={isUnderwaterTheme} class:story-world-outerspace={isSpaceTheme && currentStoryPageNumber >= 1 && currentStoryPageNumber <= 5} class:underwater-story-page-3={isUnderwaterTheme && currentStoryPageNumber === 3}>{currentPageText}</p>
                               </div>
                             {/if}
                             <div class="inner-shadow"></div>
@@ -2867,6 +2889,51 @@
     overflow: hidden;
   }
 
+  .story-main-text.story-world-outerspace {
+    color: #ffffff;
+  }
+
+  /* Underwater: main story text (spec: Quicksand 700, #0E2C54, 64px/80px — scaled for preview viewport) */
+  .story-main-text-overlay.story-world-underwater {
+    justify-content: flex-end;
+    padding-bottom: clamp(12px, 4vmin, 48px);
+    box-sizing: border-box;
+  }
+
+  .story-main-text-blur-layer.story-world-underwater {
+    background: rgba(186, 224, 236, 0.5);
+    filter: blur(56px);
+  }
+
+  .story-main-text.story-world-underwater {
+    color: #0e2c54;
+    font-weight: 700;
+    font-size: clamp(0.8rem, 2.6vmin, 1.35rem);
+    line-height: 1.25;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.45);
+  }
+
+  .story-main-text.story-world-underwater.underwater-story-page-3 {
+    color: #ffffff;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .story-main-text-blur-layer.story-world-underwater.underwater-story-page-3 {
+    background: rgba(14, 44, 84, 0.35);
+    filter: blur(56px);
+  }
+
+  /* Underwater: dedication + copyright — solid white on scene backgrounds */
+  .world-underwater .copyright-page-p,
+  .world-underwater .copyright-page-footer {
+    color: #ffffff;
+  }
+
+  .world-underwater .dedication-body,
+  .world-underwater .dedication-signature {
+    color: #ffffff;
+  }
+
   .frame-1410104063 {
     flex-direction: column;
     justify-content: flex-start;
@@ -3003,14 +3070,12 @@
 
   .cover-logo-blur-layer {
     position: absolute;
-    left: 50%;
-    bottom: 32px;
-    transform: translateX(-50%);
-    width: clamp(96px, 26%, 170px);
-    height: clamp(96px, 26%, 170px);
-    border-radius: 50%;
-    background: #44789e;
-    filter: blur(40px);
+    width: 100%;
+    height: 150px;
+    bottom: 0;
+    background: linear-gradient(180.18deg, #1b3b7b 0.15%, rgba(27, 59, 123, 0) 99.84%);
+    backdrop-filter: blur(0px);
+    transform: matrix(1, 0, 0, -1, 0, 0);
     pointer-events: none;
     z-index: 1;
   }
@@ -3526,6 +3591,37 @@
     text-decoration-skip-ink: none;
   }
 
+  /* Underwater: thank-you + last-admin spread — navy text on bright scene art */
+  .world-underwater-last-spread .last-words-page-title,
+  .world-underwater-last-spread .last-admin-page-title {
+    color: #0e2c54;
+  }
+
+  .world-underwater-last-spread .last-words-page-body,
+  .world-underwater-last-spread .last-admin-page-body,
+  .world-underwater-last-spread .last-words-page-tagline,
+  .world-underwater-last-spread .last-admin-page-tagline {
+    color: #0e2c54;
+  }
+
+  .world-underwater-last-spread .last-admin-page-tagline {
+    text-decoration-color: #0e2c54;
+  }
+
+  .world-underwater-last-spread .last-admin-page-logo {
+    filter: brightness(0) saturate(100%) invert(12%) sepia(55%) saturate(1200%) hue-rotate(167deg);
+  }
+
+  /* Underwater last spread: blur/decoration layer color only (size, blur filter unchanged) */
+  .world-underwater-last-spread .center-blur-decoration {
+    background: linear-gradient(270deg, #89e4df 0%, rgba(137, 228, 223, 0) 100%);
+    transform: matrix(-1, 0, 0, 1, 0, 0);
+  }
+
+  .world-underwater-last-spread .last-admin-page-left-blur {
+    background: linear-gradient(270deg, #89e4df 0%, rgba(137, 228, 223, 0) 100%);
+  }
+
   /* Back cover: background image + text overlay (layout matches design) */
   .back-cover-wrapper {
     position: relative;
@@ -3564,7 +3660,7 @@
     height: 40%;
     /* left: calc(50% - 2550px / 2); */
     top: 0;
-    background: linear-gradient(180.18deg, #5b99af 0.15%, rgba(91, 153, 175, 0) 99.84%);
+    background: linear-gradient(180.18deg, #1b3b7b 0.15%, rgba(27, 59, 123, 0) 99.84%);
     backdrop-filter: blur(0px);
     pointer-events: none;
     z-index: -2;
@@ -3576,7 +3672,7 @@
     height: 40%;
     /* left: calc(50% - 2550px / 2); */
     bottom: 0;
-    background: linear-gradient(180.18deg, #5b99af 0.15%, rgba(91, 153, 175, 0) 99.84%);
+    background: linear-gradient(180.18deg, #1b3b7b 0.15%, rgba(27, 59, 123, 0) 99.84%);
     backdrop-filter: blur(0px);
     transform: matrix(1, 0, 0, -1, 0, 0);
     pointer-events: none;
@@ -3896,10 +3992,11 @@
     }
 
     .cover-logo-blur-layer {
-      bottom: 4px;
-      width: clamp(72px, 30%, 120px);
-      height: clamp(72px, 30%, 120px);
-      filter: blur(28px);
+      width: 100%;
+      height: 150px;
+      bottom: 0;
+      backdrop-filter: blur(0px);
+      transform: matrix(1, 0, 0, -1, 0, 0);
     }
 
     .cover-bottom-logo {
@@ -4008,6 +4105,11 @@
     .story-main-text {
       font-size: 0.8rem;
       line-height: 1;
+    }
+
+    .story-main-text.story-world-underwater {
+      font-size: clamp(0.72rem, 3.4vw, 0.95rem);
+      line-height: 1.25;
     }
     .last-words-page-content {
       max-width: 70%;

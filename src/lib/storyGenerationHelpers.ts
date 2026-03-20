@@ -49,7 +49,7 @@ interface WorldStoryPagePrompts {
 const WORLD_STORY_PAGE_PROMPTS: Record<StoryWorldKey, WorldStoryPagePrompts> = {
   forest: {
     tempMainStoryPagePrompt:
-      "Replace the main girl/boy character of template background image with the character of reference character image keeping the appearance of the reference image character. When replacing and integrating, the pose of emotions of the character of reference character image must be not kept. The replaced character should precisely match the pose, action, appearance (facial and body features), emotions, scale and size and height of the original girl/boy main character of the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Just integrate the character of the reference character image into the template background image as the new main character instead of original boy main character  keeping the appearance and height of the character of reference character image, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
+      "Replace the main girl/boy character of template background image with the character of reference character image keeping the appearance of the reference image character. When replacing and integrating, the pose of emotions of the character of reference character image must be not kept. The replaced character should precisely match the pose, action, appearance (facial and body features), emotions, scale and size and height of the original girl/boy main character of the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. The background of template image must be kept - never changed. Just integrate the character of the reference character image into the template background image as the new main character instead of original boy main character  keeping the appearance and height of the character of reference character image, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
     tempMainStoryPageAllyCharacterPrompt: "Kept the dophin ally character of template image.",
       // "The fox ally character of template background image should be replaced with [ally_name] character. Replace the fox ally character of attached templage image with [ally_name] character keeping the original fox ally character. The replaced character should precisely match the pose, action, and emotions of the original fox ally character in the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. Integrate the new main character into the magical forest setting, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
     pageAllyCharacterPrompts: {
@@ -60,7 +60,7 @@ const WORLD_STORY_PAGE_PROMPTS: Record<StoryWorldKey, WorldStoryPagePrompts> = {
       5: "Ally character - ally character should be not removed in this image."//" Ally character of template background image must be replaced with [ally_name] character"
     },
     pageMainCharacterPoseActionEmotionPrompts: {
-      1: "The character stands in a magical treehouse dwelling. The character's hands gently cupped as if holding or observing something delicate. And he/she seems to look at us. The placement of character stands in the a slightly left from center.",
+      1: "The character stands in a magical treehouse dwelling. The character's hands gently cupped as if holding or observing something delicate. And he/she seems to look at us. When replacing and integrating, the pose of emotions of the character of reference character image must be not kept. The placement of character stands in the a slightly left from center.",
       2: "A bright-eyed, the adventurous character stands smiling at the stone entrance to a magical, glowing forest path. The character's ready for the journey, accompanied by a friendly ally character. They are positioned a little left to the center and the alley companion fox character is right to the main character on reader perspective",
       3: "The character and fox ally companion character pause on a mossy stone path in a deeply enchanted, twilight forest. The character looks on with wide-eyed curiosity and a touch of awe, one hand slightly raised. They are positioned a little left to the center and the companion fox character is right to the main character on reader perspective",
       4: "The character stands in a powerful, slightly crouched pose on a mystical forest path, actively casting a swirling, blue-green magic from he/her outstretched hand. The character's gaze is intensely focused forward. The character stands in the left of fox companion character. They are positioned a little left to the center and the fox companion character is right to the main character on reader perspective",
@@ -80,14 +80,14 @@ const WORLD_STORY_PAGE_PROMPTS: Record<StoryWorldKey, WorldStoryPagePrompts> = {
       5: "Ally character - ally character should be not removed, replaced and modified in this image.",//" Ally character of template background image must be replaced with [ally_name] character"
     },
     pageMainCharacterPoseActionEmotionPrompts: {
-      1: "The thoughtful main character stands on a glowing, elevated platform. The main character's expression is one of slight worry or contemplation, with his right hand gently resting on his chin, seemingly lost in thought while observing the vast, star-filled nebula around him. He is positioned a little to the right of the image's center.",
+      1: "The thoughtful main character stands on a glowing, elevated platform. The main character's expression is one of slight worry or contemplation, with his right hand gently resting on his chin, seemingly lost in thought while observing the vast, star-filled nebula around him. He is positioned a little to the left of the image's center on reader's perspective.",
       2: "The main character space explorer is in mid-flight amidst a vibrant galaxy by accomplished with alley character. The main character has an expression of wonder and readiness for adventure, extending his hand slightly towards his companion character as they navigate the star-filled expanse, past distant spaceships and cosmic debris, towards a central swirling light. They are positioned left to the center.",
       3: "The adventurous main character, a young boy in a futuristic space suit, floats through an asteroid field, holding a glowing sci-fi blaster. His expression is focused and determined, ready for action, accompanied by his luminous, fox-like alien companion who floats beside him. They are positioned in the middle of a dense field of asteroids and cosmic dust, with a vibrant purple nebula forming the backdrop. They are positioned left to the center.",
       4: "The dynamic main character, the boy is caught in a moment of intense action, firing a vibrant energy weapon that illuminates the scene. His glowing spirit animal companion, a fox-like creature, floats protectively nearby. They are enveloped by swirling ribbons of cosmic energy and surrounded by a star-dusted asteroid field and a dramatic nebula, indicating a thrilling space encounter. They are positioned left to the center.",
-      5: "The joyful main boy character stands with an open, inviting posture, engaging with his adorable, translucent blue fox-like creature. The creature, equally happy, reaches a paw towards the boy's hand. They are situated in the center of a spacious, futuristic room dominated by purple and blue neon lighting, vast observation windows, and a central glowing portal or device, conveying a moment of heartwarming companionship and discovery. The main boy character and alley companion character are positioned  left to the center and the alley companion character is also placed left to the main boy character."
+      5: "The joyful main boy character stands with an open, inviting posture, engaging with his adorable, translucent blue fox-like creature. The creature, equally happy, reaches a paw towards the boy's hand. The main boy character and alley companion character are positioned  left to the center of story book and the alley companion character is also placed left to the main boy character on reader's perspective."
     }
   },
-  underwater: {
+  underwater: { // The suit must be the same as the main character of template background image (trousers, clothes, shoes even though symbols).
     tempMainStoryPagePrompt:
       "Replace the main girl character of template background image with the character of reference character image keeping the appearance of the reference image character. When replacing and integrating, the pose of emotions of the character of reference character image must be not kept. The replaced character should precisely match the pose, action, appearance (facial and body features), emotions, scale and size and height of the original girl main character of the template background image. All other characters and elements from the template background image must be kept and integrated seamlessly. The background of template image must be kept - never changed. Just integrate the character of the reference character image into the template background image as the new main character instead of original boy main character  keeping the appearance and height of the character of reference character image, ensuring lighting and style are perfectly blended. Generate the final image in stunning 4K resolution with an aspect ratio of 3:2 (width:height).",
     tempMainStoryPageAllyCharacterPrompt: "Kept the dophin ally character of template image.",
@@ -174,6 +174,12 @@ function resolveAllyNameFromPromptData(storyTheme: string | undefined, ageGroup:
   return 'Fox';
 }
 
+/** Human / humanoid reference types that should inherit template outfit in two-image story scenes. */
+function shouldApplyTemplateOutfitPrompt(characterType: string): boolean {
+  const t = characterType.trim().toLowerCase();
+  return t === 'person' || t === 'a person' || t === 'character';
+}
+
 export function buildStoryPagePrompt(
   pageNumber: number,
   storyText: string,
@@ -203,10 +209,16 @@ export function buildStoryPagePrompt(
   // TEMPORARY: use fixed base prompt for story page generation on /adventure-story/loading.
   // Set tempMainStoryPagePrompt to null in a world to use the prompt builder again for that world.
   if (worldPrompts.tempMainStoryPagePrompt != null) {
-    const fixedPrompt = allyReplacementPrompt
+    let fixedPrompt = allyReplacementPrompt
       // ? `${worldPrompts.tempMainStoryPagePrompt}\n\n${allyReplacementPrompt}`
       ? `${worldPrompts.tempMainStoryPagePrompt}`
       : worldPrompts.tempMainStoryPagePrompt;
+    // When reference is a person / character (including loading flow's mapCharacterType → "a person"), inherit template outfit.
+    if (shouldApplyTemplateOutfitPrompt(options.characterType)) {
+      const costumePrompt =
+        'The replaced reference character must wear the same costumes, clothes, and outfit as the original main character of the template image (including trousers, tops, shoes, and any visible accessories or symbols).';
+      fixedPrompt = `${fixedPrompt}\n\n${costumePrompt}`;
+    }
     return appendPageSpecificStoryRules(fixedPrompt, pageNumber, worldPrompts);
   }
 

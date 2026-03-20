@@ -33,6 +33,7 @@
   let selectedTitle = "";
   let customTitleText = "";
   let titleOptions: string[] = [];
+  let templateNotification = "";
 
   $: effectiveTitle = selectedTitle === CUSTOM_TITLE_OPTION ? customTitleText.trim() : selectedTitle;
 
@@ -59,6 +60,7 @@
   const generateCoverImageOnce = async () => {
     if (!enhancedCharacterImage || !selectedWorld || isGeneratingImage) return;
     isGeneratingImage = true;
+    templateNotification = "";
 
     try {
       const worldMapping: { [key: string]: 'forest' | 'underwater' | 'outerspace' } = {
@@ -67,20 +69,29 @@
         'underwater': 'underwater'
       };
       const mappedWorld = worldMapping[selectedWorld] || 'forest';
+      const mappedStyle = (selectedStyle || '').trim().toLowerCase();
 
-      const templateResult = await getRandomTemplateByStoryWorld(mappedWorld);
+      const templateResult = await getRandomTemplateByStoryWorld(mappedWorld, mappedStyle);
+      const matchedTemplate = templateResult.data;
+      const templateWorld = matchedTemplate?.story_world?.trim().toLowerCase();
+      const templateStyle = matchedTemplate?.story_style?.trim().toLowerCase();
+      const worldAndStyleMatch = templateWorld === mappedWorld && templateStyle === mappedStyle;
 
-      if (!templateResult.success || !templateResult.data?.cover_image) {
-        console.warn(`No template found for ${mappedWorld}, cannot generate cover`);
+      if (!templateResult.success || !matchedTemplate?.cover_image || !worldAndStyleMatch) {
+        console.warn(
+          `No exact template found for world "${mappedWorld}" and style "${mappedStyle}", cannot generate cover`
+        );
+        templateNotification =
+          'No matching book template found for the selected story style and story world. Please change your selections and try again.';
         return;
       }
 
-      if (templateResult.data.id) {
-        sessionStorage.setItem('bookTemplateId', templateResult.data.id);
+      if (matchedTemplate.id) {
+        sessionStorage.setItem('bookTemplateId', matchedTemplate.id);
       }
 
       const coverResult = await generateCoverImageWithTemplate({
-        templateCoverUrl: templateResult.data.cover_image,
+        templateCoverUrl: matchedTemplate.cover_image,
         characterImageUrl: enhancedCharacterImage,
         storyWorld: mappedWorld,
         storyTitle: '',
@@ -95,9 +106,12 @@
         sessionStorage.setItem(STEP7_COVER_IMAGE_KEY, coverResult.url);
         sessionStorage.setItem(STEP7_UNTITLED_COVER_IMAGE_KEY, coverResult.url);
         storyCreation.setOriginalImageUrl(coverResult.url);
+      } else {
+        templateNotification = 'Cover generation failed. Please try again.';
       }
     } catch (error) {
       console.error('Error generating step 7 cover image:', error);
+      templateNotification = 'Unable to generate the cover image right now. Please try again.';
     } finally {
       isGeneratingImage = false;
     }
@@ -308,6 +322,10 @@
             <div class="generating-overlay">
               <img src={spinner} alt="Loading" class="spinner" />
               <div class="generating-text">Generating cover image...</div>
+            </div>
+          {:else if templateNotification}
+            <div class="template-notification" role="alert">
+              {templateNotification}
             </div>
           {:else if selectedImageFromStep6}
             <div class="cover-preview-wrapper">
@@ -1512,6 +1530,24 @@
     font-size: 24px;
     font-family: Quicksand;
     font-weight: 600;
+    text-align: center;
+  }
+
+  .template-notification {
+    width: 100%;
+    max-width: 700px;
+    min-height: 120px;
+    padding: 20px;
+    border: 1px solid #ffd3d3;
+    border-radius: 12px;
+    background: #fff5f5;
+    color: #b42318;
+    font-family: Nunito;
+    font-size: 18px;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
   }
 

@@ -697,7 +697,7 @@ export async function generateStoryAdventureCover(
     const templateCoverUrl = templateResult.data.cover_image;
     
     // Build a prompt to insert the character into the template cover
-    const insertCharacterPrompt = `Replace the character of the template with the character of  reference image as the same size and scale as the character of the template image keeping the apperance of the reference character of reference character image. The character stands in an template scene environment. The character's arms are relaxed at her sides. She is looking directly at us with a slight smile. The character stands in the center and bottom of the image (No need to be full-body). The ratio of image will be generated must be (2:3=width:height).`;
+    const insertCharacterPrompt = `Replace the character of the template with the character of  reference image as the same size and scale as the character of the template image keeping the appearance (especially facial features) of the reference character of reference character image. The character stands in an template scene environment. The character's arms are relaxed at her sides. She is looking directly at us with a slight smile. The character stands in the center and bottom of the image (No need to be full-body). And the replaced character should wear suits as the same as the original character of template background. The ratio of image will be generated must be (2:3=width:height).`;
 
     // Call the image editing API with the template as base and character as reference
     const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
@@ -795,7 +795,7 @@ export async function generateCoverImageWithTemplate(options: {
           ageGroup: age,
           storyTitle: normalizedTitle
         })
-      : `Replace the character of the template with the character of  reference image as the same size and scale as the character of the template image keeping the apperance of the reference character of reference character image. The character stands in an template scene environment. The character's arms are relaxed at her sides. She is looking directly at us with a slight smile. The character stands in the center and bottom of the image (No need to be full-body). The ratio of image will be generated must be (2:3=width:height).`;
+      : `Replace the character of the template with the character of  reference image as the same size and scale as the character of the template image keeping the apperance (especially facial features) of the reference character of reference character image. The character stands in an template scene environment. The character's arms are relaxed at her sides. She is looking directly at us with a slight smile. The character stands in the center and bottom of the image (No need to be full-body). And the replaced character should wear suits as the same as the original character of template background. The ratio of image will be generated must be (2:3=width:height).`;
 
     // Call the backend API endpoint with three parts: prompt, character image URL, and template cover URL
     const response = await fetch('https://image-edit-five.vercel.app/generate-cover-image', {

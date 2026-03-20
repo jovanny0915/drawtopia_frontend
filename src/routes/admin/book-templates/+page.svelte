@@ -15,6 +15,25 @@
   import { optimizeImage } from '$lib/imageOptimizer';
   import { Plus, Trash2, X, Save } from 'lucide-svelte';
 
+  type StoryStyleValue =
+    | '3d'
+    | 'anime'
+    | 'cartoon'
+    | 'story'
+    | 'search'
+    | 'adventure'
+    | 'search-and-find';
+
+  const STORY_STYLE_OPTIONS: { value: StoryStyleValue; label: string }[] = [
+    { value: 'story', label: 'Story' },
+    { value: 'search', label: 'Search' },
+    { value: 'adventure', label: 'Adventure' },
+    { value: 'search-and-find', label: 'Search and Find' },
+    { value: '3d', label: '3D' },
+    { value: 'anime', label: 'Anime' },
+    { value: 'cartoon', label: 'Cartoon' }
+  ];
+
   let templates: BookTemplate[] = [];
   let loading = true;
   let error = '';
@@ -34,9 +53,10 @@
   let uploadInProgress = false;
   let deletingSceneInProgress = false;
 
-  // Track pending changes per template (only for story_world now)
+  // Track pending metadata changes per template
   let pendingChanges: Map<string, {
     story_world?: 'forest' | 'underwater' | 'outerspace' | '';
+    story_style?: StoryStyleValue | '';
   }> = new Map();
 
   // Track saving state per row
@@ -45,6 +65,7 @@
   // Form state for adding new template
   let newTemplateName = '';
   let newTemplateStoryWorld: 'forest' | 'underwater' | 'outerspace' | '' = '';
+  let newTemplateStoryStyle: StoryStyleValue | '' = '';
 
   onMount(async () => {
     await loadTemplates();
@@ -66,6 +87,7 @@
     // Reset form
     newTemplateName = '';
     newTemplateStoryWorld = '';
+    newTemplateStoryStyle = '';
     showAddModal = true;
   }
 
@@ -75,6 +97,8 @@
 
   // Open upload modal for single image
   function openSingleImageUploadModal(templateId: string, fieldKey: string, templateName: string) {
+    if (savingRows.has(templateId)) return;
+
     const template = templates.find((t) => t.id === templateId);
     const currentUrl = template?.[fieldKey as keyof BookTemplate];
 
@@ -91,6 +115,8 @@
 
   // Open upload modal for story pages (multiple images)
   function openMultipleImageUploadModal(templateId: string, templateName: string) {
+    if (savingRows.has(templateId)) return;
+
     const template = templates.find((t) => t.id === templateId);
 
     currentTemplateId = templateId;
@@ -189,8 +215,7 @@
         const result = await uploadTemplateImage(
           currentTemplateId,
           optimized.file,
-          currentUploadField as 'cover_image' | 'copyright_page_image' | 'dedication_page_image' | 'back_cover_image' | 'last_words_page_image' | 'last_story_page_image',
-          template.name
+          currentUploadField as 'cover_image' | 'copyright_page_image' | 'dedication_page_image' | 'back_cover_image' | 'last_words_page_image' | 'last_story_page_image'
         );
 
         if (!result.success || result.error) {
@@ -219,7 +244,6 @@
           const result = await uploadStoryPage(
             currentTemplateId,
             optimized.file,
-            template.name,
             pageIndex
           );
 
@@ -245,7 +269,6 @@
             const result = await uploadStoryPage(
               currentTemplateId,
               optimized.file,
-              template.name,
               pageIndex
             );
 
@@ -286,7 +309,8 @@
 
     const result = await createTemplate(
       newTemplateName.trim(), 
-      newTemplateStoryWorld || undefined
+      newTemplateStoryWorld || undefined,
+      newTemplateStoryStyle || undefined
     );
     if (!result.success || result.error) {
       alert(`Error adding template: ${result.error}`);
@@ -325,24 +349,41 @@
     pendingChanges = pendingChanges;
   }
 
-  // Save story world change
-  async function handleSaveStoryWorld(templateId: string) {
+  // Handle story style change
+  function handleStoryStyleChange(templateId: string, newValue: string) {
+    const changes = pendingChanges.get(templateId) || {};
+    changes.story_style = newValue as StoryStyleValue | '';
+    pendingChanges.set(templateId, changes);
+    pendingChanges = pendingChanges;
+  }
+
+  // Save story metadata changes
+  async function handleSaveTemplateMetadata(templateId: string) {
     const template = templates.find(t => t.id === templateId);
     if (!template) return;
+    if (!hasPendingChanges(templateId)) return;
 
-    // Get the current display value (either from pending changes or actual value)
+    // Get display values (either from pending changes or actual values)
     const currentStoryWorld = getDisplayStoryWorld(templateId, template.story_world) as 'forest' | 'underwater' | 'outerspace' | undefined;
+    const currentStoryStyle = getDisplayStoryStyle(
+      templateId,
+      template.story_style ?? template.story_type
+    );
 
     savingRows.add(templateId);
     savingRows = savingRows;
 
     try {
       const result = await updateTemplate(templateId, {
-        story_world: currentStoryWorld
+        story_world: currentStoryWorld,
+        // Send both keys for compatibility: some environments still use
+        // story_style while others already consume story_type.
+        story_style: currentStoryStyle,
+        story_type: currentStoryStyle
       });
       
       if (!result.success || result.error) {
-        throw new Error(result.error || 'Failed to update story world');
+        throw new Error(result.error || 'Failed to update template metadata');
       }
 
       // Clear pending changes
@@ -352,7 +393,7 @@
       // Reload templates
       await loadTemplates();
 
-      alert('Story world updated successfully!');
+      alert('Template metadata updated successfully!');
     } catch (err: any) {
       console.error('Save error:', err);
       alert(`Failed to save: ${err.message}`);
@@ -374,6 +415,35 @@
       return changes.story_world || undefined;
     }
     return actualWorld;
+  }
+
+  // Get story style display value
+  function getDisplayStoryStyle(templateId: string, actualStyle: string | undefined): string | undefined {
+    const changes = pendingChanges.get(templateId);
+    if (changes && 'story_style' in changes) {
+      return changes.story_style || undefined;
+    }
+    return actualStyle;
+  }
+
+  function hasPendingChanges(templateId: string): boolean {
+    const changes = pendingChanges.get(templateId);
+    if (!changes) return false;
+
+    return 'story_world' in changes || 'story_style' in changes;
+  }
+
+  function isKnownStoryStyle(value: string | undefined): boolean {
+    if (!value) return false;
+    return STORY_STYLE_OPTIONS.some((option) => option.value === value);
+  }
+
+  function formatStoryStyleLabel(value: string | undefined): string {
+    if (!value) return '';
+    return value
+      .split('-')
+      .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1) : word))
+      .join(' ');
   }
 
   function getUploadFieldDisplayName(fieldKey: string): string {
@@ -509,6 +579,7 @@
           <tr>
             <th style="width: 100px; overflow: hidden; text-overflow: ellipsis;">Name</th>
             <th>Story World</th>
+            <th>Story Type</th>
             <th>Cover</th>
             <th>Copyright</th>
             <th>Dedication</th>
@@ -522,7 +593,9 @@
         <tbody>
           {#each templates as template (template.id)}
             {@const isSaving = savingRows.has(template.id)}
+            {@const hasPending = hasPendingChanges(template.id)}
             {@const displayStoryWorld = getDisplayStoryWorld(template.id, template.story_world)}
+            {@const displayStoryStyle = getDisplayStoryStyle(template.id, template.story_style ?? template.story_type)}
             {@const coverUrl = template.cover_image}
             {@const copyrightUrl = template.copyright_page_image}
             {@const dedicationUrl = template.dedication_page_image}
@@ -545,6 +618,23 @@
                   <option value="forest">🌲 Forest</option>
                   <option value="underwater">🌊 Underwater</option>
                   <option value="outerspace">🚀 Outer Space</option>
+                </select>
+              </td>
+
+              <td class="story-world-cell">
+                <select
+                  class="story-world-select"
+                  value={displayStoryStyle || ''}
+                  on:change={(e) => handleStoryStyleChange(template.id, e.currentTarget.value)}
+                  disabled={isSaving}
+                >
+                  <option value="">— None —</option>
+                  {#if displayStoryStyle && !isKnownStoryStyle(displayStoryStyle)}
+                    <option value={displayStoryStyle}>{formatStoryStyleLabel(displayStoryStyle)} (legacy)</option>
+                  {/if}
+                  {#each STORY_STYLE_OPTIONS as styleOption}
+                    <option value={styleOption.value}>{styleOption.label}</option>
+                  {/each}
                 </select>
               </td>
               
@@ -686,9 +776,9 @@
                 <div class="action-buttons">
                   <button
                     class="save-btn"
-                    on:click={() => handleSaveStoryWorld(template.id)}
-                    disabled={isSaving}
-                    title="Save story world"
+                    on:click={() => handleSaveTemplateMetadata(template.id)}
+                    disabled={isSaving || !hasPending}
+                    title="Save template metadata"
                   >
                     <Save size={16} />
                     {isSaving ? 'Saving...' : 'Save'}
@@ -745,8 +835,21 @@
             <option value="outerspace">Outer Space</option>
           </select>
         </div>
+        <div class="form-group">
+          <label for="story-style">Story Type (Optional)</label>
+          <select
+            id="story-style"
+            bind:value={newTemplateStoryStyle}
+            class="select-input"
+          >
+            <option value="">-- No specific style --</option>
+            {#each STORY_STYLE_OPTIONS as styleOption}
+              <option value={styleOption.value}>{styleOption.label}</option>
+            {/each}
+          </select>
+        </div>
         <small class="help-text">
-          After creating the template, you can upload images for each page type. Story World determines which templates are randomly selected during cover generation.
+          After creating the template, you can upload images for each page type. Story World and Story Type are both saved as metadata for template selection.
         </small>
       </div>
       <div class="modal-footer">

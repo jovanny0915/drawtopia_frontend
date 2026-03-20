@@ -128,6 +128,84 @@
         return worldMap[world.toLowerCase()] || 'enchanted-forest';
     }
 
+    type TemplateStoryType = 'story' | 'interactive';
+
+    function normalizeTemplateStoryWorld(world: string | undefined | null): 'forest' | 'underwater' | 'outerspace' {
+        const value = (world || '').toLowerCase().trim();
+        if (value.includes('underwater') || value.includes('kingdom')) return 'underwater';
+        if (value.includes('outer') || value.includes('space')) return 'outerspace';
+        return 'forest';
+    }
+
+    function normalizeTemplateStoryType(value: string | undefined | null): TemplateStoryType | null {
+        const normalized = (value || '').toLowerCase().trim();
+        if (!normalized) return null;
+
+        // Keep compatibility with existing/legacy DB values.
+        if (['interactive', 'search', 'search-and-find', 'search_and_find', 'intersearch'].includes(normalized)) {
+            return 'interactive';
+        }
+        if (['story', 'adventure', 'storybook', 'narrative'].includes(normalized)) {
+            return 'story';
+        }
+
+        // Legacy style labels (3d/anime/cartoon) are not reliable story-type markers.
+        return null;
+    }
+
+    function selectMatchingBookTemplate(
+        templates: BookTemplate[],
+        requestedTemplateId: string | null,
+        requestedWorld: string,
+        requestedStoryType: TemplateStoryType
+    ): BookTemplate | null {
+        if (!templates || templates.length === 0) return null;
+
+        const targetWorld = normalizeTemplateStoryWorld(requestedWorld);
+
+        const worldAndTypeMatches = templates.filter((template) =>
+            normalizeTemplateStoryWorld(template.story_world) === targetWorld &&
+            normalizeTemplateStoryType(template.story_style) === requestedStoryType
+        );
+
+        const requestedTemplate = requestedTemplateId
+            ? templates.find((template) => template.id === requestedTemplateId)
+            : null;
+
+        // First choice: requested template when it exactly matches world + type.
+        if (
+            requestedTemplate &&
+            normalizeTemplateStoryWorld(requestedTemplate.story_world) === targetWorld &&
+            normalizeTemplateStoryType(requestedTemplate.story_style) === requestedStoryType
+        ) {
+            return requestedTemplate;
+        }
+
+        // Second choice: any template that matches world + type.
+        if (worldAndTypeMatches.length > 0) {
+            const randomIndex = Math.floor(Math.random() * worldAndTypeMatches.length);
+            return worldAndTypeMatches[randomIndex];
+        }
+
+        // Third choice: world-only match (for older templates missing story_style).
+        const worldOnlyMatches = templates.filter(
+            (template) => normalizeTemplateStoryWorld(template.story_world) === targetWorld
+        );
+        if (worldOnlyMatches.length > 0) {
+            if (
+                requestedTemplate &&
+                normalizeTemplateStoryWorld(requestedTemplate.story_world) === targetWorld
+            ) {
+                return requestedTemplate;
+            }
+            const randomIndex = Math.floor(Math.random() * worldOnlyMatches.length);
+            return worldOnlyMatches[randomIndex];
+        }
+
+        // Final fallback: requested template (if any) or first template.
+        return requestedTemplate || templates[0];
+    }
+
     // Helper function to map adventure type enum to prompt builder format
     // The prompt builder expects: 'Treasure Hunt' or 'Helping a Friend'
     function mapAdventureType(adventure: string | undefined): string {
@@ -1223,12 +1301,22 @@
                 throw new Error('No character image available for scene generation');
             }
 
-            const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
-            if (!bookTemplateId) {
-                throw new Error('No book template ID found in sessionStorage');
-            }
             const { data: templates } = await getBookTemplates();
-            const bookTemplate: BookTemplate | null = templates?.find((t: BookTemplate) => t.id === bookTemplateId) || null;
+            const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
+            const selectedFormat = (browser ? sessionStorage.getItem('selectedFormat') : null) || storyType || 'story';
+            const requestedStoryType: TemplateStoryType = selectedFormat === 'interactive' ? 'interactive' : 'story';
+            const bookTemplate = selectMatchingBookTemplate(
+                templates || [],
+                bookTemplateId,
+                storyWorld,
+                requestedStoryType
+            );
+
+            if (browser && bookTemplate?.id && bookTemplate.id !== bookTemplateId) {
+                // Persist the matched template so next steps stay consistent.
+                sessionStorage.setItem('bookTemplateId', bookTemplate.id);
+            }
+
             if (!bookTemplate?.story_page_images || bookTemplate.story_page_images.length < 5) {
                 throw new Error('Book template not found or has fewer than 5 story page images');
             }

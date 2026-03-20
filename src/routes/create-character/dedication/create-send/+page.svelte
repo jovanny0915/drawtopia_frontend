@@ -1,22 +1,92 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import drawtopiaLogo from "../../../../assets/logo.webp";
   import ShieldStar from "../../../../assets/ShieldStar.svg";
   import star from "../../../../assets/star.webp";
   import ArrowLeft from "../../../../assets/ArrowLeft.svg";
   import std_book_cover from "../../../../assets/std_book_cover.webp";
   import { goto } from "$app/navigation";
+  import { env } from "../../../../lib/env";
+  import { browser } from "$app/environment";
+  import MobileStepProgressBar from "../../../../components/MobileStepProgressBar.svelte";
+  import ProgressBar from "../../../../components/ProgressBar.svelte";
 
   const goToDashboard = () => {
     goto("/dashboard");
   };
-  import { browser } from "$app/environment";
-  import MobileStepProgressBar from "../../../../components/MobileStepProgressBar.svelte";
-  import ProgressBar from "../../../../components/ProgressBar.svelte";
 
   let dedicationMessage: string = "";
   const maxChars: number = 200;
   let isMobile = false;
   let childName: string = "";
+  /** Dedication page background: from book template for current story world, or static fallback */
+  let dedicationImageUrl: string = std_book_cover;
+
+  /** Map frontend story world to API value (forest, underwater, outerspace). */
+  function normalizeStoryWorld(world: string | null): string {
+    const w = (world || "").trim().toLowerCase();
+    if (w === "underwater") return "underwater";
+    if (w === "space" || w === "outerspace") return "outerspace";
+    return "forest";
+  }
+
+  /** Normalize selected style/format to backend template story_style values. */
+  function normalizeStoryStyle(value: string | null): string | null {
+    const normalized = (value || "").trim().toLowerCase().replace(/_/g, "-");
+    if (!normalized) return null;
+
+    if (normalized.includes("anime")) return "anime";
+    if (normalized.includes("cartoon")) return "cartoon";
+    if (normalized.includes("3d")) return "3d";
+
+    // Keep compatibility with newer story-type labels used in some template rows.
+    if (["interactive", "search", "search-and-find", "intersearch"].includes(normalized)) return "search";
+    if (["story", "adventure", "storybook", "narrative"].includes(normalized)) return "story";
+
+    return normalized;
+  }
+
+  async function fetchDedicationImage(
+    baseUrl: string,
+    storyWorld: string,
+    storyStyle: string | null
+  ): Promise<string | null> {
+    const params = new URLSearchParams({
+      story_world: storyWorld
+    });
+    if (storyStyle) {
+      params.set("story_style", storyStyle);
+    }
+
+    const res = await fetch(`${baseUrl}/api/templates/random?${params.toString()}`);
+    const json = await res.json();
+    const url = json?.data?.dedication_page_image;
+    return typeof url === "string" && url.trim() ? url.trim() : null;
+  }
+
+  onMount(async () => {
+    if (!browser) return;
+    const storyWorld = sessionStorage.getItem("selectedWorld");
+    const apiWorld = normalizeStoryWorld(storyWorld);
+    const styleFromSession =
+      sessionStorage.getItem("selectedStyle") ||
+      sessionStorage.getItem("selectedFormat");
+    const apiStyle = normalizeStoryStyle(styleFromSession);
+    const baseUrl = (env.PUBLIC_BACKEND_URL || "").replace(/\/$/, "");
+    try {
+      // First attempt: world + style match.
+      let url = await fetchDedicationImage(baseUrl, apiWorld, apiStyle);
+      // Fallback: world-only match to preserve current behavior.
+      if (!url) {
+        url = await fetchDedicationImage(baseUrl, apiWorld, null);
+      }
+      if (url && typeof url === "string" && url.trim()) {
+        dedicationImageUrl = url.trim();
+      }
+    } catch {
+      // keep std_book_cover
+    }
+  });
 
   $: if (browser) {
     isMobile = window.innerWidth < 800;
@@ -179,7 +249,7 @@
         </div>
         <div
           class="dedication-wrapper"
-          style="background-image: url({std_book_cover}); background-position: center; background-repeat: no-repeat; background-size: cover;"
+          style="background-image: url({dedicationImageUrl}); background-position: center; background-repeat: no-repeat; background-size: cover;"
         >
           <div class="dedication-text1">Dedication</div>
           <div class="dedication-text2">For</div>
@@ -503,7 +573,6 @@
     position: relative;
     display: inline-block;
     width: 100%;
-    background: url({std_book_cover}) no-repeat center center;
     height: 100%;
     border-radius: 9px;
   }
