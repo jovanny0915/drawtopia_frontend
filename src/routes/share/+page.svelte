@@ -695,8 +695,8 @@
             </div>
           </div>
         {:else}
-          <div class="mobile-image-split">
-            <div class="mobile-image-half mobile-image-left">
+          <div class="mobile-image-split main-story-scene-split">
+            <div class="mobile-image-half mobile-image-left main-story-scene-half">
               <div class="image">
                 {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'LAST_WORDS_ADMIN_PAGE'}
                   <img
@@ -709,7 +709,7 @@
                 <div class="inner-shadow"></div>
               </div>
             </div>
-            <div class="mobile-image-half mobile-image-right">
+            <div class="mobile-image-half mobile-image-right main-story-scene-half">
               <div class="image">
                 {#if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'LAST_WORDS_ADMIN_PAGE'}
                   <img
@@ -995,9 +995,9 @@
     border-radius: 24px;
     box-shadow: -2px 10px 0px black;
     overflow: hidden;
-    max-width: 400px;
+    max-width: 500px;
     width: 100%;
-    height: 60dvh;
+    height: 650px;
     position: relative;
   }
 
@@ -1043,19 +1043,27 @@
     gap: 2px;
     width: 100%;
     justify-content: center;
-    height: 57dvh;
+    height: 650px;
   }
 
   .mobile-image-half {
     position: relative;
     width: 50%;
-    max-width: 410px;
+    max-width: 600px;
     overflow: hidden;
     border-radius: 24px;
     background: white;
     box-shadow: -2px 10px 0px black;
     display: flex;
     align-items: stretch;
+  }
+
+  .main-story-scene-split {
+    height: auto;
+  }
+
+  .main-story-scene-half {
+    max-width: 800px;
   }
 
   .image {
@@ -1383,10 +1391,10 @@
   .back-cover-wrapper {
     position: relative;
     overflow: hidden;
-    height: 500px;
+    height: 650px;
     aspect-ratio: 2 / 3;
     width: 100%;
-    max-width: 400px;
+    max-width: 500px;
   }
 
   .back-cover-content {
@@ -1497,14 +1505,13 @@
   .story-main-text-overlay {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
     gap: 24px;
     position: absolute;
     text-align: left;
     right: 0;
     z-index: 3;
     width: 82%;
-    height: 45%;
+    height: auto;
     padding: 20px;
     pointer-events: none;
     box-sizing: border-box;
@@ -1519,8 +1526,7 @@
   }
 
   .story-main-text-overlay.story-world-underwater {
-    justify-content: flex-end;
-    padding-bottom: clamp(12px, 4vmin, 48px);
+    padding-bottom: 32px;
     box-sizing: border-box;
   }
 
@@ -1549,12 +1555,11 @@
     position: relative;
     z-index: 1;
     width: 100%;
-    height: 420px;
     font-family: "Quicksand", sans-serif;
     font-style: normal;
     font-weight: 500;
-    font-size: 18px;
-    line-height: 26px;
+    font-size: 10px;
+    line-height: 23px;
     text-align: center;
     color: #fddac6;
     overflow: hidden;
@@ -1568,7 +1573,7 @@
   .story-main-text.story-world-underwater {
     color: #0e2c54;
     font-weight: 700;
-    font-size: clamp(0.8rem, 2.6vmin, 1.2rem);
+    font-size: clamp(0.7rem, 2.6vmin, 0.9rem);
     line-height: 1.25;
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.45);
   }
@@ -1889,7 +1894,11 @@
     .mobile-image-half {
       width: 100%;
       max-width: 100%;
-      min-height: 60dvh;
+      min-height: 500px;
+    }
+
+    .main-story-scene-half {
+      min-height: 560px;
     }
 
     .cover-logo-blur-layer {
@@ -1956,6 +1965,10 @@
   @media (max-width: 1024px) {
     .mobile-image-half {
       max-width: 380px;
+    }
+
+    .main-story-scene-half {
+      max-width: 420px;
     }
 
     .navigation-controls {
