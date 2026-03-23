@@ -330,7 +330,7 @@
 
   .page-content {
     flex: 1;
-    padding: 2rem;
+    padding: 2rem 0 2rem 0;
   }
 
   .loading-screen {
