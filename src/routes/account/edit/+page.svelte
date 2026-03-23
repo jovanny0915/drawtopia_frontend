@@ -143,7 +143,7 @@
             // First, get the user's subscription_status from users table
             const { data: userData, error: userError } = await supabase
                 .from("users")
-                .select("subscription_status")
+                .select("subscription_status, subscription_expires")
                 .eq("id", userId)
                 .single();
             

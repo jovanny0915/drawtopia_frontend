@@ -57,10 +57,6 @@
       sessionStorage.setItem('selectedStoryThemeName', theme.name);
     }
   }
-  function isThemeSelected(theme: (typeof storyThemes)[0]) {
-    return selectedStoryTheme === theme.id;
-  }
-
   // Style name mapping
   const styleNames = {
     "3d": "3D Realistic",
@@ -265,7 +261,7 @@
         {#each storyThemes as theme (theme.id)}
           <div
             class="card theme-card"
-            class:card-selected={isThemeSelected(theme)}
+            class:card-selected={selectedStoryTheme === theme.id}
             role="button"
             tabindex="0"
             on:click={() => selectTheme(theme)}
@@ -283,9 +279,9 @@
                   <span class="theme-description_span">{getThemeDescription(theme)}</span>
                 </div>
               </div>
-              <div class="button" class:button-selected={isThemeSelected(theme)}>
+              <div class="button" class:button-selected={selectedStoryTheme === theme.id}>
                 <div class="select">
-                  <span class="select_span">{isThemeSelected(theme) ? "Selected" : "Select"}</span>
+                  <span class="select_span">{selectedStoryTheme === theme.id ? "Selected" : "Select"}</span>
                 </div>
               </div>
             </div>
@@ -458,32 +454,6 @@
     align-self: stretch;
   }
 
-  .image_03 {
-    align-self: stretch;
-    height: 280px;
-    position: relative;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-    object-fit: cover;
-    width: 100%;
-  }
-
-  .image_04 {
-    align-self: stretch;
-    height: 280px;
-    position: relative;
-    overflow: hidden;
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
-  }
-
-  .image-6 {
-    width: 100%;
-    height: 280px;
-    object-fit: cover;
-  }
-
-
   .enchantedforest_span {
     color: #141414;
     font-size: 24px;
@@ -495,15 +465,6 @@
 
   .enchanted-forest {
     align-self: stretch;
-  }
-
-  .vector {
-    width: 16.25px;
-    height: 16.25px;
-    left: 1.88px;
-    top: 1.88px;
-    position: absolute;
-    background: black;
   }
 
   .magicalcreaturestalkingtrees_span {
@@ -550,10 +511,6 @@
     word-wrap: break-word;
   }
 
-  .select-selected {
-    color: #438BFF !important;
-  }
-
   .underwaterkingdom_span {
     color: #141414;
     font-size: 24px;
@@ -574,84 +531,6 @@
     font-weight: 700;
     line-height: 22.40px;
     word-wrap: break-word;
-  }
-
-  .treasurehunt_span {
-    color: #141414;
-    font-size: 24px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 33.60px;
-    word-wrap: break-word;
-  }
-
-  .treasure-hunt {
-    align-self: stretch;
-  }
-
-  .characternamewillsearchforalegendarytreasurehiddenintheselectedworld_span {
-    color: #727272;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.40px;
-    word-wrap: break-word;
-  }
-
-  .character-name-will-search-for-a-legendary-treasure-hidden-in-the-selected-world {
-    align-self: stretch;
-  }
-
-  .select_03_span {
-    color: black;
-    font-size: 18px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 25.20px;
-    word-wrap: break-word;
-  }
-
-  .select_03 {
-    text-align: center;
-  }
-
-  .helpingafriend_span {
-    color: #141414;
-    font-size: 24px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 33.60px;
-    word-wrap: break-word;
-  }
-
-  .helping-a-friend {
-    align-self: stretch;
-  }
-
-  .characternamewillhelpafriendinaneedusingtheirspecialability_span {
-    color: #727272;
-    font-size: 16px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 22.40px;
-    word-wrap: break-word;
-  }
-
-  .character-name-will-help-a-friend-in-a-need-using-their-special-ability {
-    align-self: stretch;
-  }
-
-  .select_04_span {
-    color: black;
-    font-size: 18px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 25.20px;
-    word-wrap: break-word;
-  }
-
-  .select_04 {
-    text-align: center;
   }
 
   .generatesearchadventure_span {
@@ -727,14 +606,6 @@
     display: flex;
   }
 
-  .frame-1410103852_01 {
-    align-self: stretch;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 16px;
-    display: inline-flex;
-  }
-
   .card {
     flex: 1 1 0;
     padding-bottom: 10px;
@@ -756,45 +627,6 @@
     outline: 1px #173DB6 solid;
   }
 
-  .card_03 {
-    flex: 1 1 0;
-    padding-bottom: 10px;
-    background: white;
-    border-radius: 20px;
-    outline: 1px #EDEDED solid;
-    outline-offset: -1px;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: inline-flex;
-    cursor: pointer;
-    position: relative;
-  }
-
-  .card_04 {
-    flex: 1 1 0;
-    height: 500px;
-    padding-bottom: 10px;
-    background: white;
-    border-radius: 20px;
-    outline: 1px #EDEDED solid;
-    outline-offset: -1px;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: inline-flex;
-    cursor: pointer;
-    position: relative;
-  }
-
-  .card_03.card-selected,
-  .card_04.card-selected {
-    box-shadow: 0px 1px 8px #438BFF;
-    outline: 1px #173DB6 solid;
-  }
-
   .frame-10 {
     align-self: stretch;
     padding-top: 8px;
@@ -803,33 +635,6 @@
     padding-right: 12px;
     flex-direction: column;
     justify-content: flex-start;
-    align-items: flex-start;
-    gap: 32px;
-    display: flex;
-  }
-
-  .frame-10_03 {
-    align-self: stretch;
-    padding-top: 8px;
-    padding-bottom: 12px;
-    padding-left: 12px;
-    padding-right: 12px;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 32px;
-    display: flex;
-  }
-
-  .frame-10_04 {
-    align-self: stretch;
-    flex: 1;
-    padding-top: 8px;
-    padding-bottom: 12px;
-    padding-left: 12px;
-    padding-right: 12px;
-    flex-direction: column;
-    justify-content: space-between;
     align-items: flex-start;
     gap: 32px;
     display: flex;
@@ -904,87 +709,6 @@
     color: #438BFF;
   }
 
-  .button_03 {
-    align-self: stretch;
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 12px;
-    padding-bottom: 12px;
-    background: white;
-    border-radius: 12px;
-    outline: 1px #DCDCDC solid;
-    outline-offset: -1px;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    display: inline-flex;
-  }
-
-  .button_04 {
-    align-self: stretch;
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 12px;
-    padding-bottom: 12px;
-    background: white;
-    border-radius: 12px;
-    outline: 1px #DCDCDC solid;
-    outline-offset: -1px;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    display: inline-flex;
-  }
-
-  .button_03.button-selected,
-  .button_04.button-selected {
-    background: #E7FEFF;
-    box-shadow: 0px 4px 0px #438BFF;
-    outline: 2px rgba(231, 254, 255, 0.20) solid;
-    outline-offset: -2px;
-  }
-
-  .button_03.button-selected .select_03_span,
-  .button_04.button-selected .select_04_span {
-    color: #438BFF;
-  }
-
-  .frame-2147227609 {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: flex;
-  }
-
-  .frame-2147227610 {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: flex;
-  }
-
-  .frame-1410104048 {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: flex;
-  }
-
-  .frame-1410104048_01 {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 12px;
-    display: flex;
-  }
-
   .ffreepagepreview_span {
     color: #438BFF;
     font-size: 14px;
@@ -1011,19 +735,6 @@
     align-self: stretch;
     height: 1px;
     background: #ededed;
-  }
-
-  .privacypolicy_span {
-    color: #141414;
-    font-size: 18px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 25.2px;
-    word-wrap: break-word;
-  }
-
-  .privacy-policy {
-    text-align: center;
   }
 
   .termsofservice_span {
@@ -1196,10 +907,6 @@
     align-items: center;
   }
 
-  .lets-bring-your-character-to-life-upload-a-drawing-or-photo {
-    /* width: 600px; */
-  }
-
   .letsbringyourcharactertolifeuploadadrawingorphoto_span {
     color: black;
     font-size: 18px;
@@ -1224,8 +931,7 @@
       width: 100%;
     }
 
-    .frame-1410103852,
-    .frame-1410103852_01 {
+    .frame-1410103852 {
       flex-wrap: wrap;
     }
 
@@ -1264,8 +970,7 @@
       justify-content: flex-start;
     }
 
-    .frame-1410103852,
-    .frame-1410103852_01 {
+    .frame-1410103852 {
       flex-direction: column;
       gap: 16px;
     }
@@ -1287,14 +992,9 @@
       line-height: 1.3;
     }
 
-    .card,
-    .card_03,
-    .card_04 {
+    .card {
       width: 100%;
       flex: none;
-    }
-    .card_04 {
-      height: auto;
     }
     .star-container {
       width: 25%;
@@ -1343,9 +1043,7 @@
       font-size: 16px;
     }
 
-    .button,
-    .button_03,
-    .button_04 {
+    .button {
       padding-left: 16px;
       padding-right: 16px;
     }

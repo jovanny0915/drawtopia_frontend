@@ -883,7 +883,6 @@
   }
 
   .contactushellodrawtopiacom_span,
-  .privacypolicy_span,
   .termsofservice_span {
     font-size: 16px;
     line-height: 22.4px;

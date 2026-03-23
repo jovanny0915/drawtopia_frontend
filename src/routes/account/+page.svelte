@@ -226,9 +226,9 @@
 
 <div class="account-settings">
     <div class="navbar">
-        <div class="logo-text-full">
+        <a class="logo-text-full" href="/dashboard" aria-label="Go to dashboard">
             <img src={drawtopialogo} alt="drawtopialogo" class="drawtopialogo">
-        </div>
+        </a>
         <div class="frame-2147227655">
             <AccountDropdown 
                 avatarUrl={userAvatarUrl}
@@ -708,6 +708,8 @@
     width: 170.15px;
     height: 31.80px;
     position: relative;
+    display: block;
+    text-decoration: none;
 }
 
 .drawtopialogo {

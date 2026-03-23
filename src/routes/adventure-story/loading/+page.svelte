@@ -29,8 +29,9 @@
     import ProgressBar from "../../../components/ProgressBar.svelte";
     import MobileStepProgressBar from "../../../components/MobileStepProgressBar.svelte";
 
-    const TOTAL_TIME = 300; // 60 seconds (fallback timer)
-    let timeRemaining = TOTAL_TIME;
+    const ESTIMATED_GENERATION_SECONDS = 100;
+    const MAX_IN_PROGRESS_PERCENT = 99;
+    let timeRemaining = ESTIMATED_GENERATION_SECONDS;
     let completionPercent = 0;
     let intervalId: number | null = null;
     let hasNavigated = false;
@@ -64,8 +65,10 @@
         ? magicalwand1 
         : magicalwand2;
 
-    // Calculate total completion percent from story and image progress
-    $: completionPercent = Math.min(100, storyTextProgress + sceneImageProgress);
+    // Keep countdown synchronized with visual progress updates.
+    $: timeRemaining = storyGenerated
+        ? 0
+        : Math.max(1, ESTIMATED_GENERATION_SECONDS - Math.round(completionPercent));
 
     // Track story type (interactive or story) — only read from sessionStorage in browser (SSR-safe)
     $: storyType = browser ? (sessionStorage.getItem('selectedFormat') || 'story') : 'story';
@@ -1416,6 +1419,21 @@
             storyType = sessionStorage.getItem('selectedFormat') || 'story';
         }
 
+        // Progress ticker: increase exactly 1% while generation is running.
+        intervalId = window.setInterval(() => {
+            if (storyGenerated) {
+                completionPercent = 100;
+                if (intervalId !== null) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                }
+                return;
+            }
+            if (completionPercent < MAX_IN_PROGRESS_PERCENT) {
+                completionPercent += 1;
+            }
+        }, 1000);
+
         
         // Initialize preview images from sessionStorage
         if (browser) {
@@ -1453,38 +1471,14 @@
         } else {
             await generateStory();
         }
-        
-        // Fallback timer - only used if generation takes too long
-        intervalId = window.setInterval(() => {
-            if (timeRemaining > 0) {
-                timeRemaining--;
-                // Only update from timer if actual progress hasn't reached 100%
-                // This ensures the timer doesn't override real progress
-                if (completionPercent < 100) {
-                    const timerProgress = ((TOTAL_TIME - timeRemaining) / TOTAL_TIME) * 100;
-                    // Use timer progress only if it's higher than actual progress
-                    // This prevents the timer from slowing down real progress
-                    if (timerProgress > completionPercent) {
-                        // Don't override if we have real progress
-                        if (storyTextProgress === 0 && sceneImageProgress === 0) {
-                            storyTextProgress = timerProgress * 0.5;
-                            sceneImageProgress = timerProgress * 0.5;
-                        }
-                    }
-                }
-            } else {
-                timeRemaining = 0;
-                // Only set to 100% if generation hasn't completed
-                if (completionPercent < 100 && !storyGenerated) {
-                    storyTextProgress = 50;
-                    sceneImageProgress = 50;
-                }
-                if (intervalId !== null) {
-                    clearInterval(intervalId);
-                    intervalId = null;
-                }
+
+        if (storyGenerated) {
+            completionPercent = 100;
+            if (intervalId !== null) {
+                clearInterval(intervalId);
+                intervalId = null;
             }
-        }, 1000);
+        }
     });
 
     onDestroy(() => {

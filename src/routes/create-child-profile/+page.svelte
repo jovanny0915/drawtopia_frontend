@@ -478,51 +478,6 @@
     align-self: stretch;
   }
 
-  .contactushellodrawtopiacom_span {
-    color: #141414;
-    font-size: 18px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 25.2px;
-    word-wrap: break-word;
-  }
-
-  .contact-us-hellodrawtopiacom {
-    text-align: center;
-  }
-
-  .rectangle-34 {
-    align-self: stretch;
-    height: 1px;
-    background: #ededed;
-  }
-
-  .privacypolicy_span {
-    color: #141414;
-    font-size: 18px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 25.2px;
-    word-wrap: break-word;
-  }
-
-  .privacy-policy {
-    text-align: center;
-  }
-
-  .termsofservice_span {
-    color: #141414;
-    font-size: 18px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 25.2px;
-    word-wrap: break-word;
-  }
-
-  .terms-of-service {
-    text-align: center;
-  }
-
   .heading {
     align-self: stretch;
     flex-direction: column;
@@ -536,13 +491,6 @@
     align-self: stretch;
     justify-content: space-between;
     align-items: center;
-    display: inline-flex;
-  }
-
-  .frame-1410103820 {
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 24px;
     display: inline-flex;
   }
 
@@ -583,15 +531,6 @@
     justify-content: flex-start;
     align-items: center;
     gap: 32px;
-    display: flex;
-  }
-
-  .frame-1410103821 {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
     display: flex;
   }
 
@@ -842,17 +781,6 @@
     }
   }
 
-  .no-children-message {
-    text-align: center;
-    padding: 24px;
-    color: #666d80;
-    font-family: Nunito;
-    font-size: 16px;
-    line-height: 1.5;
-    background: #f8fafb;
-    border-radius: 8px;
-    border: 1px dashed #dcdcdc;
-  }
   @media (max-width: 800px) {
     .main-pane {
       width: 100%;
