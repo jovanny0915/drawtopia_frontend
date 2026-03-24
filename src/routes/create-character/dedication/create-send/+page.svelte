@@ -26,7 +26,7 @@
   function normalizeStoryWorld(world: string | null): string {
     const w = (world || "").trim().toLowerCase();
     if (w === "underwater") return "underwater";
-    if (w === "space" || w === "outerspace") return "outerspace";
+    if (w === "space" || w === "outerspace" || w === "outspace") return "outerspace";
     return "forest";
   }
 
@@ -34,16 +34,28 @@
     if (!browser) return;
     const storyWorld = sessionStorage.getItem("selectedWorld");
     const apiWorld = normalizeStoryWorld(storyWorld);
+    const storyStyle = (sessionStorage.getItem("selectedStyle") || "").trim();
     const baseUrl = (env.PUBLIC_BACKEND_URL || "").replace(/\/$/, "");
-    try {
-      const res = await fetch(
-        `${baseUrl}/api/templates/random?story_world=${encodeURIComponent(apiWorld)}`
-      );
+    if (!baseUrl) return;
+
+    const fetchDedicationUrl = async (includeStyle: boolean): Promise<string | null> => {
+      const params = new URLSearchParams({
+        story_world: apiWorld,
+        for_dedication: "true",
+      });
+      if (includeStyle && storyStyle) params.set("story_style", storyStyle);
+      const res = await fetch(`${baseUrl}/api/templates/random?${params}`);
       const json = await res.json();
+      if (!json?.success) return null;
       const url = json?.data?.dedication_page_image;
-      if (url && typeof url === "string" && url.trim()) {
-        dedicationImageUrl = url.trim();
-      }
+      if (url && typeof url === "string" && url.trim()) return url.trim();
+      return null;
+    };
+
+    try {
+      let url = await fetchDedicationUrl(true);
+      if (!url && storyStyle) url = await fetchDedicationUrl(false);
+      if (url) dedicationImageUrl = url;
     } catch {
       // keep std_book_cover
     }
