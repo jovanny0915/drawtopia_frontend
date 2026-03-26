@@ -1,4 +1,10 @@
 {
+  "ally_name_by_story_world": {
+    "note": "The ally's name is fixed by the chosen story world only—not by learning theme or art style. Enchanted Forest: Fern. Underwater Kingdom: Coral. Outer Space: Nova.",
+    "enchanted_forest": "Fern",
+    "underwater_kingdom": "Coral",
+    "outer_space": "Nova"
+  },
   "master_story_architecture": {
     "acts": [
       {
@@ -13,7 +19,7 @@
         "pages": "6-7",
         "beat_name": "The World & The Ally",
         "core_story_function": "Ally appears; gently surfaces sleep resistance; introduces bedtime as magic.",
-        "learning_theme_influence": "Ally personality colors match theme (for example, empathetic for Kindness, steadfast for Patience)."
+        "learning_theme_influence": "Ally is a warm companion fitting [WORLD_NAME] and [ALLY_TYPE]. [LEARNING_THEME] shapes challenge and insight, not the ally's name ([ALLY_NAME]) or creature type."
       },
       {
         "act": 3,
@@ -213,6 +219,7 @@
           "Apply Drowsy Descent in Acts 4-5 (slower, softer, sleepier wording).",
           "Embed breath pacing in Act 3 exactly once.",
           "Do not lecture; teach through imagery and action.",
+          "Use [ALLY_NAME] exactly as resolved for this world (forest: Fern, underwater: Coral, outer space: Nova); never rename the ally or tie their name to [LEARNING_THEME].",
           "Ensure [LEARNING_THEME] shapes challenge and insight without breaking bedtime calm."
         ]
       }
@@ -379,6 +386,7 @@
           "Use adventurous, slightly mysterious language while preserving emotional safety.",
           "Use consistent paragraph rhythm across pages.",
           "Use one gentle metaphor per act where natural.",
+          "Use [ALLY_NAME] exactly as resolved for this world (forest: Fern, underwater: Coral, outer space: Nova); never rename the ally or tie their name to [LEARNING_THEME].",
           "Integrate [LEARNING_THEME] explicitly in challenge, dialogue, and earned insight.",
           "Embed one 4-count breath sequence in Act 3 as part of the plot action.",
           "Include exactly one age-appropriate sleep science fact in Act 4.",
@@ -546,6 +554,7 @@
           "Keep total output between 250-350 words.",
           "Use reflective, epic prose with emotional nuance and internal conflict.",
           "Allow philosophical questions where natural, but keep emotional safety intact.",
+          "Use [ALLY_NAME] exactly as resolved for this world (forest: Fern, underwater: Coral, outer space: Nova); never rename the ally or tie their name to [LEARNING_THEME].",
           "Ensure [CHARACTER_NAME] discovers [LEARNING_THEME] through events; ally supports but does not preach.",
           "Embed one 4-count breath sequence in Act 3 as action guidance.",
           "Include exactly one explicit sleep-science paragraph in Act 4.",

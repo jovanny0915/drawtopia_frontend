@@ -11,7 +11,7 @@
     import { updateGift } from '../../../lib/database/gifts';
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
-    import { buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt, buildStoryGenerationPrompt } from '../../../lib/promptBuilder';
+    import { buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt, buildStoryGenerationPrompt, getAllyNameForStoryWorld } from '../../../lib/promptBuilder';
     import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription } from '../../../lib/storyGenerationHelpers';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
@@ -261,25 +261,6 @@
             patienceEndurance: 'Patience & Endurance'
         };
         return themeMap[themeKey] || themeMap[themeKey.toLowerCase()] || null;
-    }
-
-    function getDefaultAllyName(themeKey: string | undefined): string {
-        if (!themeKey) return 'Luna';
-        const normalized = themeKey.toLowerCase();
-        const allyNameMap: { [key: string]: string } = {
-            kindnessempathy: 'Lumi',
-            kindness_empathy: 'Lumi',
-            'kindness-empathy': 'Lumi',
-            bedtime_routine_sleep_hygiene: 'Nora',
-            'bedtime-routine-sleep-hygiene': 'Nora',
-            bedtimeroutinesleephygiene: 'Nora',
-            courage: 'Tala',
-            connection: 'Milo',
-            patience_endurance: 'Sage',
-            'patience-endurance': 'Sage',
-            patienceendurance: 'Sage'
-        };
-        return allyNameMap[normalized] || 'Luna';
     }
 
     function getDefaultAllyType(world: string | undefined): string {
@@ -1232,7 +1213,7 @@
                 return;
             }
 
-            const allyName = (browser ? sessionStorage.getItem('allyName') : null) || getDefaultAllyName(rawThemeName);
+            const allyName = getAllyNameForStoryWorld(rawWorldName);
             const allyType = (browser ? sessionStorage.getItem('allyType') : null) || getDefaultAllyType(rawWorldName);
             const storyTextPrompt = buildStoryGenerationPrompt({
                 ageGroup: ageGroup as '3-6' | '7-10' | '11-12',

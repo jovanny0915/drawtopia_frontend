@@ -183,7 +183,7 @@ export function sampleCompositedPrompt(): string {
     placeholderValues: {
       CHARACTER_NAME: 'Milo',
       WORLD_NAME: 'Moonreef',
-      ALLY_NAME: 'Tala',
+      ALLY_NAME: 'Nova',
       ALLY_TYPE: 'star otter',
       SPECIAL_ABILITY: 'Echo Glow',
       LEARNING_THEME: 'Courage'
@@ -357,7 +357,16 @@ function getWorldDisplayName(world: string): string {
   return worldMapping[world.toLowerCase()] || world;
 }
 
-
+/**
+ * Fixed ally name for the chosen story world only (not learning theme or art style).
+ * Forest → Fern, underwater → Coral, outer space → Nova.
+ */
+export function getAllyNameForStoryWorld(storyWorld: string): string {
+  const lower = (storyWorld || '').toLowerCase();
+  if (lower.includes('underwater') || lower.includes('kingdom')) return 'Coral';
+  if (lower.includes('space') || lower.includes('outer')) return 'Nova';
+  return 'Fern';
+}
 
 /**
  * Maps world values to prompt1.json keys for story text
@@ -488,12 +497,13 @@ export function buildStoryTextPrompt(options: StoryTextGenerationPromptOptions):
 
   const themeVariables = selectedAgeRange.variables || {};
   const pagePrompts = selectedAgeRange.pages || {};
+  const allyNameForWorld = getAllyNameForStoryWorld(options.storyWorld);
   const promptParts: string[] = [];
   const sharedVariables: Array<{ key: string; value: string }> = [
     { key: 'CHARACTER_NAME', value: options.characterName },
     { key: 'WORLD_NAME', value: getWorldDisplayName(options.storyWorld) },
     { key: 'LEARNING_THEME', value: themeVariables.learningTheme || selectedTheme.themeName || '' },
-    { key: 'ALLY_NAME', value: themeVariables.allyName || '' },
+    { key: 'ALLY_NAME', value: allyNameForWorld },
     { key: 'OBSTACLE', value: themeVariables.obstacle || '' },
     { key: 'BUNNY_NAME', value: themeVariables.bunnyName || 'Little Bunny' }
   ].filter(({ value }) => typeof value === 'string' && value.trim().length > 0);
@@ -534,7 +544,7 @@ ${sharedVariables.map(({ key, value }) => `- [${key}] = ${value}`).join('\n')}`
     }
 
     const mergedTemplate = template
-      .replace(/\[ALLY_NAME\]/g, themeVariables.allyName || '')
+      .replace(/\[ALLY_NAME\]/g, allyNameForWorld)
       .replace(/\[LEARNING_THEME\]/g, themeVariables.learningTheme || selectedTheme.themeName || '')
       .replace(/\[OBSTACLE\]/g, themeVariables.obstacle || '')
       .replace(/\[BUNNY_NAME\]/g, themeVariables.bunnyName || 'Little Bunny');

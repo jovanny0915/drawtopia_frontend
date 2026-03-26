@@ -181,13 +181,36 @@
         return worldMap[world.toLowerCase()] || world;
     }
 
-    function getAdventureTypeDisplayName(adventure: string): string {
-        if (!adventure) return "Help a Friend";
-        const adventureMap: { [key: string]: string } = {
-            "treasure_hunt": "Treasure Hunt",
-            "helping_friend": "Help a Friend"
+    /** Learning themes (adventure story flow) — keys match sessionStorage `storyTheme`. */
+    function getThemeDisplayName(themeKey: string | undefined | null): string {
+        if (!themeKey) return "";
+        const themeMap: { [key: string]: string } = {
+            kindnessempathy: "Kindness & Empathy",
+            kindness_empathy: "Kindness & Empathy",
+            "kindness-empathy": "Kindness & Empathy",
+            kindnessEmpathy: "Kindness & Empathy",
+            bedtimeroutinesleephygiene: "Bedtime Routine & Sleep Hygiene",
+            bedtime_routine_sleep_hygiene: "Bedtime Routine & Sleep Hygiene",
+            "bedtime-routine-sleep-hygiene": "Bedtime Routine & Sleep Hygiene",
+            bedtimeRoutineSleepHygiene: "Bedtime Routine & Sleep Hygiene",
+            courage: "Courage",
+            connection: "Connection",
+            patienceendurance: "Patience & Endurance",
+            patience_endurance: "Patience & Endurance",
+            "patience-endurance": "Patience & Endurance",
+            patienceEndurance: "Patience & Endurance"
         };
-        return adventureMap[adventure.toLowerCase()] || adventure;
+        return themeMap[themeKey] || themeMap[themeKey.toLowerCase()] || themeKey;
+    }
+
+    function getDifficultyDisplayName(level: string | undefined | null): string {
+        if (!level) return "Medium";
+        const m: { [key: string]: string } = {
+            easy: "Easy",
+            medium: "Medium",
+            hard: "Hard"
+        };
+        return m[level.toLowerCase()] || level;
     }
 
     function getStyleDisplayName(style: string): string {
@@ -258,7 +281,6 @@
     $: characterType = storyState?.characterType || (browser && sessionStorage.getItem('selectedCharacterType')) || "";
     $: specialAbility = storyState?.specialAbility || (browser && sessionStorage.getItem('specialAbility')) || "[Special Ability]";
     $: storyWorld = storyState?.storyWorld || (browser && sessionStorage.getItem('selectedWorld')) || "";
-    $: adventureType = storyState?.adventureType || (browser && sessionStorage.getItem('selectedAdventure')) || "";
     $: characterStyle = storyState?.characterStyle || (browser && sessionStorage.getItem('selectedStyle')) || "";
     
     $: characterTypeDisplay = getCharacterTypeDisplayName(characterType);
@@ -266,11 +288,20 @@
         ? `${characterName} ${characterTypeDisplay}${specialAbility && specialAbility !== "[Special Ability]" ? ` with ${specialAbility}` : ""}`
         : "[Character Name] [Type] with [Special Ability]";
     $: worldDisplay = getWorldDisplayName(storyWorld);
-    $: adventureDisplay = getAdventureTypeDisplayName(adventureType);
     $: styleDisplay = getStyleDisplayName(characterStyle);
 
     // Adventure story = show audio version; interactive search story = hide it
     $: isAdventureStory = (storyState?.selectedFormat || (browser && sessionStorage.getItem('selectedFormat')) || 'story') === 'story';
+
+    $: storyThemeKey =
+        (storyState as { themeName?: string }).themeName
+        || (browser && sessionStorage.getItem("storyTheme"))
+        || "kindnessEmpathy";
+    $: intersearchDifficulty = (browser && sessionStorage.getItem("intersearch_difficulty")) || "medium";
+    $: themeOrDifficultyLabel = isAdventureStory ? "Theme Type:" : "Difficulty Level:";
+    $: themeOrDifficultyDisplay = isAdventureStory
+        ? getThemeDisplayName(storyThemeKey) || "Kindness & Empathy"
+        : getDifficultyDisplayName(intersearchDifficulty);
 </script>
 
 <div class="story-preview-summary-default">
@@ -481,12 +512,12 @@
                                     <div class="difficulty-adventure-type">
                                         <span
                                             class="difficultyadventuretype_span"
-                                            >Difficulty / Adventure Type::</span
+                                            >{themeOrDifficultyLabel}</span
                                         >
                                     </div>
                                     <div class="help-a-friend">
                                         <span class="helpafriend_span"
-                                            >{adventureDisplay}</span
+                                            >{themeOrDifficultyDisplay}</span
                                         >
                                     </div>
                                 </div>
@@ -1038,10 +1069,11 @@
         font-weight: 600;
         line-height: 22.4px;
         word-wrap: break-word;
+        width: 100%;
     }
 
     .help-a-friend {
-        width: 150px;
+        /* width: 150px; */
     }
 
     .format_span {
