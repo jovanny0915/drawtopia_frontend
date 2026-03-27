@@ -194,7 +194,7 @@
 
   // Handle continue to next step - collect all enhanced images
   const handleContinue = () => {
-    if (!browser || !allImagesGenerated) return;
+    if (!browser) return;
     
     try {
       // Get the selected enhanced image URL
@@ -222,8 +222,17 @@
       
       // Save enhanced images to story creation store
       storyCreation.setEnhancedImages(enhancedImages);
-      
-      console.log('Enhanced images collected:', enhancedImages);
+
+      // If generation failed for some or all levels, still use original upload as character ref
+      const originalFallback = (sessionStorage.getItem("characterImageUrl") || uploadedImageUrl || "")
+        .split("?")[0];
+      const characterRef = selectedEnhancedImage || originalFallback;
+      if (characterRef) {
+        sessionStorage.setItem("selectedCharacterEnhancedImage", characterRef);
+        saveSelectedImageUrl("4", characterRef);
+      }
+
+      console.log("Enhanced images collected:", enhancedImages);
 
       // Navigate to next step
       goto("/create-character/3");
@@ -354,8 +363,6 @@
         <button
           class="button_02"
           class:mobile-full-width={isMobile}
-          class:disabled={!allImagesGenerated}
-          disabled={!allImagesGenerated}
           on:click={handleContinue}
         >
           <div class="continue-to-story-configuration">

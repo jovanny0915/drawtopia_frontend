@@ -750,6 +750,7 @@ export async function generateCoverImageWithTemplate(options: {
   templateCoverUrl: string;
   characterImageUrl: string;
   storyWorld: string;
+  storyFormat?: string;
   characterName?: string;
   characterType?: string;
   characterStyle?: string;
@@ -787,21 +788,24 @@ export async function generateCoverImageWithTemplate(options: {
 
     const sanitizedStyle = (charStyle === '3d' || charStyle === 'cartoon' || charStyle === 'anime') ? charStyle : 'cartoon';
     const normalizedTitle = title.trim();
-
     const shouldAddPersonSuitPrompt = charType.trim().toLowerCase() === 'person';
     const personSuitPrompt = 'And the replaced character should wear suits as the same as the original character of template background.';
 
+    // Step 7 uses one adventure-style prompt flow for all formats, including interactive.
+    const templateCompositePrompt = buildTemplateCompositeCoverPrompt({
+      characterName: charName,
+      characterType: charType,
+      characterStyle: sanitizedStyle,
+      storyWorld: storyWorld,
+      adventureType: '',
+      ageGroup: age,
+      storyTitle: normalizedTitle || 'Adventure Story'
+    });
+
     // For step 7 we intentionally support generation without title text on the image.
-    const baseCoverPrompt = includeTitleInPrompt && normalizedTitle.length > 0
-      ? buildTemplateCompositeCoverPrompt({
-          characterName: charName,
-          characterType: charType,
-          characterStyle: sanitizedStyle,
-          storyWorld: storyWorld,
-          adventureType: '',
-          ageGroup: age,
-          storyTitle: normalizedTitle
-        })
+    // Interactive and adventure formats share this same base prompt logic.
+    const baseCoverPrompt = (includeTitleInPrompt && normalizedTitle.length > 0)
+      ? templateCompositePrompt
       : `Replace the character of the template with the character of  reference image as the same size and scale as the character of the template image keeping the apperance (especially facial features) of the reference character of reference character image. The character stands in an template scene environment. The character's arms are relaxed at her sides. She is looking directly at us with a slight smile. The character stands in the center and bottom of the image (No need to be full-body). The ratio of image will be generated must be (2:3=width:height).`;
     const coverPrompt = shouldAddPersonSuitPrompt
       ? `${baseCoverPrompt} ${personSuitPrompt}`

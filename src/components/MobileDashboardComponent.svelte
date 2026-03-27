@@ -533,11 +533,17 @@
     }
     const res = await getStoryById(sid);
     const story = res?.data != null ? (Array.isArray(res.data) ? res.data[0] : res.data) : null;
-    const storyType = (story?.story_type ?? "story").toLowerCase();
-    if (storyType === "search") {
-      goto(`/intersearch/1?storyId=${sid}`);
+    const q = `storyId=${encodeURIComponent(String(sid))}`;
+    const st = (story?.story_type ?? "story").toLowerCase();
+    const sf = (story?.story_format ?? "").toLowerCase();
+    const isInteractiveSearch =
+      st === "search" ||
+      sf === "search" ||
+      story?.adventure_type === "interactive_search";
+    if (isInteractiveSearch) {
+      goto(`/intersearch/1?${q}`);
     } else {
-      goto(`/preview/default?storyId=${sid}`);
+      goto(`/preview/default?${q}`);
     }
   };
 

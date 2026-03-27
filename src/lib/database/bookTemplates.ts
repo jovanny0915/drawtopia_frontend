@@ -26,6 +26,10 @@ export interface BookTemplate {
    * Current values may include: story/adventure or interactive/search-and-find
    */
   story_style?: string;
+  /**
+   * Story format (e.g. adventure_story, interactive_story). Free-form text in the database.
+   */
+  story_format?: string;
   /** URL to cover image stored in Supabase storage at: book-templates/[template-id]/cover_image.* */
   cover_image?: string;
   /** URL to copyright page image stored in Supabase storage at: book-templates/[template-id]/copyright_page_image.* */
@@ -47,6 +51,7 @@ export interface BookTemplateInsert {
   name: string;
   story_world?: 'forest' | 'underwater' | 'outerspace';
   story_style?: string;
+  story_format?: string;
   cover_image?: string;
   copyright_page_image?: string;
   dedication_page_image?: string;

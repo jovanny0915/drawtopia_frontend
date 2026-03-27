@@ -57,25 +57,71 @@
     ];
   };
 
+  const normalizeStoryWorld = (worldValue: string): 'forest' | 'outerspace' | 'underwater' => {
+    const normalized = (worldValue || '').trim().toLowerCase().replace(/[_\s]/g, '-');
+    if (
+      normalized === 'forest' ||
+      normalized === 'enchanted-forest' ||
+      normalized.includes('forest')
+    ) {
+      return 'forest';
+    }
+    if (
+      normalized === 'outerspace' ||
+      normalized === 'outspace' ||
+      normalized === 'outer-space' ||
+      normalized.includes('space')
+    ) {
+      return 'outerspace';
+    }
+    if (
+      normalized === 'underwater' ||
+      normalized === 'underwater-kingdom' ||
+      normalized.includes('underwater') ||
+      normalized.includes('ocean') ||
+      normalized.includes('sea')
+    ) {
+      return 'underwater';
+    }
+    return 'forest';
+  };
+
+  const resolveStoryWorldFromSession = (): 'forest' | 'outerspace' | 'underwater' => {
+    const primaryWorld = sessionStorage.getItem('selectedWorld') || '';
+    const intersearchWorld = sessionStorage.getItem('intersearch_world') || '';
+    return normalizeStoryWorld(primaryWorld || intersearchWorld);
+  };
+
   const generateCoverImageOnce = async () => {
     if (!enhancedCharacterImage || !selectedWorld || isGeneratingImage) return;
     isGeneratingImage = true;
     templateNotification = "";
 
     try {
-      const worldMapping: { [key: string]: 'forest' | 'underwater' | 'outerspace' } = {
-        'forest': 'forest',
-        'outerspace': 'outerspace',
-        'underwater': 'underwater'
-      };
-      const mappedWorld = worldMapping[selectedWorld] || 'forest';
+      const mappedWorld = normalizeStoryWorld(selectedWorld);
       const mappedStyle = (selectedStyle || '').trim().toLowerCase();
+      const selectedFormat = sessionStorage.getItem('selectedFormat') || 'story';
 
-      const templateResult = await getRandomTemplateByStoryWorld(mappedWorld, mappedStyle);
-      const matchedTemplate = templateResult.data;
-      const templateWorld = matchedTemplate?.story_world?.trim().toLowerCase();
-      const templateStyle = matchedTemplate?.story_style?.trim().toLowerCase();
-      const worldAndStyleMatch = templateWorld === mappedWorld && templateStyle === mappedStyle;
+      let templateResult = await getRandomTemplateByStoryWorld(
+        mappedWorld,
+        mappedStyle,
+        selectedFormat
+      );
+      let matchedTemplate = templateResult.data;
+      let templateWorld = matchedTemplate?.story_world?.trim().toLowerCase();
+      let templateStyle = matchedTemplate?.story_style?.trim().toLowerCase();
+      let worldAndStyleMatch = templateWorld === mappedWorld && templateStyle === mappedStyle;
+
+      if (!templateResult.success || !matchedTemplate?.cover_image || !worldAndStyleMatch) {
+        // Fallback for environments where style-specific templates are not fully populated.
+        templateResult = await getRandomTemplateByStoryWorld(mappedWorld, undefined, selectedFormat);
+        matchedTemplate = templateResult.data;
+        templateWorld = matchedTemplate?.story_world?.trim().toLowerCase();
+        templateStyle = matchedTemplate?.story_style?.trim().toLowerCase();
+        worldAndStyleMatch =
+          templateWorld === mappedWorld &&
+          (!mappedStyle || !templateStyle || templateStyle === mappedStyle);
+      }
 
       if (!templateResult.success || !matchedTemplate?.cover_image || !worldAndStyleMatch) {
         console.warn(
@@ -94,6 +140,7 @@
         templateCoverUrl: matchedTemplate.cover_image,
         characterImageUrl: enhancedCharacterImage,
         storyWorld: mappedWorld,
+        storyFormat: selectedFormat,
         storyTitle: '',
         includeTitleInPrompt: false,
         saveToStorage: false
@@ -149,7 +196,8 @@
     if (browser) {
       characterName = sessionStorage.getItem('characterName') || '';
       selectedStyle = sessionStorage.getItem('selectedStyle') || "";
-      selectedWorld = sessionStorage.getItem('selectedWorld') || "";
+      selectedWorld = resolveStoryWorldFromSession();
+      sessionStorage.setItem('selectedWorld', selectedWorld);
       enhancedCharacterImage = sessionStorage.getItem('selectedCharacterEnhancedImage') || "";
 
       const untitledCover = sessionStorage.getItem(STEP7_COVER_IMAGE_KEY) || sessionStorage.getItem('selectedImage_step6');

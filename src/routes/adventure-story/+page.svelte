@@ -9,6 +9,8 @@
     import treasurehunt from "../../assets/treasure_hunt.webp";
     import helpfriend from "../../assets/help_friend.webp";
     import { goto } from "$app/navigation";
+    import { browser } from "$app/environment";
+    import { onMount } from "svelte";
 
     let selectedScene: string | null = null;
     let selectedAdventureType: string | null = null;
@@ -31,6 +33,20 @@
     function handleGenerateSearchAdventure() {
         goto("/adventure-story/preview")
     }
+
+    onMount(() => {
+        if (!browser) return;
+        if (sessionStorage.getItem("postInteractiveGeneration") !== "1") return;
+        sessionStorage.removeItem("postInteractiveGeneration");
+        const format = sessionStorage.getItem("selectedFormat") || "story";
+        if (format !== "interactive") return;
+        const storyId = sessionStorage.getItem("currentStoryId");
+        if (storyId) {
+            goto(`/intersearch/1?storyId=${encodeURIComponent(storyId)}`);
+        } else {
+            goto("/intersearch");
+        }
+    });
 </script>
 
 <div class="story-adventure-configuration-default">

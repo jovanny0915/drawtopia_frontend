@@ -11,6 +11,7 @@
     deleteStoryPage,
     updateTemplate,
     type BookTemplate,
+    type BookTemplateStoryFormat,
   } from '$lib/api/admin';
   import { optimizeImage } from '$lib/imageOptimizer';
   import { Plus, Trash2, X, Save } from 'lucide-svelte';
@@ -34,10 +35,17 @@
     { value: 'cartoon', label: 'Cartoon' }
   ];
 
+  const STORY_FORMAT_SWITCHES: { value: BookTemplateStoryFormat; label: string }[] = [
+    { value: 'adventure_story', label: 'Adventure Story' },
+    { value: 'interactive_story', label: 'Interactive Story' }
+  ];
+
   let templates: BookTemplate[] = [];
+  let visibleTemplates: BookTemplate[] = [];
   let loading = true;
   let error = '';
   let showAddModal = false;
+  let selectedStoryFormat: BookTemplateStoryFormat = 'adventure_story';
 
   // Upload modal state
   let showUploadModal = false;
@@ -71,10 +79,22 @@
     await loadTemplates();
   });
 
+  function getStoryFormatLabel(value: BookTemplateStoryFormat): string {
+    return value === 'adventure_story' ? 'Adventure Story' : 'Interactive Story';
+  }
+
+  async function handleStoryFormatSwitch(nextFormat: BookTemplateStoryFormat) {
+    if (nextFormat === selectedStoryFormat || loading) return;
+    selectedStoryFormat = nextFormat;
+    pendingChanges.clear();
+    pendingChanges = pendingChanges;
+    await loadTemplates();
+  }
+
   async function loadTemplates() {
     loading = true;
     error = '';
-    const result = await getTemplates();
+    const result = await getTemplates(selectedStoryFormat);
     if (!result.success || result.error) {
       error = result.error || 'Failed to load templates';
     } else {
@@ -82,6 +102,16 @@
     }
     loading = false;
   }
+
+  function normalizeTemplateStoryFormat(value: string | undefined): BookTemplateStoryFormat {
+    if (!value || !value.trim()) return 'adventure_story';
+    const normalized = value.trim().toLowerCase().replace('-', '_');
+    return normalized === 'interactive_story' ? 'interactive_story' : 'adventure_story';
+  }
+
+  $: visibleTemplates = templates.filter(
+    (template) => normalizeTemplateStoryFormat(template.story_format) === selectedStoryFormat
+  );
 
   function openAddModal() {
     // Reset form
@@ -310,7 +340,8 @@
     const result = await createTemplate(
       newTemplateName.trim(), 
       newTemplateStoryWorld || undefined,
-      newTemplateStoryStyle || undefined
+      newTemplateStoryStyle || undefined,
+      selectedStoryFormat
     );
     if (!result.success || result.error) {
       alert(`Error adding template: ${result.error}`);
@@ -326,7 +357,7 @@
     }
 
     try {
-      const result = await deleteTemplate(id);
+      const result = await deleteTemplate(id, selectedStoryFormat);
       if (!result.success || result.error) {
         alert(`Error deleting template: ${result.error}`);
       } else {
@@ -379,7 +410,8 @@
         // Send both keys for compatibility: some environments still use
         // story_style while others already consume story_type.
         story_style: currentStoryStyle,
-        story_type: currentStoryStyle
+        story_type: currentStoryStyle,
+        story_format: selectedStoryFormat
       });
       
       if (!result.success || result.error) {
@@ -557,20 +589,38 @@
 
 <div class="templates-page">
   <div class="page-header">
-    <h1>Book Templates</h1>
-    <button class="add-btn" on:click={openAddModal}>
-      <Plus size={20} />
-      Add Template
-    </button>
+    <div class="page-header-left">
+      <h1>Book Templates</h1>
+      <div class="story-format-switch" role="tablist" aria-label="Template story format">
+        {#each STORY_FORMAT_SWITCHES as formatOption}
+          <button
+            class="format-switch-btn"
+            class:active={selectedStoryFormat === formatOption.value}
+            on:click={() => handleStoryFormatSwitch(formatOption.value)}
+            disabled={loading}
+            role="tab"
+            aria-selected={selectedStoryFormat === formatOption.value}
+          >
+            {formatOption.label}
+          </button>
+        {/each}
+      </div>
+    </div>
+    <div class="page-header-actions">
+      <button class="add-btn" on:click={openAddModal}>
+        <Plus size={20} />
+        Add Template
+      </button>
+    </div>
   </div>
 
   {#if loading}
     <div class="loading-state">Loading templates...</div>
   {:else if error}
     <div class="error-state">Error: {error}</div>
-  {:else if templates.length === 0}
+  {:else if visibleTemplates.length === 0}
     <div class="empty-state">
-      <p>No templates found. Create one to get started.</p>
+      <p>No {getStoryFormatLabel(selectedStoryFormat).toLowerCase()} templates found. Create one to get started.</p>
     </div>
   {:else}
     <div class="table-container">
@@ -591,7 +641,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each templates as template (template.id)}
+          {#each visibleTemplates as template (template.id)}
             {@const isSaving = savingRows.has(template.id)}
             {@const hasPending = hasPendingChanges(template.id)}
             {@const displayStoryWorld = getDisplayStoryWorld(template.id, template.story_world)}
@@ -849,6 +899,7 @@
           </select>
         </div>
         <small class="help-text">
+          This template will be added to <strong>{getStoryFormatLabel(selectedStoryFormat)}</strong>.
           After creating the template, you can upload images for each page type. Story World and Story Type are both saved as metadata for template selection.
         </small>
       </div>
@@ -995,6 +1046,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
   }
 
   .page-header h1 {
@@ -1002,6 +1055,57 @@
     font-weight: 700;
     color: #111827;
     margin: 0;
+  }
+
+  .page-header-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  .page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .story-format-switch {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #dbe4ff;
+    border-radius: 0.65rem;
+    background: #f8faff;
+    padding: 0.2rem;
+    gap: 0.2rem;
+  }
+
+  .format-switch-btn {
+    border: none;
+    background: transparent;
+    color: #4b5563;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.45rem 0.75rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .format-switch-btn:hover:not(:disabled) {
+    color: #1e40af;
+  }
+
+  .format-switch-btn.active {
+    background: #1e40af;
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(30, 64, 175, 0.35);
+  }
+
+  .format-switch-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .add-btn {

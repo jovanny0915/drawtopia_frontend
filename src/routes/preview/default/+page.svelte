@@ -120,6 +120,49 @@
   let readingTimerInterval: number | null = null; // Interval ID for the timer
   let hasAudioBeenPlayed: boolean = false; // Track if audio has been played
 
+  const INTERSEARCH_CUSTOM_SCENE_ORDER = [1, 2, 5, 6, 7, 8, 3, 4];
+
+  function getSceneNumber(scene: any): number | null {
+    const n = Number(scene?.sceneNumber ?? scene?.scene_number);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function sortSearchScenesForRoute(scenes: any[], pathname: string): any[] {
+    const defaultSorted = [...scenes].sort((a: any, b: any) => {
+      const na = getSceneNumber(a);
+      const nb = getSceneNumber(b);
+      const aNum = na !== null;
+      const bNum = nb !== null;
+      if (aNum && bNum) return (na as number) - (nb as number);
+      if (aNum) return -1;
+      if (bNum) return 1;
+      return 0;
+    });
+
+    if (!pathname.startsWith('/intersearch/1')) {
+      return defaultSorted;
+    }
+
+    const prioritized = new Map<number, any>();
+    const remaining: any[] = [];
+    for (const scene of defaultSorted) {
+      const num = getSceneNumber(scene);
+      if (num !== null && INTERSEARCH_CUSTOM_SCENE_ORDER.includes(num) && !prioritized.has(num)) {
+        prioritized.set(num, scene);
+      } else {
+        remaining.push(scene);
+      }
+    }
+
+    const reordered: any[] = [];
+    for (const sceneNum of INTERSEARCH_CUSTOM_SCENE_ORDER) {
+      const matched = prioritized.get(sceneNum);
+      if (matched) reordered.push(matched);
+    }
+
+    return [...reordered, ...remaining];
+  }
+
   // Reactive statement to check subscription status when user changes
   $: if (browser && $user) {
     checkSubscriptionStatus();
@@ -326,8 +369,29 @@
                 loadedScenes.push(...scenesFromPages.map((url: string) => url.split("?")[0]));
                 console.log('[preview] Loaded scene images from pages:', scenesFromPages);
               }
+            } else if (
+              content &&
+              typeof content === 'object' &&
+              content.type === 'search_adventure' &&
+              Array.isArray(content.scenes) &&
+              content.scenes.length > 0
+            ) {
+              // Interactive search (/intersearch reader → this preview): must run before content.pages
+              // so we never take scene URLs from a stale or differently ordered `pages` array.
+              const sortedSearchScenes = sortSearchScenesForRoute(content.scenes, $page.url.pathname);
+              storyPages = sortedSearchScenes.map((scene: any, index: number) => ({
+                pageNumber: scene.sceneNumber || scene.scene_number || index + 1,
+                text: scene.sceneTitle || scene.scene_title || `Scene ${index + 1}`
+              }));
+              const scenesFromSearch = sortedSearchScenes
+                .map((s: any) => s.sceneImage || s.scene_image)
+                .filter((url: string | undefined): url is string => !!url);
+              if (scenesFromSearch.length > 0) {
+                loadedScenes.push(...scenesFromSearch.map((url: string) => url.split('?')[0]));
+                console.log('[preview] Loaded search_adventure scenes:', scenesFromSearch.length);
+              }
             } else if (content.pages && Array.isArray(content.pages)) {
-              // If it has a pages property (this is your case)
+              // If it has a pages property (adventure books, etc.)
               storyPages = content.pages.map((page: any, index: number) => ({
                 pageNumber: page.pageNumber || index + 1,
                 text: page.text || page.content || ""
@@ -345,6 +409,22 @@
             } else if (typeof content === 'string') {
               // If it's a single string, create one page
               storyPages = [{ pageNumber: 1, text: content }];
+            }
+
+            // Search-type stories: fallback if story_content did not list scenes (legacy rows)
+            if (
+              storyData.story_type === 'search' &&
+              Array.isArray(story[0].scene_images) &&
+              story[0].scene_images.length > 0 &&
+              storyPages.length === 0
+            ) {
+              const imgs = story[0].scene_images.map((u: string) => String(u).split('?')[0]);
+              storyPages = imgs.map((_: string, i: number) => ({
+                pageNumber: i + 1,
+                text: `Scene ${i + 1}`
+              }));
+              loadedScenes.push(...imgs);
+              console.log('[preview] Loaded search story from scene_images column:', imgs.length);
             }
             
             if (storyPages.length > 0) {

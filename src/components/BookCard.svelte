@@ -22,10 +22,21 @@
   let isDownloadingPDF = false;
   let isPurchased = false;
 
+  /** Interactive search stories: DB story_type, template story_format, or adventure_type from dashboard mapping. */
+  const isInteractiveSearchStory = (row: any) => {
+    const st = (row?.story_type || "").toLowerCase();
+    if (st === "search") return true;
+    const sf = (row?.story_format || "").toLowerCase();
+    if (sf === "search") return true;
+    if (row?.adventure_type === "interactive_search") return true;
+    if (row?.format === "interactive") return true;
+    return false;
+  };
+
   // Determine the card type/tag based on story_type (fallback to status)
   const getCardType = () => {
+    if (isInteractiveSearchStory(item)) return "search";
     const storyType = (item?.story_type || "").toLowerCase();
-    if (storyType === "search") return "search";
     if (storyType === "story") return "story";
 
     // Legacy fallback: mimic previous status-based behavior
@@ -102,10 +113,10 @@
   // Handle main action button: "Edit Book" (draft) -> story-preview; "View Book" / "Re-generate" -> preview or intersearch
   const handleMainAction = () => {
     const isEditBook = item?.status === "draft" && (actionButton.text === "Edit Book");
-    if (isEditBook && (item?.story_type === "story" || cardType === "story")) {
+    if (isEditBook && !isInteractiveSearchStory(item)) {
       // Edit: go to adventure-story/story-preview with story ID (page will load story from Supabase)
       const storyId = item?.uid || item?.id;
-      if (storyId) goto(`/adventure-story/story-preview?storyId=${encodeURIComponent(storyId)}`);
+      if (storyId) goto(`/adventure-story/story-preview?storyId=${encodeURIComponent(String(storyId))}`);
       return;
     }
     handleViewBook();
@@ -116,13 +127,13 @@
     if (item?.status === "completed" || item?.status === "generating") {
       dispatch("viewBook", item);
     }
-    if (item?.story_type === "search") {
-      goto(`/intersearch/1?storyId=${item?.uid}`);
-    }
-    if (item?.story_type === "story") {
-      // Pass the story ID to the preview page
-      console.log('[BookCard] Viewing book with ID:', item);
-      goto(`/preview/default?storyId=${item?.uid}`);
+    const storyId = item?.uid ?? item?.id;
+    if (!storyId) return;
+    const q = `storyId=${encodeURIComponent(String(storyId))}`;
+    if (isInteractiveSearchStory(item)) {
+      goto(`/intersearch/1?${q}`);
+    } else {
+      goto(`/preview/default?${q}`);
     }
   };
 

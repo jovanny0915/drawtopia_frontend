@@ -12,11 +12,11 @@
           "5": "Ally character - ally character should be not removed in this image."
         },
         "pageMainCharacterPoseActionEmotionPrompts": {
-          "1": "The character stands in a magical treehouse dwelling. The character's hands gently cupped as if holding or observing something delicate. And he/she seems to look at us. When replacing and integrating, the pose of emotions of the character of reference character image must be not kept. The placement of character stands in the a slightly left from center.",
-          "2": "A bright-eyed, the adventurous character stands smiling at the stone entrance to a magical, glowing forest path. The character's ready for the journey, accompanied by a friendly ally character. They are positioned a little left to the center and the alley companion fox character is right to the main character on reader perspective.",
-          "3": "The character and fox ally companion character pause on a mossy stone path in a deeply enchanted, twilight forest. The character looks on with wide-eyed curiosity and a touch of awe, one hand slightly raised. They are positioned a little left to the center and the companion fox character is left to the center and very close right to the main character on reader perspective.",
-          "4": "The character stands in a powerful, slightly crouched pose on a mystical forest path, actively casting a swirling, blue-green magic from he/her outstretched hand. The character's gaze is intensely focused forward. The character stands in the left of fox companion character. They are positioned a little left to the center and the fox companion character is right to the main character on reader perspective.",
-          "5": "The warm and welcoming character stands confidently on a cobblestone path before the open, ornate gates of a magnificent, brightly lit castle at night. With a radiant smile and open hands, the character gestures invitingly, accompanied by the character's happy fox companion. The character should stand on the left to the fox on my perspective. They are positioned a little left to the center and fox companion character is very close right to the main character on reader perspective."
+          "1": "3D Pixar-style forest adventure. The main boy character wears a green explorer jacket, cargo pants, hiking boots, and a large brown backpack. Inside a warm wooden cabin, he stands leaning slightly toward a tall arched window, body angled to the glass, head turned to peer out at a night forest. His right hand is raised near his chest in quiet wonder; his face shows curiosity, a soft gentle smile, and wide eyes. Warm lantern light on the sill contrasts with cool twilight outside. He is placed slightly left of center. When replacing and integrating, the pose and emotion of the reference character image must not be kept; match this template pose and emotion.",
+          "2": "3D stylized night forest. The same boy with backpack stands on a grassy path in an enchanted woodland with teal and deep-blue light, god rays, and glowing particles. He holds a large aged map open with both hands in front of him and looks down at it with a focused, calm, determined expression—reading the map to find his way. Beside him, the small orange fox ally wears a tiny backpack and stands on hind legs looking at a scrap of map, mirroring him. They are positioned a little left of center; the fox stays close beside the boy on reader perspective.",
+          "3": "3D medieval stone hall with torches, barrels, treasure, and a tall arched window showing daylight sky. The boy with backpack and compass necklace (map in belt) shares a joyful moment with the fox ally (also with a small pack and compass necklace). Use the energetic pose: boy stands facing forward, right arm extended to the side with an open palm, left arm raised high making a V or peace sign, mouth open in a cheer or laugh; the fox perches excitedly on the boy's head with paws raised and a big grin. Alternatively the welcoming variant: boy angles slightly right, right arm extended toward the fox in a presenting gesture with a warm closed-mouth smile; fox on the ground on hind legs waving one paw. They are a little left of center with clear spacing between them.",
+          "4": "3D magical forest clearing at night: crescent moon, stars, stylized trees, glowing pink-orange mushrooms, fireflies, and a wooden signpost. The boy with backpack is mid-stride in the grass or pausing in the clearing—wonderstruck—looking up at the moon or toward a firefly, or walking toward the signpost with curiosity and slight trepidation turned to peaceful awe. Emotion: wonder, curiosity, readiness for adventure. He stays slightly left of center with readable silhouette.",
+          "5": "3D whimsical magical forest with treehouses, rope bridges, river, waterfalls, and warm lantern glow. The boy with backpack crosses a long swaying rope bridge over the river mid-stride, right hand holding a small glowing wooden lantern to light his path—adventurous, focused, steady—or stands by a campfire ledge with lantern, observing the scene with quiet curiosity and peace. Clear backpack visibility. Slightly left of center for composition."
         }
       },
       "outerspace": {
@@ -165,6 +165,131 @@
           "3": "Cartoon style. In a dark underwater cave tunnel, the main character takes a guarded combat-ready stance while holding a spear-like tool with a focused, determined expression. The otter ally companion appears close behind in an alert protective mood. Keep both left of center, with the ally companion slightly above and behind the main character from reader perspective.",
           "4": "Cartoon style. Near a colorful underwater castle, the main character advances in a cautious action pose while gripping the spear-like tool, showing focused bravery before entering. Keep the main character left of center with the castle as the clear destination in the background. The ally companion can remain nearby but secondary in visual emphasis.",
           "5": "Cartoon style. Inside a grand underwater hall, the main character and otter ally celebrate success with joyful expressions and an energetic high-five gesture. Keep both slightly left of center, with the ally companion to the right of the main character from reader perspective, and preserve the elegant palace details around them."
+        }
+      }
+    }
+  },
+  "interactiveStoryStyleWorldPagePrompts": {
+    "3d": {
+      "forest": {
+        "tempMainStoryPagePrompt": "Use the provided template story page image as the fixed base. The original main character to remove and replace is the one circled in red on the template (the default main character in that mark)—replace only that figure with the character from the reference image. Keep all background structures, props, and composition from the template unchanged. The replaced character must preserve the reference character's identity while matching the template's pose, action, expression, and lighting for this page. Replaced character scale and size must be the same as or less than the template default main character. Apply these size rules: a character same size as original person, full body, aligned to ground; character fits exactly within the masked area, no scaling beyond boundaries; character proportional to environment, standing on the floor. This is an interactive search story page, so preserve visual clarity and scene readability for hidden-object gameplay. Do not add unrelated elements. Final image must be 4K with 3:2 aspect ratio (width:height).",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "3D style. The main boy character wears a brown backpack and green explorer outfit. In a cozy wooden cabin he leans toward a large arched window, peering out at a night forest; one hand raised near the chest in wonder, gentle smile, wide curious eyes—warm lantern light beside him. Interactive search: thoughtful observant pose, clear silhouette, slightly left of center.",
+          "2": "3D style. The same boy with backpack stands on a grassy forest path at night beside the fox ally (small backpack). He holds an open map with both hands and studies it with focused, calm determination; the fox mirrors him on hind legs with a mini map. Moving forward while scanning—energetic but readable; slightly left of center; fox close beside the boy.",
+          "3": "3D style. In a torchlit stone hall with treasure and barrels, the boy with backpack and the fox ally strike a joyful celebratory pose: boy with arm out, peace sign, fox on his head cheering—or the welcoming variant with boy presenting and fox waving on hind legs. Friendly, energetic emotion; spacing clean for hidden-object play; slightly left of center.",
+          "4": "3D style. Moonlit forest clearing with glowing mushrooms, fireflies, crescent moon, and signpost. The boy with backpack walks mid-stride or pauses, looking up at the moon or toward a clue with wonder and quiet excitement—active problem-solving exploration pose; preserve template depth; slightly left of center.",
+          "5": "3D style. In the template image, locate the original main character circled in red—that is the spot and footprint to replace (far right of the picture, mid-height: small wooden landing or balcony in front of an arched doorway carved into a thick tree trunk on the treehouse complex). Scene: whimsical magical forest village at night—treehouses, rope bridges, glowing blue river, mushroom dwellings, market stalls, lanterns, full moon. The boy with brown backpack matches that template placement: upright and still, arms at sides, facing slightly toward the center-left over the village; brown tunic or jacket, dark trousers, backpack visible. Replaced character must be the same size as or smaller than the red-circled original. Size rules: a character same size as original person, full body, aligned to ground; character fits exactly within the masked area, no scaling beyond boundaries; character proportional to environment, standing on the floor. Interactive search: preserve tiny readable silhouette on the right and full scene breadth.",
+          "6": "3D style. In the template image, locate the original main character circled in red—that is the spot and footprint to replace (upper-left quadrant: wooden balcony of the far-left treehouse, directly in front of a small round wooden door; same platform holds a small blue fox-like creature to the viewer's left of the boy). Scene: bioluminescent night forest—mushroom houses, glowing river and bridge, carved-face trees, market stalls, sprites, full moon. The boy with olive or dark green explorer outfit and brown backpack matches that template placement: upright, arms at sides, facing slightly right, looking out with neutral observant calm. Replaced character must be the same size as or smaller than the red-circled original. Size rules: a character same size as original person, full body, aligned to ground; character fits exactly within the masked area, no scaling beyond boundaries; character proportional to environment, standing on the floor. Interactive search: keep wide scenic readability and the elevated small figure on the left.",
+          "7": "3D style. Isometric mossy stone ruins with crystals and animals. The boy with forest-green tunic and brown messenger bag (or same reference outfit) matches the template progression: map on a high ledge, walking through an arch, descending ivy stairs with care, or sitting by a glowing blue pond with map spread pointing—collaborative thoughtful or careful focused emotion; excited surprise when spotting a clue; slightly left of center.",
+          "8": "3D style. Magical forest with ancient tree, crystals, bridges, and friendly creatures. The boy with green cloak or jacket and brown satchel/backpack sits peacefully on a stone path with hands together near chest, content and curious—or moves across a crystal bridge low and determined, adventurous closure. Final victory: calm triumphant relief, confident finishing pose after completing the search; readable composition."
+        }
+      },
+      "outerspace": {
+        "tempMainStoryPagePrompt": "Use the provided template story page image as the fixed base. Remove only the original main character and replace with the character from the reference image. Keep all space environment composition, ships, asteroids, and lighting from the template unchanged. The replaced character must preserve reference identity and match template pose/action/scale/emotion for each page. This is an interactive search story page, so keep layout readable and avoid clutter. Do not add unrelated effects or objects. Final image must be 4K with 3:2 aspect ratio.",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "3D style. The character pauses in a scanning pose on a space platform, thoughtful and observant, slightly left of center.",
+          "2": "3D style. The character travels forward through a star corridor while searching, with determined exploration energy.",
+          "3": "3D style. The character spots a clue among asteroids and gestures clearly; keep readable silhouettes.",
+          "4": "3D style. The character performs a focused action move to solve the search challenge.",
+          "5": "3D style. The character shows a victorious, relieved moment after finding the objective; clear readable silhouettes.",
+          "6": "3D style. The character carefully scans instruments or floating debris for hidden clues, with a concentrated investigative pose.",
+          "7": "3D style. The character points at a final hard-to-spot clue in the cosmic scene, expression bright with discovery.",
+          "8": "3D style. The character finishes with a triumphant mission-complete pose, joyful and confident after solving all clues."
+        }
+      },
+      "underwater": {
+        "tempMainStoryPagePrompt": "Use the provided template story page image as the fixed base. Replace only the template's main character with the reference character while keeping all underwater background composition, coral, ruins, and light rays unchanged. Match each page's template pose, action, and emotion while preserving the reference character's identity. This is an interactive search story page: prioritize scene readability and clue-search composition. Do not add extra unrelated objects. Final image must be 4K with 3:2 aspect ratio.",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "3D style. The character floats in a calm clue-observing pose, thoughtful expression, slightly left of center.",
+          "2": "3D style. The character swims forward with discovery excitement while searching coral structures.",
+          "3": "3D style. The character points toward a hidden clue in cave/ruin space with alert curiosity.",
+          "4": "3D style. The character uses special ability in a dynamic underwater action pose to reveal the clue.",
+          "5": "3D style. The character celebrates finding the final clue with joyful confidence in a friendly ending moment.",
+          "6": "3D style. The character inspects reef details closely in a careful search pose, showing patient focus.",
+          "7": "3D style. The character reacts with excited surprise after spotting a hidden underwater clue near ruins or coral.",
+          "8": "3D style. The character shows a final success pose with calm pride after completing the underwater interactive search."
+        }
+      }
+    },
+    "anime": {
+      "forest": {
+        "tempMainStoryPagePrompt": "Use the template story page image as immutable composition. Replace only the template main character with the reference character, preserving the reference facial identity while matching template pose, emotion, scale, and camera framing. Keep all background and non-main-template elements unchanged. This is an interactive search story page, so maintain clean, readable anime staging for find-the-clue gameplay. Do not add unrelated props. Output 4K, 3:2 aspect ratio.",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "Anime style. The main character takes a contemplative clue-search pose, eyes focused and alert, slightly left of center.",
+          "2": "Anime style. The main character advances through the forest in an exploratory motion, scanning details.",
+          "3": "Anime style. The main character signals a discovered clue with an expressive pointing gesture.",
+          "4": "Anime style. The main character enters a dynamic solve-the-challenge pose using their ability, with intense focus.",
+          "5": "Anime style. The main character celebrates after solving the search objective, warm and triumphant emotion.",
+          "6": "Anime style. The main character kneels or leans in to inspect a subtle clue, with concentrated and careful expression.",
+          "7": "Anime style. The main character reaches toward a newly found clue with bright excitement and clear action silhouette.",
+          "8": "Anime style. The main character delivers a final victory pose, joyful and proud after completing all interactive pages."
+        }
+      },
+      "outerspace": {
+        "tempMainStoryPagePrompt": "Use the template story page image as fixed anime composition. Replace only the template main character using the reference character identity. Match the template's page-specific pose/action/emotion/scale while preserving all space background elements unchanged. This is an interactive search story page, so keep visual hierarchy clear for hidden-object play. Avoid adding unrelated effects or props. Output 4K, 3:2 aspect ratio.",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "Anime style. The character stands in a focused search stance at a space hub, thoughtful and observant, left of center.",
+          "2": "Anime style. The character glides forward with exploratory excitement while scanning cosmic landmarks.",
+          "3": "Anime style. The character identifies a clue in the asteroid field and gestures decisively.",
+          "4": "Anime style. The character uses a focused action move with special ability to solve the clue challenge.",
+          "5": "Anime style. The character shows a victorious final moment, joyful but composed, readable scene composition.",
+          "6": "Anime style. The character checks space structures or floating debris in a careful clue-hunting pose.",
+          "7": "Anime style. The character reacts with excited discovery after locating a difficult hidden clue in the scene.",
+          "8": "Anime style. The character closes with a triumphant mission-complete pose, expressing relief and accomplishment."
+        }
+      },
+      "underwater": {
+        "tempMainStoryPagePrompt": "Use the template story page image as fixed anime composition. Replace only the template main character with the reference character while preserving all underwater architecture, coral, and lighting unchanged. Match template pose/action/emotion and scale per page. This is an interactive search story page, so keep the scene clear and organized for clue finding. Do not introduce unrelated objects. Output 4K, 3:2 aspect ratio.",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "Anime style. The character floats in a quiet clue-reading pose, thoughtful and calm, slightly left of center.",
+          "2": "Anime style. The character swims with eager curiosity while searching the scene.",
+          "3": "Anime style. The character spots and points toward a hidden clue in ruins/cave.",
+          "4": "Anime style. The character performs a dynamic ability-driven solve pose, focused and determined underwater.",
+          "5": "Anime style. The character celebrates success with joyful expressions, keeping clear visual storytelling.",
+          "6": "Anime style. The character leans in to inspect a subtle underwater clue with careful, investigative focus.",
+          "7": "Anime style. The character reacts with bright excitement when discovering a final hidden clue in reef or ruins.",
+          "8": "Anime style. The character finishes in a calm, triumphant ending pose after completing the full interactive search."
+        }
+      }
+    },
+    "cartoon": {
+      "forest": {
+        "tempMainStoryPagePrompt": "Use the template story page image as the fixed cartoon composition. Replace only the template main character with the reference character, preserving identity while matching each page's template pose/action/emotion/scale. Keep all background and props unchanged. This is an interactive search story page, so preserve clarity and child-friendly readability for clue-finding gameplay. Do not add unrelated objects. Output 4K with 3:2 aspect ratio.",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "Cartoon style. The character stands in a curious detective-like pose, scanning the scene for clues, left of center.",
+          "2": "Cartoon style. The character moves through the path with lively search energy and clear expressions.",
+          "3": "Cartoon style. The character points excitedly at a discovered clue with playful alertness.",
+          "4": "Cartoon style. The character uses a bold action pose to solve the challenge.",
+          "5": "Cartoon style. The character celebrates finding the final clue with bright, joyful expressions.",
+          "6": "Cartoon style. The character examines a tiny hidden clue up close in a fun, exaggerated searching pose.",
+          "7": "Cartoon style. The character reacts with big excited expression after spotting a hard-to-find clue.",
+          "8": "Cartoon style. The character strikes a happy victory pose to end the interactive search adventure."
+        }
+      },
+      "outerspace": {
+        "tempMainStoryPagePrompt": "Use the template story page image as the fixed cartoon composition. Replace only the template main character with the reference character while preserving all space background elements and layout unchanged. Match page-specific template pose/action/emotion and scale. This is an interactive search story page, so keep shape readability and visual hierarchy clear for hidden-object play. Avoid unrelated additions. Output 4K, 3:2 aspect ratio.",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "Cartoon style. The character pauses in a thinking search pose on a space station platform, left of center.",
+          "2": "Cartoon style. The character flies forward with playful determination while scanning the environment.",
+          "3": "Cartoon style. The character notices a clue among asteroids and gestures clearly.",
+          "4": "Cartoon style. The character executes a dynamic solve move using special ability, with focused bravery.",
+          "5": "Cartoon style. The character celebrates mission success with happy, energetic expressions.",
+          "6": "Cartoon style. The character inspects cosmic objects carefully in a playful clue-search pose.",
+          "7": "Cartoon style. The character shows delighted surprise after finding a difficult hidden clue in space.",
+          "8": "Cartoon style. The character ends with a cheerful mission-complete victory pose, clearly signaling success."
+        }
+      },
+      "underwater": {
+        "tempMainStoryPagePrompt": "Use the template story page image as the fixed cartoon composition. Replace only the template main character with the reference character, preserving identity while matching template pose/action/emotion/scale. Keep all underwater environment details unchanged. This is an interactive search story page; keep composition clear, uncluttered, and child-friendly for clue finding. Do not add unrelated objects. Output 4K, 3:2 aspect ratio.",
+        "pageMainCharacterPoseActionEmotionPrompts": {
+          "1": "Cartoon style. The character floats in a calm observation pose, searching for clues with curious eyes.",
+          "2": "Cartoon style. The character swims forward in an upbeat search motion.",
+          "3": "Cartoon style. The character points out a hidden clue near cave/ruin details.",
+          "4": "Cartoon style. The character takes a bold action pose using their ability to solve the clue puzzle.",
+          "5": "Cartoon style. The character finishes with a joyful celebration pose after finding the objective.",
+          "6": "Cartoon style. The character searches coral or ruins closely with an expressive investigative pose.",
+          "7": "Cartoon style. The character reacts with playful excitement after spotting a final hidden underwater clue.",
+          "8": "Cartoon style. The character ends with a bright, proud victory pose after completing all interactive pages."
         }
       }
     }

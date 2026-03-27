@@ -30,10 +30,21 @@
     return "forest";
   }
 
+  /** Map frontend format values to backend book_templates.story_format values. */
+  function normalizeStoryFormat(format: string | null): "adventure_story" | "interactive_story" {
+    const normalized = (format || "").trim().toLowerCase().replace(/[-\s]/g, "_");
+    if (normalized === "interactive_story" || normalized === "interactive" || normalized === "search") {
+      return "interactive_story";
+    }
+    return "adventure_story";
+  }
+
   onMount(async () => {
     if (!browser) return;
     const storyWorld = sessionStorage.getItem("selectedWorld");
     const apiWorld = normalizeStoryWorld(storyWorld);
+    const selectedFormat = sessionStorage.getItem("selectedFormat");
+    const apiStoryFormat = normalizeStoryFormat(selectedFormat);
     const storyStyle = (sessionStorage.getItem("selectedStyle") || "").trim();
     const baseUrl = (env.PUBLIC_BACKEND_URL || "").replace(/\/$/, "");
     if (!baseUrl) return;
@@ -41,6 +52,7 @@
     const fetchDedicationUrl = async (includeStyle: boolean): Promise<string | null> => {
       const params = new URLSearchParams({
         story_world: apiWorld,
+        story_format: apiStoryFormat,
         for_dedication: "true",
       });
       if (includeStyle && storyStyle) params.set("story_style", storyStyle);

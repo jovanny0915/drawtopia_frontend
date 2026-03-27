@@ -39,12 +39,13 @@ export function replacePlaceholders(text: string, replacements: { [key: string]:
 /** World keys used for story page prompts (forest, outerspace, underwater). */
 type StoryWorldKey = 'forest' | 'outerspace' | 'underwater';
 type StoryStyleKey = '3d' | 'anime' | 'cartoon';
+type StoryFormatKey = 'adventure_story' | 'interactive_story';
 
 /** Temporary fixed prompt for main story page. Set to null to use prompt builder again. */
 interface WorldStoryPagePrompts {
   tempMainStoryPagePrompt: string | null;
-  tempMainStoryPageAllyCharacterPrompt: string | null;
-  pageAllyCharacterPrompts: Record<string, string>;
+  tempMainStoryPageAllyCharacterPrompt?: string | null;
+  pageAllyCharacterPrompts?: Record<string, string>;
   pageMainCharacterPoseActionEmotionPrompts: Record<string, string>;
 }
 
@@ -52,6 +53,24 @@ const STORY_STYLE_WORLD_PAGE_PROMPTS = promptImageData.storyStyleWorldPagePrompt
   StoryStyleKey,
   Record<StoryWorldKey, WorldStoryPagePrompts>
 >;
+const INTERACTIVE_STORY_STYLE_WORLD_PAGE_PROMPTS = (
+  promptImageData as {
+    interactiveStoryStyleWorldPagePrompts?: Record<StoryStyleKey, Record<StoryWorldKey, WorldStoryPagePrompts>>;
+  }
+).interactiveStoryStyleWorldPagePrompts;
+
+function normalizeStoryFormatForPrompts(storyFormat?: string): StoryFormatKey {
+  const normalized = (storyFormat || '').toLowerCase().trim();
+  if (
+    normalized === 'interactive_story' ||
+    normalized === 'interactive' ||
+    normalized === 'search' ||
+    normalized === 'intersearch'
+  ) {
+    return 'interactive_story';
+  }
+  return 'adventure_story';
+}
 
 function getWorldKeyForPrompts(storyWorld: string): StoryWorldKey {
   const lower = (storyWorld || '').toLowerCase();
@@ -71,10 +90,11 @@ function getStyleKeyForPrompts(characterStyle: string): StoryStyleKey {
 function appendPageSpecificStoryRules(
   basePrompt: string,
   pageNumber: number,
-  worldPrompts: WorldStoryPagePrompts
+  worldPrompts: WorldStoryPagePrompts,
+  includeAllyRule: boolean
 ): string {
   const pageKey = String(pageNumber);
-  const allyPrompt = worldPrompts.pageAllyCharacterPrompts[pageKey];
+  const allyPrompt = includeAllyRule ? worldPrompts.pageAllyCharacterPrompts?.[pageKey] : null;
   const posePrompt = worldPrompts.pageMainCharacterPoseActionEmotionPrompts[pageKey];
   const sections: string[] = [basePrompt];
 
@@ -86,6 +106,21 @@ function appendPageSpecificStoryRules(
   }
 
   return sections.join('\n\n');
+}
+
+function getWorldStoryPagePrompts(
+  storyFormat: string | undefined,
+  styleKey: StoryStyleKey,
+  worldKey: StoryWorldKey
+): WorldStoryPagePrompts {
+  const formatKey = normalizeStoryFormatForPrompts(storyFormat);
+  if (
+    formatKey === 'interactive_story' &&
+    INTERACTIVE_STORY_STYLE_WORLD_PAGE_PROMPTS?.[styleKey]?.[worldKey]
+  ) {
+    return INTERACTIVE_STORY_STYLE_WORLD_PAGE_PROMPTS[styleKey][worldKey];
+  }
+  return STORY_STYLE_WORLD_PAGE_PROMPTS[styleKey][worldKey];
 }
 
 /** Human / humanoid reference types that should inherit template outfit in two-image story scenes. */
@@ -110,14 +145,16 @@ export function buildStoryPagePrompt(
     storyTheme?: string;
     storyTitle: string;
     characterImageUrl: string;
+    storyFormat?: string;
   }
 ): string {
+  const isInteractiveFormat = normalizeStoryFormatForPrompts(options.storyFormat) === 'interactive_story';
   const worldKey = getWorldKeyForPrompts(options.storyWorld);
   const styleKey = getStyleKeyForPrompts(options.characterStyle);
-  const worldPrompts = STORY_STYLE_WORLD_PAGE_PROMPTS[styleKey][worldKey];
+  const worldPrompts = getWorldStoryPagePrompts(options.storyFormat, styleKey, worldKey);
 
   const allyName = getAllyNameForStoryWorld(options.storyWorld);
-  const allyReplacementPrompt = worldPrompts.tempMainStoryPageAllyCharacterPrompt
+  const allyReplacementPrompt = !isInteractiveFormat && worldPrompts.tempMainStoryPageAllyCharacterPrompt
     ? worldPrompts.tempMainStoryPageAllyCharacterPrompt.replace(/\[ally_name\]/g, allyName)
     : null;
 
@@ -134,7 +171,7 @@ export function buildStoryPagePrompt(
         'The replaced reference character must wear the same costumes, clothes, and outfit as the original main character of the template image (including trousers, tops, shoes, and any visible accessories or symbols).';
       fixedPrompt = `${fixedPrompt}\n\n${costumePrompt}`;
     }
-    return appendPageSpecificStoryRules(fixedPrompt, pageNumber, worldPrompts);
+    return appendPageSpecificStoryRules(fixedPrompt, pageNumber, worldPrompts, !isInteractiveFormat);
   }
 
   const derivedEmotion = generateCharacterEmotion(pageNumber, storyText);
@@ -165,7 +202,7 @@ export function buildStoryPagePrompt(
     ? `${basePromptWithRules}\n\n${allyReplacementPrompt}`
     : basePromptWithRules;
 
-  return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber, worldPrompts);
+  return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber, worldPrompts, !isInteractiveFormat);
 }
 
 /**
@@ -517,6 +554,7 @@ export interface GenerateBookPagesOptions {
   adventureType?: string;
   ageGroup?: string;
   storyTitle?: string;
+  storyFormat?: string;
   onProgress?: (step: string, progress: number) => void;
   /** When true, only generate story page images (skip copyright, dedication, last word, back cover). */
   storyPagesOnly?: boolean;
@@ -548,6 +586,7 @@ export async function generateAllBookPages(
     adventureType = 'Treasure Hunt',
     ageGroup = '7-10',
     storyTitle = 'Adventure Story',
+    storyFormat,
     onProgress,
     storyPagesOnly = false,
     shouldAbort
@@ -634,7 +673,8 @@ export async function generateAllBookPages(
           adventureType,
           ageGroup,
           storyTitle,
-          characterImageUrl
+          characterImageUrl,
+          storyFormat
         });
         
         let storyPageResult = await generateImageWithTwoTemplates(

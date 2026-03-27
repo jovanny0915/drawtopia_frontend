@@ -16,12 +16,15 @@ export type TemplateStoryStyle =
   | 'adventure'
   | 'search-and-find';
 
+export type BookTemplateStoryFormat = 'adventure_story' | 'interactive_story';
+
 export interface BookTemplate {
   id: string;
   name: string;
   story_world?: 'forest' | 'underwater' | 'outerspace';
   story_style?: TemplateStoryStyle | string;
   story_type?: TemplateStoryStyle | string;
+  story_format?: BookTemplateStoryFormat | string;
   cover_image?: string;
   copyright_page_image?: string;
   dedication_page_image?: string;
@@ -224,9 +227,16 @@ export async function deleteUser(userId: string): Promise<ApiResponse<void>> {
 /**
  * Get all book templates
  */
-export async function getTemplates(): Promise<ApiResponse<BookTemplate[]>> {
+export async function getTemplates(
+  storyFormat?: BookTemplateStoryFormat
+): Promise<ApiResponse<BookTemplate[]>> {
   try {
-    const response = await fetch(`${API_URL}/admin/templates`, {
+    const query = new URLSearchParams();
+    if (storyFormat) {
+      query.set('story_format', storyFormat);
+    }
+
+    const response = await fetch(`${API_URL}/admin/templates${query.toString() ? `?${query.toString()}` : ''}`, {
       method: 'GET',
       cache: 'no-store',
       headers: {
@@ -261,7 +271,8 @@ export async function getTemplates(): Promise<ApiResponse<BookTemplate[]>> {
  */
 export async function getRandomTemplateByStoryWorld(
   storyWorld: 'forest' | 'underwater' | 'outerspace',
-  storyStyle?: string
+  storyStyle?: string,
+  storyFormat?: BookTemplateStoryFormat | 'story' | 'interactive' | string
 ): Promise<ApiResponse<BookTemplate>> {
   try {
     const query = new URLSearchParams({
@@ -269,6 +280,14 @@ export async function getRandomTemplateByStoryWorld(
     });
     if (storyStyle && storyStyle.trim()) {
       query.set('story_style', storyStyle.trim().toLowerCase());
+    }
+    if (storyFormat && storyFormat.trim()) {
+      const normalizedFormat = storyFormat.trim().toLowerCase().replace('-', '_');
+      const storyFormatQuery: BookTemplateStoryFormat =
+        normalizedFormat === 'interactive_story' || normalizedFormat === 'interactive'
+          ? 'interactive_story'
+          : 'adventure_story';
+      query.set('story_format', storyFormatQuery);
     }
 
     const response = await fetch(
@@ -315,7 +334,8 @@ export async function getRandomTemplateByStoryWorld(
 export async function createTemplate(
   name: string,
   storyWorld?: 'forest' | 'underwater' | 'outerspace',
-  storyStyle?: TemplateStoryStyle | string
+  storyStyle?: TemplateStoryStyle | string,
+  storyFormat: BookTemplateStoryFormat = 'adventure_story'
 ): Promise<ApiResponse<BookTemplate>> {
   try {
     const response = await fetch(`${API_URL}/admin/templates`, {
@@ -323,7 +343,12 @@ export async function createTemplate(
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ name, story_world: storyWorld, story_style: storyStyle })
+      body: JSON.stringify({
+        name,
+        story_world: storyWorld,
+        story_style: storyStyle,
+        story_format: storyFormat
+      })
     });
 
     if (!response.ok) {
@@ -350,14 +375,25 @@ export async function createTemplate(
 /**
  * Delete a book template
  */
-export async function deleteTemplate(templateId: string): Promise<ApiResponse<void>> {
+export async function deleteTemplate(
+  templateId: string,
+  storyFormat?: BookTemplateStoryFormat
+): Promise<ApiResponse<void>> {
   try {
-    const response = await fetch(`${API_URL}/admin/templates/${templateId}`, {
+    const query = new URLSearchParams();
+    if (storyFormat) {
+      query.set('story_format', storyFormat);
+    }
+
+    const response = await fetch(
+      `${API_URL}/admin/templates/${templateId}${query.toString() ? `?${query.toString()}` : ''}`,
+      {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json'
       }
-    });
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
@@ -582,6 +618,7 @@ export async function updateTemplate(
     story_world?: 'forest' | 'underwater' | 'outerspace' | null;
     story_style?: TemplateStoryStyle | string | null;
     story_type?: TemplateStoryStyle | string | null;
+    story_format?: BookTemplateStoryFormat | string | null;
     cover_image?: string | null;
     copyright_page_image?: string | null;
     dedication_page_image?: string | null;

@@ -11,7 +11,7 @@
     import { updateGift } from '../../../lib/database/gifts';
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
-    import { buildStoryScenePrompt, buildDedicationScenePrompt, buildIntersearchScenePrompt, buildIntersearchSearchAdventurePrompt, buildIntersearchCoverPrompt, buildStoryGenerationPrompt, getAllyNameForStoryWorld } from '../../../lib/promptBuilder';
+    import { buildStoryGenerationPrompt, getAllyNameForStoryWorld } from '../../../lib/promptBuilder';
     import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription } from '../../../lib/storyGenerationHelpers';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
@@ -79,13 +79,11 @@
         // Small delay to ensure UI updates before navigation
         setTimeout(() => {
             if (storyType === 'interactive') {
-                // Navigate to intersearch page with story ID
-                const storyId = browser ? sessionStorage.getItem('currentStoryId') : null;
-                if (storyId) {
-                    goto(`/intersearch/1?storyId=${storyId}`);
-                } else {
-                    goto('/intersearch/1');
+                // Land on adventure-story first; that page sends interactive stories to /intersearch/1
+                if (browser) {
+                    sessionStorage.setItem('postInteractiveGeneration', '1');
                 }
+                goto('/adventure-story');
             } else {
                 // Check if gift_mode is "create" for regular stories
                 const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
@@ -461,8 +459,6 @@
             const characterStyle = storyState.characterStyle || sessionStorage.getItem('selectedStyle') || 'cartoon';
             const storyTitle = storyState.storyTitle || sessionStorage.getItem('storyTitle') || `${characterName}'s Search Adventure`;
             
-            // Get world and difficulty from sessionStorage
-            const selectedWorld = browser ? (sessionStorage.getItem('intersearch_world') || sessionStorage.getItem('selectedWorld') || 'enchanted-forest') : 'enchanted-forest';
             const selectedDifficulty = browser ? (sessionStorage.getItem('intersearch_difficulty') || 'medium') : 'medium';
             
             // Get age group
@@ -500,20 +496,11 @@
             storyTextProgress = 5;
             
             // Map world to prompt builder format
-            const worldMap: { [key: string]: string } = {
-                'forest': 'enchanted-forest',
-                'enchanted-forest': 'forest',
-                'enchanted_forest': 'forest',
-                'space': 'outer-space',
-                'outer-space': 'outer-space',
-                'outer_space': 'outer-space',
-                'outerspace': 'outer-space',
-                'underwater': 'underwater-kingdom',
-                'underwater-kingdom': 'underwater-kingdom',
-                'underwater_kingdom': 'underwater-kingdom'
-            };
-            const storyWorld = sessionStorage.getItem('intersearch_world') || worldMap[selectedWorld] || 'enchanted-forest';
-            
+            const rawWorldForTemplate = browser
+                ? (sessionStorage.getItem('intersearch_world') || sessionStorage.getItem('selectedWorld') || 'enchanted-forest')
+                : 'enchanted-forest';
+            const storyWorldKey = mapStoryWorld(rawWorldForTemplate);
+
             // Check if cover already exists (from step 6/7)
             let existingCoverUrl: string | null = null;
             if (browser) {
@@ -526,109 +513,113 @@
                 }
             }
             
-            // Build prompts for scenes 1-4 only (cover already generated)
-            const scenePrompts: string[] = [];
-            
-            // Generate scenes 1-4 (skip cover generation)
-            for (let sceneNum = 1; sceneNum <= 4; sceneNum++) {
-                if (isCancelled) return;
-                
-                const sceneIndex = sceneNum - 1;
-                const sceneInfo = getSceneInfo(storyWorld, sceneIndex);
-                const sceneTitle = sceneTitles[storyWorld]?.[sceneIndex] || `Scene ${sceneNum}`;
-                
-                const scenePrompt = buildIntersearchScenePrompt({
-                    sceneNumber: sceneNum,
-                    storyTitle,
-                    storyWorld,
-                    characterName,
-                    characterType,
-                    characterStyle: characterStyle as '3d' | 'cartoon' | 'anime',
-                    specialAbility,
-                    ageGroup,
-                    sceneTitle,
-                    sceneDescription: sceneInfo.sceneDescription,
-                    characterActionForScene: sceneInfo.characterAction,
-                    characterEmotionForScene: sceneInfo.characterEmotion,
-                    storyContinuationForThisScene: sceneInfo.storyContext
-                });
-                
-                const searchAdventurePrompt = buildIntersearchSearchAdventurePrompt({
-                    characterName,
-                    characterType,
-                    characterDescription: specialAbility || `${characterName} is ${characterType}`,
-                    characterStyle: characterStyle as '3d' | 'cartoon' | 'anime',
-                    specialAbility,
-                    storyWorld,
-                    ageGroup,
-                    storyTitle,
-                    characterReferenceImage: characterImageUrl || undefined,
-                    difficulty: selectedDifficulty,
-                    sceneNumber: sceneNum
-                });
-                
-                const combinedPrompt = `${scenePrompt}\n\n${searchAdventurePrompt}`;
-                scenePrompts.push(combinedPrompt);
+            // Interactive book template (same selection rules as adventure story, type = interactive)
+            const { data: templates } = await getBookTemplates();
+            const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
+            const bookTemplate = selectMatchingBookTemplate(
+                templates || [],
+                bookTemplateId,
+                rawWorldForTemplate,
+                'interactive'
+            );
+            if (browser && bookTemplate?.id && bookTemplate.id !== bookTemplateId) {
+                sessionStorage.setItem('bookTemplateId', bookTemplate.id);
             }
-            
-            // Update progress: Prompts ready (15%)
+            const INTERACTIVE_STORY_PAGE_COUNT = 8;
+            if (!bookTemplate?.story_page_images || bookTemplate.story_page_images.length < INTERACTIVE_STORY_PAGE_COUNT) {
+                throw new Error(
+                    `Interactive book template not found or has fewer than ${INTERACTIVE_STORY_PAGE_COUNT} story page images`
+                );
+            }
+
+            const adventureType =
+                mapAdventureType(browser ? sessionStorage.getItem('selectedAdventure') ?? undefined : undefined) ||
+                'Treasure Hunt';
+            const storyTheme = browser ? (sessionStorage.getItem('storyTheme') || 'kindnessEmpathy') : 'kindnessEmpathy';
+
             storyTextProgress = 15;
-            
-            // Start with existing cover (if available) or empty array
+
+            // Cover: user-selected from flow, else template cover, else character reference (so DB always has cover + scenes)
             const generatedImages: string[] = [];
+            if (!existingCoverUrl && bookTemplate.cover_image) {
+                existingCoverUrl = bookTemplate.cover_image.split('?')[0];
+                console.log('Using book template cover image as interactive cover');
+            }
+            if (!existingCoverUrl) {
+                existingCoverUrl = characterImageUrl;
+                console.log('Using character image as interactive cover fallback');
+            }
             if (existingCoverUrl) {
                 generatedImages.push(existingCoverUrl);
-                // Update preview with existing cover
                 if (browser) {
                     previewImage3 = existingCoverUrl;
                 }
-                // Update progress for cover (15% -> 20%)
                 storyTextProgress = 20;
             } else {
-                console.warn('No existing cover found, but continuing with scene generation');
+                console.warn('No cover image available; interactive story may be missing a cover');
             }
-            
-            // Generate scene images using edit-image endpoint (scenes 1-4 only)
-            const imageGenerationEndpoint = 'https://image-edit-five.vercel.app/edit-image';
-            
-            for (let index = 0; index < scenePrompts.length; index++) {
+
+            // Main story pages only (8), same pattern as adventure (5): prompt_image.json interactive + /generate-cover-image
+            const sceneCount = INTERACTIVE_STORY_PAGE_COUNT;
+            // Product request: for the 8 main story pages, do not AI-generate page 4 — keep the original template image for display + saving.
+            const SKIP_INTERACTIVE_MAIN_STORY_PAGE_INDEX = 3; // 0-based => page 4
+
+            for (let i = 0; i < sceneCount; i++) {
                 if (isCancelled) return;
-                
+
+                const pageNumber = i + 1;
+                const sceneBeatIndex = i % 4;
+                const sceneInfo = getSceneInfo(storyWorldKey, sceneBeatIndex);
+                const templateSceneImage = bookTemplate.story_page_images[i];
+                const fallbackUrl = templateSceneImage ? templateSceneImage.split('?')[0] : '';
+
+                // Page 4: skip generation and use the untouched template artwork.
+                if (i === SKIP_INTERACTIVE_MAIN_STORY_PAGE_INDEX) {
+                    if (fallbackUrl) {
+                        generatedImages.push(fallbackUrl);
+                    }
+                    storyTextProgress = 20 + ((i + 1) / sceneCount) * 80;
+                    continue;
+                }
+
+                const storyPagePrompt = buildStoryPagePrompt(
+                    pageNumber,
+                    sceneInfo.storyContext,
+                    sceneInfo.characterAction,
+                    sceneInfo.sceneDescription,
+                    {
+                        characterName,
+                        characterType: mapCharacterType(characterType),
+                        specialAbility: specialAbility || '',
+                        characterStyle: (characterStyle as '3d' | 'cartoon' | 'anime') || 'cartoon',
+                        storyWorld: storyWorldKey,
+                        adventureType,
+                        ageGroup,
+                        storyTheme,
+                        storyTitle: storyTitle || `${characterName}'s Search Adventure`,
+                        characterImageUrl: characterImageUrl,
+                        storyFormat: 'interactive'
+                    }
+                );
+
                 try {
-                    const response = await fetch(imageGenerationEndpoint, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            image_url: characterImageUrl,
-                            prompt: scenePrompts[index],
-                        }),
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Failed to generate scene image ${index + 1}: ${response.status}`);
+                    let result = await generateImageWithTwoTemplates(templateSceneImage, characterImageUrl, storyPagePrompt);
+                    if (!(result.success && result.url)) {
+                        result = await generateImageWithTwoTemplates(templateSceneImage, characterImageUrl, storyPagePrompt);
                     }
-                    
-                    const data = await response.json();
-                    
-                    if (data.storage_info?.uploaded && data.storage_info?.url) {
-                        const cleanUrl = data.storage_info.url.split('?')[0];
+                    const cleanUrl = (result.success && result.url) ? result.url : fallbackUrl;
+                    if (cleanUrl) {
                         generatedImages.push(cleanUrl);
-                        
-                        // Update preview images as they're generated
-                        if (index === 0 && browser && !previewImage3) {
-                            previewImage3 = cleanUrl; // First scene
-                        }
-                        
-                        // Update progress: 20% (cover) + (index + 1) / 4 * 80% (scenes)
-                        storyTextProgress = 20 + ((index + 1) / scenePrompts.length) * 80;
-                    } else {
-                        throw new Error(`No image URL received for scene ${index + 1}`);
                     }
+                    if (i === 0 && browser && !previewImage3) {
+                        previewImage3 = cleanUrl;
+                    }
+                    storyTextProgress = 20 + ((i + 1) / sceneCount) * 80;
                 } catch (error) {
-                    console.error(`Error generating scene image ${index + 1}:`, error);
-                    // Continue with other images even if one fails
+                    console.error(`Error generating interactive scene image ${pageNumber}:`, error);
+                    if (fallbackUrl) {
+                        generatedImages.push(fallbackUrl);
+                    }
                 }
             }
             
@@ -638,53 +629,15 @@
             if (generatedImages.length === 0) {
                 throw new Error('Failed to generate any images');
             }
-            
-            // Generate dedication image if dedication text exists
-            let dedicationImageUrl: string | null = null;
-            let dedicationText: string | null = null;
-            if (browser) {
-                dedicationText = sessionStorage.getItem('dedication_text');
-                if (dedicationText) {
-                    try {
-                        // Build dedication scene prompt based on story world
-                        const dedicationScenePrompt = buildDedicationScenePrompt(storyWorld);
-                        
-                        // Generate dedication image using edit-image endpoint
-                        const response = await fetch(imageGenerationEndpoint, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                image_url: characterImageUrl,
-                                prompt: dedicationScenePrompt,
-                            }),
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data.storage_info?.uploaded && data.storage_info?.url) {
-                                const cleanUrl = data.storage_info.url.split('?')[0];
-                                dedicationImageUrl = cleanUrl;
-                                sessionStorage.setItem('dedication_image', cleanUrl);
-                                console.log('Dedication image generated:', cleanUrl);
-                            }
-                        } else {
-                            console.warn('Failed to generate dedication image:', response.status);
-                        }
-                    } catch (error) {
-                        console.error('Error generating dedication image:', error);
-                        // Continue even if dedication image generation fails
-                    }
-                }
-            }
-            
+
+            const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
+
             // Update progress: All images generated (100%)
             storyTextProgress = 100;
             sceneImageProgress = 0; // Not used for interactive stories
             
             // Save to database
-            await saveIntersearchStoryToDatabase(generatedImages, storyWorld, selectedDifficulty, characterImageUrl, dedicationText, dedicationImageUrl);
+            await saveIntersearchStoryToDatabase(generatedImages, storyWorldKey, selectedDifficulty, characterImageUrl, dedicationText, null);
             
             storyGenerated = true;
         } catch (error) {
@@ -1332,7 +1285,8 @@
                         ageGroup,
                         storyTheme,
                         storyTitle: storyTitle || 'The Great Adventure',
-                        characterImageUrl: cleanCharacterImageUrl
+                        characterImageUrl: cleanCharacterImageUrl,
+                        storyFormat: selectedFormat
                     });
                     // Generate story page by replacing reference character into template scene (template first, character second).
                     let result = await generateImageWithTwoTemplates(templateSceneImage, cleanCharacterImageUrl, storyPagePrompt);
