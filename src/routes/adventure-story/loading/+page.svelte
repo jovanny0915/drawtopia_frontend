@@ -12,7 +12,7 @@
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
     import { buildStoryGenerationPrompt, getAllyNameForStoryWorld } from '../../../lib/promptBuilder';
-    import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription } from '../../../lib/storyGenerationHelpers';
+    import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription, generateStoryPageAudioUrls } from '../../../lib/storyGenerationHelpers';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
     import drawtopia from "../../../assets/logo.webp";
@@ -1332,8 +1332,28 @@
 
             storyTextProgress = 50;
             sceneImageProgress = 50;
-            console.log('Step 3: Saving story to database...');
-            await saveStoryToDatabase(storyPages, cleanSceneImages, []);
+
+            // ——— Step 3: Narration audio for pages 1–5 (same stripped text as saved story_content) ———
+            let audioUrls: (string | null)[] = [];
+            if (!isCancelled) {
+                console.log('Step 3: Generating story page audio (/story/generate-audio)...');
+                const textsForAudio = storyPagesTextOnly.map((p) => stripPageLabelFromText(p.text));
+                audioUrls = await generateStoryPageAudioUrls({
+                    backendBaseUrl,
+                    pageTexts: textsForAudio,
+                    ageGroup
+                });
+                if (audioUrls.length > 0) {
+                    console.log(
+                        `Audio URLs received: ${audioUrls.filter((u) => u).length}/${audioUrls.length} non-empty`
+                    );
+                } else {
+                    console.warn('No audio URLs returned; story will save without narration audio');
+                }
+            }
+
+            console.log('Step 4: Saving story to database...');
+            await saveStoryToDatabase(storyPages, cleanSceneImages, audioUrls);
 
             storyGenerated = true;
             console.log('Story generation complete!');

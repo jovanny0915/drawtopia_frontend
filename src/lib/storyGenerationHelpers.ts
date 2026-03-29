@@ -537,6 +537,40 @@ export async function generateImageWithTwoTemplates(
   }
 }
 
+/** Backend requires exactly five page strings (use empty strings for missing slots). */
+export async function generateStoryPageAudioUrls(options: {
+  backendBaseUrl: string;
+  /** One entry per story page; padded/truncated to length 5 for /story/generate-audio */
+  pageTexts: string[];
+  ageGroup: string;
+}): Promise<(string | null)[]> {
+  const base = options.backendBaseUrl.replace(/\/$/, '');
+  const pages = [...options.pageTexts];
+  while (pages.length < 5) pages.push('');
+  const bodyPages = pages.slice(0, 5);
+
+  try {
+    const res = await fetch(`${base}/story/generate-audio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pages: bodyPages,
+        age_group: options.ageGroup
+      })
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.warn('story/generate-audio failed:', res.status, detail);
+      return [];
+    }
+    const data = (await res.json()) as { audio_urls?: (string | null)[] };
+    return Array.isArray(data.audio_urls) ? data.audio_urls : [];
+  } catch (e) {
+    console.error('generateStoryPageAudioUrls:', e);
+    return [];
+  }
+}
+
 /**
  * Generate all book pages in sequence
  */
