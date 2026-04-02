@@ -7,8 +7,10 @@
     deleteTemplate,
     uploadTemplateImage,
     uploadStoryPage,
+    uploadMainCharacterImage,
     deleteTemplateImage,
     deleteStoryPage,
+    deleteMainCharacterImage,
     updateTemplate,
     type BookTemplate,
     type BookTemplateStoryFormat,
@@ -144,19 +146,28 @@
   }
 
   // Open upload modal for story pages (multiple images)
-  function openMultipleImageUploadModal(templateId: string, templateName: string) {
+  type MultiImageFieldKey = 'story_page_images' | 'main_character_images';
+
+  function openMultipleImageUploadModal(
+    templateId: string,
+    templateName: string,
+    fieldKey: MultiImageFieldKey
+  ) {
     if (savingRows.has(templateId)) return;
 
     const template = templates.find((t) => t.id === templateId);
 
     currentTemplateId = templateId;
-    currentUploadField = 'story_page_images';
+    currentUploadField = fieldKey;
     currentTemplateName = templateName;
     uploadModalType = 'multiple';
     selectedFiles = [];
     previewUrls = [];
     targetStoryPageIndex = null;
-    existingUploadUrls = template?.story_page_images || [];
+    existingUploadUrls =
+      fieldKey === 'story_page_images'
+        ? template?.story_page_images || []
+        : template?.main_character_images || [];
     showUploadModal = true;
   }
 
@@ -255,8 +266,11 @@
         updatedTemplate = result.data;
         alert('Image uploaded successfully!');
       } else {
-        // Upload multiple story pages
-        const existingImages = template.story_page_images || [];
+        // Upload multiple images (story pages or main character images)
+        const existingImages =
+          currentUploadField === 'story_page_images'
+            ? template.story_page_images || []
+            : template.main_character_images || [];
         const isReplaceMode = targetStoryPageIndex !== null;
 
         if (isReplaceMode) {
@@ -271,18 +285,21 @@
             format: 'webp'
           });
 
-          const result = await uploadStoryPage(
-            currentTemplateId,
-            optimized.file,
-            pageIndex
-          );
+          const result =
+            currentUploadField === 'story_page_images'
+              ? await uploadStoryPage(currentTemplateId, optimized.file, pageIndex)
+              : await uploadMainCharacterImage(currentTemplateId, optimized.file, pageIndex);
 
           if (!result.success || result.error) {
-            throw new Error(result.error || 'Failed to replace story scene');
+            throw new Error(result.error || 'Failed to replace image');
           }
 
           updatedTemplate = result.data;
-          alert(`Story scene #${pageIndex + 1} replaced successfully!`);
+          alert(
+            currentUploadField === 'story_page_images'
+              ? `Story scene #${pageIndex + 1} replaced successfully!`
+              : `Main character image #${pageIndex + 1} replaced successfully!`
+          );
         } else {
           for (let i = 0; i < selectedFiles.length; i++) {
             const file = selectedFiles[i];
@@ -296,11 +313,10 @@
               format: 'webp'
             });
 
-            const result = await uploadStoryPage(
-              currentTemplateId,
-              optimized.file,
-              pageIndex
-            );
+            const result =
+              currentUploadField === 'story_page_images'
+                ? await uploadStoryPage(currentTemplateId, optimized.file, pageIndex)
+                : await uploadMainCharacterImage(currentTemplateId, optimized.file, pageIndex);
 
             if (!result.success || result.error) {
               throw new Error(`Failed to upload image ${i + 1}: ${result.error}`);
@@ -309,7 +325,11 @@
             updatedTemplate = result.data;
           }
 
-          alert(`${selectedFiles.length} story page(s) uploaded successfully!`);
+          alert(
+            currentUploadField === 'story_page_images'
+              ? `${selectedFiles.length} story page(s) uploaded successfully!`
+              : `${selectedFiles.length} main character image(s) uploaded successfully!`
+          );
         }
       }
 
@@ -529,7 +549,8 @@
       last_words_page_image: addCacheBuster(template.last_words_page_image, stamp),
       last_story_page_image: addCacheBuster(template.last_story_page_image, stamp),
       back_cover_image: addCacheBuster(template.back_cover_image, stamp),
-      story_page_images: (template.story_page_images || []).map((url) => addCacheBuster(url, stamp) || '')
+      story_page_images: (template.story_page_images || []).map((url) => addCacheBuster(url, stamp) || ''),
+      main_character_images: (template.main_character_images || []).map((url) => addCacheBuster(url, stamp) || '')
     };
   }
 
@@ -561,7 +582,10 @@
           currentUploadField as 'cover_image' | 'copyright_page_image' | 'dedication_page_image' | 'last_words_page_image' | 'last_story_page_image' | 'back_cover_image'
         );
       } else {
-        result = await deleteStoryPage(currentTemplateId, sceneIndex);
+        result =
+          currentUploadField === 'story_page_images'
+            ? await deleteStoryPage(currentTemplateId, sceneIndex)
+            : await deleteMainCharacterImage(currentTemplateId, sceneIndex);
       }
 
       if (!result.success || result.error || !result.data) {
@@ -572,7 +596,10 @@
       if (uploadModalType === 'single') {
         existingUploadUrls = [];
       } else {
-        existingUploadUrls = result.data.story_page_images || [];
+        existingUploadUrls =
+          currentUploadField === 'story_page_images'
+            ? result.data.story_page_images || []
+            : result.data.main_character_images || [];
       }
 
       closeUploadModal();
@@ -634,6 +661,9 @@
             <th>Copyright</th>
             <th>Dedication</th>
             <th>Story Pages</th>
+            {#if selectedStoryFormat === 'interactive_story'}
+              <th>Main character images</th>
+            {/if}
             <th>Last Words</th>
             <th>Last Story</th>
             <th>Back Cover</th>
@@ -650,6 +680,7 @@
             {@const copyrightUrl = template.copyright_page_image}
             {@const dedicationUrl = template.dedication_page_image}
             {@const storyPagesUrls = getDisplayStoryPages(template.id, template.story_page_images)}
+            {@const mainCharacterUrls = template.main_character_images || []}
             {@const lastWordsUrl = template.last_words_page_image}
             {@const lastStoryUrl = template.last_story_page_image}
             {@const backCoverUrl = template.back_cover_image}
@@ -745,8 +776,8 @@
                 <div 
                   class="image-upload-box" 
                   class:disabled={isSaving}
-                  on:click={() => openMultipleImageUploadModal(template.id, template.name)}
-                  on:keydown={(e) => e.key === 'Enter' && openMultipleImageUploadModal(template.id, template.name)}
+                  on:click={() => openMultipleImageUploadModal(template.id, template.name, 'story_page_images')}
+                  on:keydown={(e) => e.key === 'Enter' && openMultipleImageUploadModal(template.id, template.name, 'story_page_images')}
                   role="button"
                   tabindex="0"
                 >
@@ -768,6 +799,36 @@
                   {/if}
                 </div>
               </td>
+
+              {#if selectedStoryFormat === 'interactive_story'}
+                <td class="image-cell story-pages-cell-container">
+                  <div 
+                    class="image-upload-box" 
+                    class:disabled={isSaving}
+                    on:click={() => openMultipleImageUploadModal(template.id, template.name, 'main_character_images')}
+                    on:keydown={(e) => e.key === 'Enter' && openMultipleImageUploadModal(template.id, template.name, 'main_character_images')}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {#if mainCharacterUrls.length > 0}
+                      <div class="story-thumbnail-wrapper">
+                        <img 
+                          src={mainCharacterUrls[0]} 
+                          alt="First main character image" 
+                          class="thumbnail story-thumbnail" 
+                        />
+                        <div class="story-overlay">
+                          <span class="story-count-badge">{mainCharacterUrls.length} image{mainCharacterUrls.length !== 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
+                    {:else}
+                      <div class="upload-placeholder">
+                        <Plus size={32} strokeWidth={1.5} />
+                      </div>
+                    {/if}
+                  </div>
+                </td>
+              {/if}
               
               <td class="image-cell">
                 <div 
@@ -935,7 +996,7 @@
             {#if uploadModalType === 'single'}
               Replace the current image or choose a new one to begin.
             {:else}
-              Add more story pages in order. Existing pages remain untouched.
+              Add more images in order. Existing images remain untouched.
             {/if}
           </p>
         </div>
@@ -951,7 +1012,7 @@
           {#if uploadModalType === 'multiple' && !(uploadInProgress || deletingSceneInProgress)}
             <div class="scene-actions-row">
               <button class="scene-add-btn" on:click={triggerAppendStoryScenePicker}>
-                Add Story Scenes
+              Add Images
               </button>
             </div>
           {/if}
@@ -992,7 +1053,7 @@
                 on:click={() => triggerModalFilePicker(uploadModalType === 'multiple' ? null : 0)}
                 disabled={uploadInProgress || deletingSceneInProgress}
               >
-                {uploadModalType === 'multiple' ? 'Add Story Scenes' : 'Change Scene'}
+                {uploadModalType === 'multiple' ? 'Add Images' : 'Change Scene'}
               </button>
             </div>
           {/if}

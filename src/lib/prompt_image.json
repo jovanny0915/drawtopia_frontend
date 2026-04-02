@@ -173,19 +173,31 @@
     "3d": {
       "forest": {
         "tempMainStoryPagePrompt": "Use the provided template story page image as the fixed base. The default main character to remove is the small boy in a green suit (matching jacket and trousers) with a brown backpack—the figure highlighted by the red circle on the template. Replace only that human main character with the character from the reference image. The red circle is an editor's mark only: do not render any red circle, ring, outline, or annotation in the final image; output must look like a clean story illustration with no markup. Treat the red circle as the strict placement and scale guide: the replaced character's full-body silhouette (head to feet, including backpack or hair) must fit entirely inside that circle's area on the image plane—same center point, same or smaller height and width than the default boy. If the reference character would read larger than the circle or taller than nearby doors/rails, scale the figure down until it matches the default boy's apparent size and does not dominate the architecture. Feet stay on the same platform, step, or floor contact as the original boy; do not reposition the figure to a new ledge or shift it out of the marked footprint. Keep all background structures, props, NPC creatures, and composition from the template unchanged. The replaced character must preserve the reference character's identity while matching the template's pose, action, expression, and lighting for this page. This is an interactive search story page, so preserve visual clarity and scene readability for hidden-object gameplay. Do not add unrelated elements. OUTPUT QUALITY AND COMPOSITING (CRITICAL): Deliver one unified high-fidelity illustration—never a low-resolution, pixelated, or visibly upscaled cutout pasted onto the template. The replaced character must match the background's sharpness, micro-detail, and noise/grain; avoid blocky pixels, stair-stepped edges, JPEG blocking, color banding, hard matte cutout lines, halos, and chroma fringing. Use smooth anti-aliased contours and natural contact shadows; match scene lighting and color temperature so the figure reads as rendered with the environment, not composited from a smaller source. Re-synthesize the character at full native resolution in the same 3D illustrative style as the template rather than stretching soft reference pixels. Face, hands, hair, and clothing must stay crisp and anatomically coherent at final output size. Final image must be 4K with 3:2 aspect ratio (width:height).",
+        "pagePositionScales": {
+          "5": {"x": 0.88, "y": 0.56, "scale": 0.2, "width": 288, "height": 432},
+          "6": {"x": 0.14, "y": 0.18, "scale": 0.2, "width": 320, "height": 480},
+          "7": {"x": 0.88, "y": 0.50, "scale": 0.2, "width": 328, "height": 492},
+          "8": {"x": 0.80, "y": 0.83, "scale": 0.2, "width": 320, "height": 480}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "3D style. The main boy character wears a brown backpack and green explorer outfit. In a cozy wooden cabin he leans toward a large arched window, peering out at a night forest; one hand raised near the chest in wonder, gentle smile, wide curious eyes—warm lantern light beside him. Interactive search: thoughtful observant pose, clear silhouette, slightly left of center.",
           "2": "3D style. The same boy with backpack stands on a grassy forest path at night beside the fox ally (small backpack). He holds an open map with both hands and studies it with focused, calm determination; the fox mirrors him on hind legs with a mini map. Moving forward while scanning—energetic but readable; slightly left of center; fox close beside the boy.",
-          "3": "3D style. Whimsical enchanted forest hub—glowing flora, lantern-lit paths, rope bridges or market stalls in the mid-distance. The default main character is the red-circled boy in a green suit with brown backpack (replace with reference; no red circle in output). He shares a clear, upbeat interactive-search moment with the small fox ally: pointing toward a hard-to-spot clue, or both cheering a find—open gestures, friendly energy, readable silhouettes for hidden-object play. Slightly left of center; keep busy background detail but uncluttered focal read.",
+          "3": "3D style. Whimsical enchanted forest hub—glowing flora, lantern-lit paths, rope bridges or market stalls in the mid-distance. IMPORTANT: If the template contains two boy main characters (two separate human boy figures), remove and replace BOTH of them with the same reference character identity (duplicate the reference character so it appears twice), matching each original boy's exact pose/action/expression, scale, and placement. If the template marks placement with red circles, treat each circle as the strict footprint/scale guide for its corresponding boy; do not render any red circle in the output. Both replaced characters share a clear, upbeat interactive-search moment with the small fox ally: pointing toward a hard-to-spot clue, or cheering a find—open gestures, friendly energy, readable silhouettes for hidden-object play. Slightly left of center overall; keep busy background detail but maintain an uncluttered focal read.",
           "4": "3D style. Night forest panorama—full or crescent moon, bioluminescent mushrooms, fireflies or hanging star-lights, wooden signpost or trail cues. The default main character is the red-circled boy in green explorer clothes with backpack (replace with reference; no red circle in output). He walks mid-stride or pauses on a path or clearing, eyes tracking a clue—wonder, curiosity, quiet focus. Preserve depth and wide scenic readability for search gameplay; figure slightly left of center unless the template dictates otherwise.",
-          "5": "3D style. Template match: high-angle wide whimsical forest village at twilight—dense treehouses, rope bridges, central blue river, mushroom folk, sprites, campfires. Replace only the red-circled default boy (green suit, brown backpack); no red circle in output. Placement (full frame = 1 wide × 1 tall, origin top-left): (1) Horizontal: main character sits in the **right 1/5 of the frame**—center of the figure approximately **x = 7/8 to 15/16** from the left edge (not center, not left treehouses). (2) Vertical: feet and door niche sit in the **middle vertical third**, approximately **y = 2/5 to 3/5** from the top (between upper and lower half; not top 1/5 sky, not bottom 1/4 foreground tents unless template matches). (3) Depth: small arched doorway or landing **on the far-right tree trunk**, distinct from any left/center doors. Pose: tiny upright silhouette in the doorway, arms at sides or one hand on frame, facing toward frame center-left. Scale: body fully inside red-circle footprint; shorter than door arch; hero-scale forbidden. Preserve all other village elements.",
-          "6": "3D style. Template match: night forest, full moon, glowing river, mushroom houses, carved-face tree, **lower** striped market tents (approx. **bottom 1/4 to bottom 1/3** of frame). Replace only the red-circled default boy; no red circle in output. Placement: (1) Horizontal: **left 1/4 of the frame**—figure center approximately **x = 1/8 to 1/4** from the left edge (not the right mushroom houses, not center river). (2) Vertical: circular wooden balcony and round door sit in the **upper-middle band**, approximately **y = 1/4 to 2/5** from the top (elevated treehouse; not the bottom 3/4 ground market). (3) Lateral on platform: boy **right of** the small round door on that balcony (viewer perspective); glowing blue fox-like ally **left of the boy** on the same deck—do not swap or merge footprints. Scale: child height vs door; full body inside red circle; feet only on the balcony disk. Preserve fox, rails, and background unchanged.",
-          "7": "3D style. Isometric mossy stone ruins, crystals, vines, small creatures—not the same balcony/door shot as pages 5–6. Replace only the red-circled default main character; no red circle in output. Placement: (1) Horizontal: **center-left bias**, approximately **x = 1/4 to 2/5** from the left (ruin courtyard or path, not far-right doorway). (2) Vertical: character action on **mid-to-lower half**, approximately **y = 1/2 to 4/5** from the top (ledge, arch base, stairs mid-flight, or pond edge—match template: feet on stone, not floating). (3) If a map or clue: hands and gaze toward **center or lower-right** of frame to separate from page 6 left-balcony layout. Emotion: thoughtful search, careful steps, or excited point at a hidden clue; readable isometric clarity.",
-          "8": "3D style. Finale: magical forest—ancient tree, crystals, bridges, friendly creatures; closure after the search. Replace only the red-circled default main character; no red circle in output. Placement: (1) Horizontal: **center or center-left**, approximately **x = 3/8 to 1/2** from the left (victory beat on path or bridge—not page 5 far-right, not page 6 far-left balcony). (2) Vertical: **lower-middle to lower third**, approximately **y = 3/5 to 4/5** from the top (feet on path, bridge deck, or near foreground flowers—**not** top 1/5 sky hero shot unless template dictates). (3) Optional: character spans **bottom 3/4 zone** of the frame height for a grounded, readable ending silhouette. Pose: calm triumph—seated hands together, or slow confident stride on crystal bridge; warm light on face; composition stays wide for interactive readability."
+          "5": "3D style. Replace only the original character inside the doorway and remove the red circle, positioning the new character fully within the circular doorway area with the entire body strictly contained inside the boundary (no overflow beyond the circle or doorway frame), feet anchored exactly on the doorstep, body centered within the circular region and door frame, head just below the top arch, maintaining the original character’s exact height, scale, and full body proportions (including precise facial features, eyes, lips, arms, and legs), preserving pose and perspective, and render the character in ultra-high-resolution 4K with extremely sharp, clean, and well-defined facial and body details, no blur, no distortion, no artifacts, and high-detail textures, seamlessly matching the scene’s lighting, shadows, and color grading without modifying anything else.",
+          "6": "3D style. Replace only the character inside the marked circular balcony area on the left treehouse platform, completely remove the red circle and reconstruct the background, positioning the new character fully inside the circular region with the entire body strictly contained within the boundary (head, arms, and feet must not cross the circle), feet aligned to the wooden floor, body centered in the circular area, head positioned proportionally below the upper boundary, maintaining exact scale and body proportions identical to the original character (including facial structure, eyes, lips, arms, and legs), preserving perspective and depth, and render in ultra-high-resolution 4K quality with extremely sharp and clear facial and body details, no blur, no distortion, and clean edges, perfectly matching the soft glowing fantasy lighting and shadows without altering any other part of the image.",
+          "7": "3D style. Replace only the character inside the marked circular area on the right stone platform, completely remove the red circle and restore the background, placing the new character entirely within the circular boundary with the full body strictly contained inside (no part crossing the circle edge), feet aligned naturally to the stone surface, body centered within the circular area, maintaining exact scale, height, and proportions identical to the original character (including precise face, eyes, lips, and limb ratios), preserving perspective and depth, and render in ultra-detailed 4K resolution with sharp, clean facial features and body parts, no blur, no distortion, no broken geometry, and high-detail textures, seamlessly blending with the scene’s lighting and environment without modifying anything else.",
+          "8": "3D style. Replace only the character inside the marked circular area on the right bridge edge, completely remove the red circle and reconstruct the background, and insert the provided reference character fully contained within the circular area with the entire body (head, arms, legs, feet) strictly inside the boundary with no overflow, feet precisely anchored to the bridge surface, body centered within the circular region, maintaining exact height, scale, and full body proportions identical to the original character (including head size, facial structure, eyes, lips, arms, and legs), preserving perspective and depth, and render the character in ultra-high-resolution 4K quality with extremely sharp, clear facial and body details, no blur, no distortion, no deformation, and clean edges, perfectly matching the scene’s stylized lighting, shadows, and color grading without altering anything else."
         }
       },
       "outerspace": {
         "tempMainStoryPagePrompt": "Use the provided template story page image as the fixed base. Remove only the original main character and replace with the character from the reference image. Keep all space environment composition, ships, asteroids, and lighting from the template unchanged. The replaced character must preserve reference identity and match template pose/action/scale/emotion for each page. This is an interactive search story page, so keep layout readable and avoid clutter. Do not add unrelated effects or objects. OUTPUT QUALITY AND COMPOSITING (CRITICAL): Deliver one unified high-fidelity illustration—never a low-resolution, pixelated, or visibly upscaled cutout pasted onto the template. The replaced character must match the background's sharpness, micro-detail, and noise/grain; avoid blocky pixels, stair-stepped edges, JPEG blocking, banding, halos, and fringing. Use smooth anti-aliased contours, natural contact shadows, and consistent scene lighting. Re-synthesize the character at full native resolution in the same 3D style as the template rather than stretching soft reference pixels; face, hands, and costume stay crisp at 4K. Final image must be 4K with 3:2 aspect ratio.",
+        "pagePositionScales": {
+          "5": {"x": 0.38, "y": 0.48, "scale": 0.76, "width": 304, "height": 456},
+          "6": {"x": 0.28, "y": 0.52, "scale": 0.80, "width": 320, "height": 480},
+          "7": {"x": 0.42, "y": 0.50, "scale": 0.79, "width": 316, "height": 474},
+          "8": {"x": 0.36, "y": 0.48, "scale": 0.81, "width": 324, "height": 486}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "3D style. The character pauses in a scanning pose on a space platform, thoughtful and observant, slightly left of center.",
           "2": "3D style. The character travels forward through a star corridor while searching, with determined exploration energy.",
@@ -199,6 +211,12 @@
       },
       "underwater": {
         "tempMainStoryPagePrompt": "Use the provided template story page image as the fixed base. Replace only the template's main character with the reference character while keeping all underwater background composition, coral, ruins, and light rays unchanged. Match each page's template pose, action, and emotion while preserving the reference character's identity. This is an interactive search story page: prioritize scene readability and clue-search composition. Do not add extra unrelated objects. OUTPUT QUALITY AND COMPOSITING (CRITICAL): Deliver one unified high-fidelity illustration—never a low-resolution, pixelated, or visibly upscaled cutout pasted onto the template. The replaced character must match the background's sharpness, caustic detail, and noise/grain; avoid blocky pixels, stair-stepped edges, JPEG blocking, banding, halos, and fringing. Use smooth anti-aliased contours, natural contact shadows, and consistent underwater lighting. Re-synthesize the character at full native resolution in the same 3D style as the template rather than stretching soft reference pixels; face, hands, and costume stay crisp at 4K. Final image must be 4K with 3:2 aspect ratio.",
+        "pagePositionScales": {
+          "5": {"x": 0.40, "y": 0.52, "scale": 0.76, "width": 304, "height": 456},
+          "6": {"x": 0.36, "y": 0.50, "scale": 0.80, "width": 320, "height": 480},
+          "7": {"x": 0.34, "y": 0.48, "scale": 0.75, "width": 300, "height": 450},
+          "8": {"x": 0.38, "y": 0.50, "scale": 0.82, "width": 328, "height": 492}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "3D style. The character floats in a calm clue-observing pose, thoughtful expression, slightly left of center.",
           "2": "3D style. The character swims forward with discovery excitement while searching coral structures.",
@@ -214,82 +232,118 @@
     "anime": {
       "forest": {
         "tempMainStoryPagePrompt": "Use the template story page image as immutable composition. Replace only the template main character with the reference character, preserving the reference facial identity while matching template pose, emotion, scale, and camera framing. Keep all background and non-main-template elements unchanged. This is an interactive search story page, so maintain clean, readable anime staging for find-the-clue gameplay. Do not add unrelated props. Output quality (critical): single high-res composite—no pixelated pasted cutout, blocky edges, halos, or resolution mismatch; match template sharpness and lighting; crisp character at full output. Output 4K, 3:2 aspect ratio.",
+        "pagePositionScales": {
+          "5": {"x": 0.50, "y": 0.50, "scale": 0.90, "width": 360, "height": 540},
+          "6": {"x": 0.50, "y": 0.50, "scale": 0.88, "width": 352, "height": 528},
+          "7": {"x": 0.50, "y": 0.50, "scale": 0.86, "width": 344, "height": 516},
+          "8": {"x": 0.50, "y": 0.50, "scale": 0.89, "width": 356, "height": 534}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Anime style. The main character takes a contemplative clue-search pose, eyes focused and alert, slightly left of center.",
           "2": "Anime style. The main character advances through the forest in an exploratory motion, scanning details.",
           "3": "Anime style. The main character signals a discovered clue with an expressive pointing gesture.",
           "4": "Anime style. The main character enters a dynamic solve-the-challenge pose using their ability, with intense focus.",
-          "5": "Anime style. The main character celebrates after solving the search objective, warm and triumphant emotion.",
-          "6": "Anime style. The main character kneels or leans in to inspect a subtle clue, with concentrated and careful expression.",
-          "7": "Anime style. The main character reaches toward a newly found clue with bright excitement and clear action silhouette.",
-          "8": "Anime style. The main character delivers a final victory pose, joyful and proud after completing all interactive pages."
+          "5": "INTERACTIVE CHARACTER VARIANT (page 5/8, forest anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character, preserving the pose-template's exact pose and emotion. Output a character-focused render with minimal neutral background for later embedding into a separate template page.",
+          "6": "INTERACTIVE CHARACTER VARIANT (page 6/8, forest anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character while keeping pose/emotion from the pose-template. Minimal neutral background; no extra props.",
+          "7": "INTERACTIVE CHARACTER VARIANT (page 7/8, forest anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/action/emotion from the pose-template. Output character-focused on simple neutral background.",
+          "8": "INTERACTIVE CHARACTER VARIANT (page 8/8, forest anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose and emotion from the pose-template. Output a clean character-focused render with minimal neutral background."
         }
       },
       "outerspace": {
         "tempMainStoryPagePrompt": "Use the template story page image as fixed anime composition. Replace only the template main character using the reference character identity. Match the template's page-specific pose/action/emotion/scale while preserving all space background elements unchanged. This is an interactive search story page, so keep visual hierarchy clear for hidden-object play. Avoid adding unrelated effects or props. Output quality (critical): single high-res composite—no pixelated pasted cutout, blocky edges, halos, or resolution mismatch; match template sharpness and lighting; crisp character at full output. Output 4K, 3:2 aspect ratio.",
+        "pagePositionScales": {
+          "5": {"x": 0.50, "y": 0.50, "scale": 0.88, "width": 352, "height": 528},
+          "6": {"x": 0.50, "y": 0.50, "scale": 0.87, "width": 348, "height": 522},
+          "7": {"x": 0.50, "y": 0.50, "scale": 0.85, "width": 340, "height": 510},
+          "8": {"x": 0.50, "y": 0.50, "scale": 0.89, "width": 356, "height": 534}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Anime style. The character stands in a focused search stance at a space hub, thoughtful and observant, left of center.",
           "2": "Anime style. The character glides forward with exploratory excitement while scanning cosmic landmarks.",
           "3": "Anime style. The character identifies a clue in the asteroid field and gestures decisively.",
           "4": "Anime style. The character uses a focused action move with special ability to solve the clue challenge.",
-          "5": "Anime style. The character shows a victorious final moment, joyful but composed, readable scene composition.",
-          "6": "Anime style. The character checks space structures or floating debris in a careful clue-hunting pose.",
-          "7": "Anime style. The character reacts with excited discovery after locating a difficult hidden clue in the scene.",
-          "8": "Anime style. The character closes with a triumphant mission-complete pose, expressing relief and accomplishment."
+          "5": "INTERACTIVE CHARACTER VARIANT (page 5/8, outer-space anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/emotion from the pose-template. Minimal neutral background for later embedding.",
+          "6": "INTERACTIVE CHARACTER VARIANT (page 6/8, outer-space anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/emotion from the pose-template. Output character-focused with simple neutral background.",
+          "7": "INTERACTIVE CHARACTER VARIANT (page 7/8, outer-space anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/action/emotion from the pose-template. Minimal neutral background.",
+          "8": "INTERACTIVE CHARACTER VARIANT (page 8/8, outer-space anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose and emotion from the pose-template. Output character-focused with neutral background."
         }
       },
       "underwater": {
         "tempMainStoryPagePrompt": "Use the template story page image as fixed anime composition. Replace only the template main character with the reference character while preserving all underwater architecture, coral, and lighting unchanged. Match template pose/action/emotion and scale per page. This is an interactive search story page, so keep the scene clear and organized for clue finding. Do not introduce unrelated objects. Output quality (critical): single high-res composite—no pixelated pasted cutout, blocky edges, halos, or resolution mismatch; match template sharpness and lighting; crisp character at full output. Output 4K, 3:2 aspect ratio.",
+        "pagePositionScales": {
+          "5": {"x": 0.50, "y": 0.50, "scale": 0.86, "width": 344, "height": 516},
+          "6": {"x": 0.50, "y": 0.50, "scale": 0.84, "width": 336, "height": 504},
+          "7": {"x": 0.50, "y": 0.50, "scale": 0.87, "width": 348, "height": 522},
+          "8": {"x": 0.50, "y": 0.50, "scale": 0.85, "width": 340, "height": 510}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Anime style. The character floats in a quiet clue-reading pose, thoughtful and calm, slightly left of center.",
           "2": "Anime style. The character swims with eager curiosity while searching the scene.",
           "3": "Anime style. The character spots and points toward a hidden clue in ruins/cave.",
           "4": "Anime style. The character performs a dynamic ability-driven solve pose, focused and determined underwater.",
-          "5": "Anime style. The character celebrates success with joyful expressions, keeping clear visual storytelling.",
-          "6": "Anime style. The character leans in to inspect a subtle underwater clue with careful, investigative focus.",
-          "7": "Anime style. The character reacts with bright excitement when discovering a final hidden clue in reef or ruins.",
-          "8": "Anime style. The character finishes in a calm, triumphant ending pose after completing the full interactive search."
+          "5": "INTERACTIVE CHARACTER VARIANT (page 5/8, underwater anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/emotion from the pose-template. Output character-focused with minimal neutral background for embedding.",
+          "6": "INTERACTIVE CHARACTER VARIANT (page 6/8, underwater anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/emotion from the pose-template. Minimal neutral background.",
+          "7": "INTERACTIVE CHARACTER VARIANT (page 7/8, underwater anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/action/emotion from the pose-template. Output character-focused on simple neutral background.",
+          "8": "INTERACTIVE CHARACTER VARIANT (page 8/8, underwater anime): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose and emotion from the pose-template. Output a clean character-focused render with minimal neutral background."
         }
       }
     },
     "cartoon": {
       "forest": {
         "tempMainStoryPagePrompt": "Use the template story page image as the fixed cartoon composition. Replace only the template main character with the reference character, preserving identity while matching each page's template pose/action/emotion/scale. Keep all background and props unchanged. This is an interactive search story page, so preserve clarity and child-friendly readability for clue-finding gameplay. Do not add unrelated objects. Output quality (critical): single high-res composite—no pixelated pasted cutout, blocky edges, halos, or resolution mismatch; match template sharpness and lighting; crisp character at full output. Output 4K with 3:2 aspect ratio.",
+        "pagePositionScales": {
+          "5": {"x": 0.50, "y": 0.50, "scale": 0.87, "width": 348, "height": 522},
+          "6": {"x": 0.50, "y": 0.50, "scale": 0.85, "width": 340, "height": 510},
+          "7": {"x": 0.50, "y": 0.50, "scale": 0.86, "width": 344, "height": 516},
+          "8": {"x": 0.50, "y": 0.50, "scale": 0.88, "width": 352, "height": 528}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Cartoon style. The character stands in a curious detective-like pose, scanning the scene for clues, left of center.",
           "2": "Cartoon style. The character moves through the path with lively search energy and clear expressions.",
           "3": "Cartoon style. The character points excitedly at a discovered clue with playful alertness.",
           "4": "Cartoon style. The character uses a bold action pose to solve the challenge.",
-          "5": "Cartoon style. The character celebrates finding the final clue with bright, joyful expressions.",
-          "6": "Cartoon style. The character examines a tiny hidden clue up close in a fun, exaggerated searching pose.",
-          "7": "Cartoon style. The character reacts with big excited expression after spotting a hard-to-find clue.",
-          "8": "Cartoon style. The character strikes a happy victory pose to end the interactive search adventure."
+          "5": "INTERACTIVE CHARACTER VARIANT (page 5/8, forest cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose and emotion from the pose-template. Output character-focused with minimal neutral background for later embedding.",
+          "6": "INTERACTIVE CHARACTER VARIANT (page 6/8, forest cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character while keeping pose/emotion from the pose-template. Simple neutral background.",
+          "7": "INTERACTIVE CHARACTER VARIANT (page 7/8, forest cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/action/emotion from the pose-template. Output character-focused with minimal neutral background.",
+          "8": "INTERACTIVE CHARACTER VARIANT (page 8/8, forest cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose and emotion from the pose-template. Output clean character-focused render with neutral background."
         }
       },
       "outerspace": {
         "tempMainStoryPagePrompt": "Use the template story page image as the fixed cartoon composition. Replace only the template main character with the reference character while preserving all space background elements and layout unchanged. Match page-specific template pose/action/emotion and scale. This is an interactive search story page, so keep shape readability and visual hierarchy clear for hidden-object play. Avoid unrelated additions. Output quality (critical): single high-res composite—no pixelated pasted cutout, blocky edges, halos, or resolution mismatch; match template sharpness and lighting; crisp character at full output. Output 4K, 3:2 aspect ratio.",
+        "pagePositionScales": {
+          "5": {"x": 0.50, "y": 0.50, "scale": 0.84, "width": 336, "height": 504},
+          "6": {"x": 0.50, "y": 0.50, "scale": 0.83, "width": 332, "height": 498},
+          "7": {"x": 0.50, "y": 0.50, "scale": 0.82, "width": 328, "height": 492},
+          "8": {"x": 0.50, "y": 0.50, "scale": 0.85, "width": 340, "height": 510}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Cartoon style. The character pauses in a thinking search pose on a space station platform, left of center.",
           "2": "Cartoon style. The character flies forward with playful determination while scanning the environment.",
           "3": "Cartoon style. The character notices a clue among asteroids and gestures clearly.",
           "4": "Cartoon style. The character executes a dynamic solve move using special ability, with focused bravery.",
-          "5": "Cartoon style. The character celebrates mission success with happy, energetic expressions.",
-          "6": "Cartoon style. The character inspects cosmic objects carefully in a playful clue-search pose.",
-          "7": "Cartoon style. The character shows delighted surprise after finding a difficult hidden clue in space.",
-          "8": "Cartoon style. The character ends with a cheerful mission-complete victory pose, clearly signaling success."
+          "5": "INTERACTIVE CHARACTER VARIANT (page 5/8, outer-space cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/emotion from the pose-template. Output character-focused with minimal neutral background.",
+          "6": "INTERACTIVE CHARACTER VARIANT (page 6/8, outer-space cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/emotion from the pose-template. Simple neutral background for embedding.",
+          "7": "INTERACTIVE CHARACTER VARIANT (page 7/8, outer-space cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/action/emotion from the pose-template. Output character-focused with neutral background.",
+          "8": "INTERACTIVE CHARACTER VARIANT (page 8/8, outer-space cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose and emotion from the pose-template. Output clean character-focused render with minimal neutral background."
         }
       },
       "underwater": {
         "tempMainStoryPagePrompt": "Use the template story page image as the fixed cartoon composition. Replace only the template main character with the reference character, preserving identity while matching template pose/action/emotion/scale. Keep all underwater environment details unchanged. This is an interactive search story page; keep composition clear, uncluttered, and child-friendly for clue finding. Do not add unrelated objects. Output quality (critical): single high-res composite—no pixelated pasted cutout, blocky edges, halos, or resolution mismatch; match template sharpness and lighting; crisp character at full output. Output 4K, 3:2 aspect ratio.",
+        "pagePositionScales": {
+          "5": {"x": 0.50, "y": 0.50, "scale": 0.83, "width": 332, "height": 498},
+          "6": {"x": 0.50, "y": 0.50, "scale": 0.81, "width": 324, "height": 486},
+          "7": {"x": 0.50, "y": 0.50, "scale": 0.82, "width": 328, "height": 492},
+          "8": {"x": 0.50, "y": 0.50, "scale": 0.84, "width": 336, "height": 504}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Cartoon style. The character floats in a calm observation pose, searching for clues with curious eyes.",
           "2": "Cartoon style. The character swims forward in an upbeat search motion.",
           "3": "Cartoon style. The character points out a hidden clue near cave/ruin details.",
           "4": "Cartoon style. The character takes a bold action pose using their ability to solve the clue puzzle.",
-          "5": "Cartoon style. The character finishes with a joyful celebration pose after finding the objective.",
-          "6": "Cartoon style. The character searches coral or ruins closely with an expressive investigative pose.",
-          "7": "Cartoon style. The character reacts with playful excitement after spotting a final hidden underwater clue.",
-          "8": "Cartoon style. The character ends with a bright, proud victory pose after completing all interactive pages."
+          "5": "INTERACTIVE CHARACTER VARIANT (page 5/8, underwater cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/emotion from the pose-template. Output character-focused with minimal neutral background for embedding.",
+          "6": "INTERACTIVE CHARACTER VARIANT (page 6/8, underwater cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/emotion from the pose-template. Simple neutral background.",
+          "7": "INTERACTIVE CHARACTER VARIANT (page 7/8, underwater cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose/action/emotion from the pose-template. Output character-focused with neutral background.",
+          "8": "INTERACTIVE CHARACTER VARIANT (page 8/8, underwater cartoon): Use the MAIN CHARACTER POSE TEMPLATE image as base. Replace only the main character with the reference character; preserve pose and emotion from the pose-template. Output clean character-focused render with minimal neutral background."
         }
       }
     }

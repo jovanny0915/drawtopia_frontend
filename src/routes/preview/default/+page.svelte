@@ -3177,7 +3177,7 @@
     flex-direction: row;
     gap: 2px;
     width: 100%;
-    height: 800px;
+    height: 750px;
   }
 
   /* Last words + last admin: one page, left half and right half always side by side */

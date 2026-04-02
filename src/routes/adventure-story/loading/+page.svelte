@@ -15,6 +15,7 @@
     import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription, generateStoryPageAudioUrls } from '../../../lib/storyGenerationHelpers';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
+    import promptImageData from '../../../lib/prompt_image.json';
     import drawtopia from "../../../assets/logo.webp";
     import shieldstar from "../../../assets/ShieldStar.svg";
     import arrowleft from "../../../assets/ArrowLeft.svg";
@@ -563,6 +564,7 @@
             const sceneCount = INTERACTIVE_STORY_PAGE_COUNT;
             // Product request: for the 8 main story pages, do not AI-generate page 4 — keep the original template image for display + saving.
             const SKIP_INTERACTIVE_MAIN_STORY_PAGE_INDEX = 3; // 0-based => page 4
+            // Pages 5-8 (indices 4-7): embed character onto template instead of generating new scene
 
             for (let i = 0; i < sceneCount; i++) {
                 if (isCancelled) return;
@@ -582,6 +584,72 @@
                     continue;
                 }
 
+                // Pages 5-8 (indices 4-7): generate character, then embed onto template
+                if (i >= 4 && i <= 7) {
+                    try {
+                        // Step 1: Generate character by replacing main character with reference character
+                        const mainCharacterImageIndex = i % Math.max(1, bookTemplate.main_character_images?.length || 1);
+                        const mainCharacterImage = bookTemplate.main_character_images?.[mainCharacterImageIndex] || characterImageUrl;
+                        const characterReplacementPrompt = 'Replace the main character in the original image with the reference character while perfectly the pose, facial features, emotions, exact facing direction, body orientation, and facial expression of original character must be applied to the replaced character, and strictly enforce a clean solid pure white background (no gradients, shadows, or artifacts), exporting a high-quality 500x500 PNG image.';
+
+                        let genResult = await generateImageWithTwoTemplates(mainCharacterImage, characterImageUrl, characterReplacementPrompt);
+                        if (!(genResult.success && genResult.url)) {
+                            genResult = await generateImageWithTwoTemplates(mainCharacterImage, characterImageUrl, characterReplacementPrompt);
+                        }
+
+                        if (genResult.success && genResult.url) {
+                            // Step 2: Embed generated character onto template background using position and scale from prompt_image.json
+                            // Get position and scale from prompt_image.json
+                            const storyStyleKey = characterStyle as '3d' | 'cartoon' | 'anime';
+                            const storyWorldKey = normalizeTemplateStoryWorld(rawWorldForTemplate);
+                            const pagePositionScales = promptImageData.interactiveStoryStyleWorldPagePrompts?.[storyStyleKey]?.[storyWorldKey]?.pagePositionScales as any;
+                            const pagePositionData = pagePositionScales?.[pageNumber.toString()];
+                            
+                            const xPixel = pagePositionData?.x ?? 10;
+                            const yPixel = pagePositionData?.y ?? 10;
+                            const scale = pagePositionData?.scale ?? 1;
+
+                            const imageApiBaseUrl = (env.PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '') || 'https://image-edit-five.vercel.app';
+
+                            const embedResponse = await fetch(`https://image-edit-five.vercel.app/embed-character-on-background`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    background_image_url: fallbackUrl,
+                                    character_image_url: genResult.url,
+                                    x: xPixel,
+                                    y: yPixel,
+                                    scale: scale
+                                })
+                            });
+
+                            if (embedResponse.ok) {
+                                const data = await embedResponse.json();
+                                if (data.success && data.url) {
+                                    generatedImages.push(data.url.split('?')[0]);
+                                } else {
+                                    console.warn(`Embedding returned no URL for page ${pageNumber}, using template`);
+                                    generatedImages.push(fallbackUrl);
+                                }
+                            } else {
+                                console.warn(`Embedding failed for page ${pageNumber}, using template`, embedResponse.status);
+                                generatedImages.push(fallbackUrl);
+                            }
+                        } else {
+                            console.warn(`Character generation failed for page ${pageNumber}, using template`);
+                            generatedImages.push(fallbackUrl);
+                        }
+                    } catch (error) {
+                        console.error(`Error generating/embedding character for page ${pageNumber}:`, error);
+                        generatedImages.push(fallbackUrl);
+                    }
+                    storyTextProgress = 20 + ((i + 1) / sceneCount) * 80;
+                    continue;
+                }
+
+                // Pages 1-3: generate new scenes with character replacement
                 const storyPagePrompt = buildStoryPagePrompt(
                     pageNumber,
                     sceneInfo.storyContext,
