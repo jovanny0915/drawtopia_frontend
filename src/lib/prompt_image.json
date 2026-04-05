@@ -174,10 +174,22 @@
       "forest": {
         "tempMainStoryPagePrompt": "Use the provided template story page image as the fixed base. The default main character to remove is the small boy in a green suit (matching jacket and trousers) with a brown backpack—the figure highlighted by the red circle on the template. Replace only that human main character with the character from the reference image. The red circle is an editor's mark only: do not render any red circle, ring, outline, or annotation in the final image; output must look like a clean story illustration with no markup. Treat the red circle as the strict placement and scale guide: the replaced character's full-body silhouette (head to feet, including backpack or hair) must fit entirely inside that circle's area on the image plane—same center point, same or smaller height and width than the default boy. If the reference character would read larger than the circle or taller than nearby doors/rails, scale the figure down until it matches the default boy's apparent size and does not dominate the architecture. Feet stay on the same platform, step, or floor contact as the original boy; do not reposition the figure to a new ledge or shift it out of the marked footprint. Keep all background structures, props, NPC creatures, and composition from the template unchanged. The replaced character must preserve the reference character's identity while matching the template's pose, action, expression, and lighting for this page. This is an interactive search story page, so preserve visual clarity and scene readability for hidden-object gameplay. Do not add unrelated elements. OUTPUT QUALITY AND COMPOSITING (CRITICAL): Deliver one unified high-fidelity illustration—never a low-resolution, pixelated, or visibly upscaled cutout pasted onto the template. The replaced character must match the background's sharpness, micro-detail, and noise/grain; avoid blocky pixels, stair-stepped edges, JPEG blocking, color banding, hard matte cutout lines, halos, and chroma fringing. Use smooth anti-aliased contours and natural contact shadows; match scene lighting and color temperature so the figure reads as rendered with the environment, not composited from a smaller source. Re-synthesize the character at full native resolution in the same 3D illustrative style as the template rather than stretching soft reference pixels. Face, hands, hair, and clothing must stay crisp and anatomically coherent at final output size. Final image must be 4K with 3:2 aspect ratio (width:height).",
         "pagePositionScales": {
-          "5": {"x": 0.88, "y": 0.56, "scale": 0.2, "width": 288, "height": 432},
-          "6": {"x": 0.14, "y": 0.18, "scale": 0.2, "width": 320, "height": 480},
-          "7": {"x": 0.88, "y": 0.50, "scale": 0.2, "width": 328, "height": 492},
-          "8": {"x": 0.80, "y": 0.83, "scale": 0.2, "width": 320, "height": 480}
+          "5": {"x": 0.891, "y": 0.562, "scale": 0.15, "width": 288, "height": 432},
+          "6": {"x": 0.133, "y": 0.38, "scale": 0.2, "width": 320, "height": 480},
+          "7": {"x": 0.94, "y": 0.46, "scale": 0.2, "width": 328, "height": 492},
+          "8": {"x": 0.80, "y": 0.4, "scale": 0.18, "width": 320, "height": 480}
+        },
+        "pageTextContent": {
+          "1": {"text": "MEET [CHARACTER NAME] - INTRODUCTION Narrative: Establishing fear of darkness, hint at special ability. Character: Standing in cozy home, looking toward dark window. Visible expression: Brave but hesitant.", "x": 0.5, "y": 0.8, "fontSize": 14, "color": "#ffffff"},
+          "2": {"text": "[Character Name] notices something magical glimmering in the darkness. It's calling to them. [Character Name] realizes that FERN, a friendly forest fox, might know about this mystery. Together, they might discover something wonderful! Are you ready to help [Character Name] and Fern find what's hidden in the darkness?", "x": 0.5, "y": 0.1, "fontSize": 14, "color": "#000000"},
+          "3": {"text": "I can see lights from the castle. The path begins here. I choose to move forward", "x": 0.5, "y": 0.1, "fontSize": 14, "color": "#FDDAC6"},
+          "4": {"text": "The path is glowing! Look at all these beautiful lights showing me the way! And I'm not alone—there are friends here too!", "x": 0.5, "y": 0.1, "fontSize": 14, "color": "#ffffff"},
+          "5": {"text": "We're all walking this path together! Other friends are here too. I'm brave. I'm excited to arrive!", "x": 0.5, "y": 0.1, "fontSize": 14, "color": "#FDDAC6"},
+          "6": {"text": "We did it! The castle is right here! My friends are here. I'm ready!", "x": 0.5, "y": 0.1, "fontSize": 14, "color": "#141414"},
+          "7": [
+            {"text": "Castle is sanctuary; magic discovered inside themselves; [SPECIAL_ABILITY] prepared them; finding home and purpose", "x": 0.2, "y": 0.1, "fontSize": 14, "color": "#5B2E1D"},
+            {"text": "Night feels different; shadows become friends; fear transforms to opportunity; carries castle's warmth home; dreams of infinite possibilities", "x": 0.8, "y": 0.1, "fontSize": 14, "color": "#41250E"}
+          ]
         },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "3D style. The main boy character wears a brown backpack and green explorer outfit. In a cozy wooden cabin he leans toward a large arched window, peering out at a night forest; one hand raised near the chest in wonder, gentle smile, wide curious eyes—warm lantern light beside him. Interactive search: thoughtful observant pose, clear silhouette, slightly left of center.",
@@ -193,10 +205,22 @@
       "outerspace": {
         "tempMainStoryPagePrompt": "Use the provided template story page image as the fixed base. Remove only the original main character and replace with the character from the reference image. Keep all space environment composition, ships, asteroids, and lighting from the template unchanged. The replaced character must preserve reference identity and match template pose/action/scale/emotion for each page. This is an interactive search story page, so keep layout readable and avoid clutter. Do not add unrelated effects or objects. OUTPUT QUALITY AND COMPOSITING (CRITICAL): Deliver one unified high-fidelity illustration—never a low-resolution, pixelated, or visibly upscaled cutout pasted onto the template. The replaced character must match the background's sharpness, micro-detail, and noise/grain; avoid blocky pixels, stair-stepped edges, JPEG blocking, banding, halos, and fringing. Use smooth anti-aliased contours, natural contact shadows, and consistent scene lighting. Re-synthesize the character at full native resolution in the same 3D style as the template rather than stretching soft reference pixels; face, hands, and costume stay crisp at 4K. Final image must be 4K with 3:2 aspect ratio.",
         "pagePositionScales": {
-          "5": {"x": 0.38, "y": 0.48, "scale": 0.76, "width": 304, "height": 456},
-          "6": {"x": 0.28, "y": 0.52, "scale": 0.80, "width": 320, "height": 480},
+          "5": {"x": 0.38, "y": 0.49, "scale": 0.76, "width": 304, "height": 456},
+          "6": {"x": 0.27, "y": 0.535, "scale": 0.80, "width": 320, "height": 480},
           "7": {"x": 0.42, "y": 0.50, "scale": 0.79, "width": 316, "height": 474},
           "8": {"x": 0.36, "y": 0.48, "scale": 0.81, "width": 324, "height": 486}
+        },
+        "pageTextContent": {
+          "1": {"text": "Scene 1", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "2": {"text": "Scene 2", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "3": {"text": "Scene 3", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "4": {"text": "Scene 4", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "5": {"text": "Scene 5", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "6": {"text": "Scene 6", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "7": [
+            {"text": "Left paragraph for page 7", "x": 0.25, "y": 0.1, "fontSize": 24, "color": "#000000"},
+            {"text": "Right paragraph for page 7", "x": 0.75, "y": 0.1, "fontSize": 24, "color": "#000000"}
+          ]
         },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "3D style. The character pauses in a scanning pose on a space platform, thoughtful and observant, slightly left of center.",
@@ -216,6 +240,18 @@
           "6": {"x": 0.36, "y": 0.50, "scale": 0.80, "width": 320, "height": 480},
           "7": {"x": 0.34, "y": 0.48, "scale": 0.75, "width": 300, "height": 450},
           "8": {"x": 0.38, "y": 0.50, "scale": 0.82, "width": 328, "height": 492}
+        },
+        "pageTextContent": {
+          "1": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 12, "color": "#ffffff"},
+          "2": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 12, "color": "#000000"},
+          "3": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 12, "color": "#000000"},
+          "4": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 12, "color": "#000000"},
+          "5": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 12, "color": "#000000"},
+          "6": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 12, "color": "#000000"},
+          "7": [
+            {"text": "Left paragraph for page 7", "x": 0.25, "y": 0.1, "fontSize": 12, "color": "#000000"},
+            {"text": "Right paragraph for page 7", "x": 0.75, "y": 0.1, "fontSize": 12, "color": "#000000"}
+          ]
         },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "3D style. The character floats in a calm clue-observing pose, thoughtful expression, slightly left of center.",
@@ -238,6 +274,15 @@
           "7": {"x": 0.50, "y": 0.50, "scale": 0.86, "width": 344, "height": 516},
           "8": {"x": 0.50, "y": 0.50, "scale": 0.89, "width": 356, "height": 534}
         },
+        "pageTextContent": {
+          "1": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "2": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "3": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "4": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "5": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "6": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "7": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Anime style. The main character takes a contemplative clue-search pose, eyes focused and alert, slightly left of center.",
           "2": "Anime style. The main character advances through the forest in an exploratory motion, scanning details.",
@@ -257,6 +302,15 @@
           "7": {"x": 0.50, "y": 0.50, "scale": 0.85, "width": 340, "height": 510},
           "8": {"x": 0.50, "y": 0.50, "scale": 0.89, "width": 356, "height": 534}
         },
+        "pageTextContent": {
+          "1": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "2": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "3": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "4": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "5": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "6": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "7": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Anime style. The character stands in a focused search stance at a space hub, thoughtful and observant, left of center.",
           "2": "Anime style. The character glides forward with exploratory excitement while scanning cosmic landmarks.",
@@ -275,6 +329,15 @@
           "6": {"x": 0.50, "y": 0.50, "scale": 0.84, "width": 336, "height": 504},
           "7": {"x": 0.50, "y": 0.50, "scale": 0.87, "width": 348, "height": 522},
           "8": {"x": 0.50, "y": 0.50, "scale": 0.85, "width": 340, "height": 510}
+        },
+        "pageTextContent": {
+          "1": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "2": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "3": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "4": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "5": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "6": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "7": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"}
         },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Anime style. The character floats in a quiet clue-reading pose, thoughtful and calm, slightly left of center.",
@@ -297,6 +360,15 @@
           "7": {"x": 0.50, "y": 0.50, "scale": 0.86, "width": 344, "height": 516},
           "8": {"x": 0.50, "y": 0.50, "scale": 0.88, "width": 352, "height": 528}
         },
+        "pageTextContent": {
+          "1": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "2": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "3": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "4": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "5": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "6": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "7": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Cartoon style. The character stands in a curious detective-like pose, scanning the scene for clues, left of center.",
           "2": "Cartoon style. The character moves through the path with lively search energy and clear expressions.",
@@ -316,6 +388,15 @@
           "7": {"x": 0.50, "y": 0.50, "scale": 0.82, "width": 328, "height": 492},
           "8": {"x": 0.50, "y": 0.50, "scale": 0.85, "width": 340, "height": 510}
         },
+        "pageTextContent": {
+          "1": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "2": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "3": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "4": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "5": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "6": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "7": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"}
+        },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Cartoon style. The character pauses in a thinking search pose on a space station platform, left of center.",
           "2": "Cartoon style. The character flies forward with playful determination while scanning the environment.",
@@ -334,6 +415,15 @@
           "6": {"x": 0.50, "y": 0.50, "scale": 0.81, "width": 324, "height": 486},
           "7": {"x": 0.50, "y": 0.50, "scale": 0.82, "width": 328, "height": 492},
           "8": {"x": 0.50, "y": 0.50, "scale": 0.84, "width": 336, "height": 504}
+        },
+        "pageTextContent": {
+          "1": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "2": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "3": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "4": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "5": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "6": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"},
+          "7": {"text": "", "x": 0.5, "y": 0.1, "fontSize": 24, "color": "#000000"}
         },
         "pageMainCharacterPoseActionEmotionPrompts": {
           "1": "Cartoon style. The character floats in a calm observation pose, searching for clues with curious eyes.",

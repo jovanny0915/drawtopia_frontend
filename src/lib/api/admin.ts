@@ -30,6 +30,7 @@ export interface BookTemplate {
   dedication_page_image?: string;
   story_page_images?: string[];
   main_character_images?: string[];
+  character_for_finding?: string[];
   last_words_page_image?: string;
   last_story_page_image?: string;
   back_cover_image?: string;
@@ -538,6 +539,45 @@ export async function uploadMainCharacterImage(
 }
 
 /**
+ * Upload a single character-for-finding image for a template (0-based index in character_for_finding array)
+ */
+export async function uploadCharacterForFindingImage(
+  templateId: string,
+  file: File,
+  imageIndex: number
+): Promise<ApiResponse<BookTemplate>> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('image_index', imageIndex.toString());
+
+    const response = await fetch(
+      `${API_URL}/admin/templates/${templateId}/upload-character-for-finding-image`,
+      {
+        method: 'POST',
+        body: formData
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+
+    const result = await response.json();
+    return {
+      success: true,
+      data: result.data
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error' };
+  }
+}
+
+/**
  * Upload multiple story page images for a template (uploads one by one sequentially)
  */
 export async function uploadStoryPages(
@@ -689,6 +729,37 @@ export async function deleteMainCharacterImage(
   }
 }
 
+export async function deleteCharacterForFindingImage(
+  templateId: string,
+  imageIndex: number
+): Promise<ApiResponse<BookTemplate>> {
+  try {
+    const response = await fetch(
+      `${API_URL}/admin/templates/${templateId}/character-for-finding-image/${imageIndex}`,
+      {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+
+    const result = await response.json();
+    return {
+      success: true,
+      data: result.data
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Network error' };
+  }
+}
+
 /**
  * Update template metadata (e.g., remove story pages, update story_world)
  */
@@ -705,6 +776,7 @@ export async function updateTemplate(
     dedication_page_image?: string | null;
     story_page_images?: string[];
     main_character_images?: string[];
+    character_for_finding?: string[];
     last_words_page_image?: string | null;
     last_story_page_image?: string | null;
     back_cover_image?: string | null;

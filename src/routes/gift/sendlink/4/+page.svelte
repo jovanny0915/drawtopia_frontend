@@ -10,11 +10,21 @@
   import { user, authLoading, isAuthenticated } from "../../../../lib/stores/auth";
   import { browser } from "$app/environment";
 
-  let specialMessage = "This is Present Give to you, i hope you like it, thank you emma.\nLove, Grandma!";
+  let childName = "";
+  let specialMessage = "This is a special present for you. I hope you love it!\nLove, Grandma!";
   let deliveryEmail = "drawtopia@example.com";
   let deliveryOption = "scheduled"; // "surprise" or "scheduled"
   let deliveryDate = "";
   let deliveryTime = "";
+
+  // Subscribe to giftCreation store to get child name
+  const unsubscribe = giftCreation.subscribe((state) => {
+    if (state.childName) {
+      childName = state.childName;
+      // Update special message with child's name
+      specialMessage = `This is a special present for ${childName}. I hope you love it!\nLove, Grandma!`;
+    }
+  });
 
   // Reactive statements for auth state
   $: currentUser = $user;
@@ -27,6 +37,9 @@
 
   // Check authentication on mount (client-side only)
   onMount(() => {
+    // Initialize giftCreation store from sessionStorage
+    giftCreation.init();
+    
     // Only run on client side
     if (browser) {
       // Add a small delay to ensure auth state is fully loaded
@@ -37,6 +50,9 @@
         }
       }, 100);
     }
+    
+    // Cleanup subscription on component destroy
+    return unsubscribe;
   });
 
   // Reactive redirect when auth state changes (client-side only)

@@ -8,9 +8,11 @@
     uploadTemplateImage,
     uploadStoryPage,
     uploadMainCharacterImage,
+    uploadCharacterForFindingImage,
     deleteTemplateImage,
     deleteStoryPage,
     deleteMainCharacterImage,
+    deleteCharacterForFindingImage,
     updateTemplate,
     type BookTemplate,
     type BookTemplateStoryFormat,
@@ -146,7 +148,7 @@
   }
 
   // Open upload modal for story pages (multiple images)
-  type MultiImageFieldKey = 'story_page_images' | 'main_character_images';
+  type MultiImageFieldKey = 'story_page_images' | 'main_character_images' | 'character_for_finding';
 
   function openMultipleImageUploadModal(
     templateId: string,
@@ -167,7 +169,9 @@
     existingUploadUrls =
       fieldKey === 'story_page_images'
         ? template?.story_page_images || []
-        : template?.main_character_images || [];
+        : fieldKey === 'main_character_images'
+        ? template?.main_character_images || []
+        : template?.character_for_finding || [];
     showUploadModal = true;
   }
 
@@ -270,7 +274,9 @@
         const existingImages =
           currentUploadField === 'story_page_images'
             ? template.story_page_images || []
-            : template.main_character_images || [];
+            : currentUploadField === 'main_character_images'
+            ? template.main_character_images || []
+            : template.character_for_finding || [];
         const isReplaceMode = targetStoryPageIndex !== null;
 
         if (isReplaceMode) {
@@ -288,7 +294,9 @@
           const result =
             currentUploadField === 'story_page_images'
               ? await uploadStoryPage(currentTemplateId, optimized.file, pageIndex)
-              : await uploadMainCharacterImage(currentTemplateId, optimized.file, pageIndex);
+              : currentUploadField === 'main_character_images'
+              ? await uploadMainCharacterImage(currentTemplateId, optimized.file, pageIndex)
+              : await uploadCharacterForFindingImage(currentTemplateId, optimized.file, pageIndex);
 
           if (!result.success || result.error) {
             throw new Error(result.error || 'Failed to replace image');
@@ -316,7 +324,9 @@
             const result =
               currentUploadField === 'story_page_images'
                 ? await uploadStoryPage(currentTemplateId, optimized.file, pageIndex)
-                : await uploadMainCharacterImage(currentTemplateId, optimized.file, pageIndex);
+                : currentUploadField === 'main_character_images'
+                ? await uploadMainCharacterImage(currentTemplateId, optimized.file, pageIndex)
+                : await uploadCharacterForFindingImage(currentTemplateId, optimized.file, pageIndex);
 
             if (!result.success || result.error) {
               throw new Error(`Failed to upload image ${i + 1}: ${result.error}`);
@@ -328,7 +338,9 @@
           alert(
             currentUploadField === 'story_page_images'
               ? `${selectedFiles.length} story page(s) uploaded successfully!`
-              : `${selectedFiles.length} main character image(s) uploaded successfully!`
+              : currentUploadField === 'main_character_images'
+              ? `${selectedFiles.length} main character image(s) uploaded successfully!`
+              : `${selectedFiles.length} character-for-finding image(s) uploaded successfully!`
           );
         }
       }
@@ -551,6 +563,7 @@
       back_cover_image: addCacheBuster(template.back_cover_image, stamp),
       story_page_images: (template.story_page_images || []).map((url) => addCacheBuster(url, stamp) || ''),
       main_character_images: (template.main_character_images || []).map((url) => addCacheBuster(url, stamp) || '')
+      ,character_for_finding: (template.character_for_finding || []).map((url) => addCacheBuster(url, stamp) || '')
     };
   }
 
@@ -585,7 +598,9 @@
         result =
           currentUploadField === 'story_page_images'
             ? await deleteStoryPage(currentTemplateId, sceneIndex)
-            : await deleteMainCharacterImage(currentTemplateId, sceneIndex);
+            : currentUploadField === 'main_character_images'
+            ? await deleteMainCharacterImage(currentTemplateId, sceneIndex)
+            : await deleteCharacterForFindingImage(currentTemplateId, sceneIndex);
       }
 
       if (!result.success || result.error || !result.data) {
@@ -599,7 +614,9 @@
         existingUploadUrls =
           currentUploadField === 'story_page_images'
             ? result.data.story_page_images || []
-            : result.data.main_character_images || [];
+            : currentUploadField === 'main_character_images'
+            ? result.data.main_character_images || []
+            : result.data.character_for_finding || [];
       }
 
       closeUploadModal();
@@ -663,6 +680,7 @@
             <th>Story Pages</th>
             {#if selectedStoryFormat === 'interactive_story'}
               <th>Main character images</th>
+              <th>Character for Finding</th>
             {/if}
             <th>Last Words</th>
             <th>Last Story</th>
@@ -681,6 +699,7 @@
             {@const dedicationUrl = template.dedication_page_image}
             {@const storyPagesUrls = getDisplayStoryPages(template.id, template.story_page_images)}
             {@const mainCharacterUrls = template.main_character_images || []}
+            {@const characterForFindingUrls = template.character_for_finding || []}
             {@const lastWordsUrl = template.last_words_page_image}
             {@const lastStoryUrl = template.last_story_page_image}
             {@const backCoverUrl = template.back_cover_image}
@@ -819,6 +838,33 @@
                         />
                         <div class="story-overlay">
                           <span class="story-count-badge">{mainCharacterUrls.length} image{mainCharacterUrls.length !== 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
+                    {:else}
+                      <div class="upload-placeholder">
+                        <Plus size={32} strokeWidth={1.5} />
+                      </div>
+                    {/if}
+                  </div>
+                </td>
+                <td class="image-cell story-pages-cell-container">
+                  <div 
+                    class="image-upload-box" 
+                    class:disabled={isSaving}
+                    on:click={() => openMultipleImageUploadModal(template.id, template.name, 'character_for_finding')}
+                    on:keydown={(e) => e.key === 'Enter' && openMultipleImageUploadModal(template.id, template.name, 'character_for_finding')}
+                    role="button"
+                    tabindex="0"
+                  >
+                    {#if characterForFindingUrls.length > 0}
+                      <div class="story-thumbnail-wrapper">
+                        <img 
+                          src={characterForFindingUrls[0]} 
+                          alt="First character-for-finding image" 
+                          class="thumbnail story-thumbnail" 
+                        />
+                        <div class="story-overlay">
+                          <span class="story-count-badge">{characterForFindingUrls.length} image{characterForFindingUrls.length !== 1 ? 's' : ''}</span>
                         </div>
                       </div>
                     {:else}

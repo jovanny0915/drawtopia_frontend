@@ -88,8 +88,23 @@
 
   let selectedAgeGroup = "3-5";
   let selectedRelationship = "grandparent";
-  let childName = "Emma";
+  let childName = "";
   let selectedStory: any = null;
+  let giftState: any = null;
+
+  // Subscribe to giftCreation store
+  const unsubscribe = giftCreation.subscribe((state) => {
+    giftState = state;
+    if (state.childName) {
+      childName = state.childName;
+    }
+    if (state.ageGroup) {
+      selectedAgeGroup = state.ageGroup;
+    }
+    if (state.relationship) {
+      selectedRelationship = state.relationship;
+    }
+  });
 
   // Reactive statements for auth state
   $: currentUser = $user;
@@ -102,6 +117,9 @@
 
   // Check authentication on mount (client-side only)
   onMount(() => {
+    // Initialize giftCreation store from sessionStorage
+    giftCreation.init();
+    
     // Only run on client side
     if (browser) {
       // Add a small delay to ensure auth state is fully loaded
@@ -112,6 +130,9 @@
         }
       }, 100);
     }
+    
+    // Cleanup subscription on component destroy
+    return unsubscribe;
   });
 
   // Reactive redirect when auth state changes (client-side only)

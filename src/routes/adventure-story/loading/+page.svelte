@@ -590,7 +590,7 @@
                         // Step 1: Generate character by replacing main character with reference character
                         const mainCharacterImageIndex = i % Math.max(1, bookTemplate.main_character_images?.length || 1);
                         const mainCharacterImage = bookTemplate.main_character_images?.[mainCharacterImageIndex] || characterImageUrl;
-                        const characterReplacementPrompt = 'Replace the main character in the original image with the reference character while perfectly the pose, facial features, emotions, exact facing direction, body orientation, and facial expression of original character must be applied to the replaced character, and strictly enforce a clean solid pure white background (no gradients, shadows, or artifacts), exporting a high-quality 500x500 PNG image.';
+                        const characterReplacementPrompt = "Replace the original main character of the template character image with the reference character of the reference character image. When replacing the character, the exact same pose, the exact same action, the exact same facing direction, the exact same  body orientation, the exact same head angle, the exact same arm and leg positions, the exact same hands, the exact same height, the exact same size and the exact same scale, and the exact same facial expression of the original main character of template character image must be perfectly applied to the replaced character. Strictly transfer the exact same pose, the exact same action and the exact same direction of body, the exact same height, the exact same size and the exact same scale of the original main character onto the replaced character without any changes. Enforce a clean solid pure white background (#FFFFFF) with no gradients, no shadows, no artifacts, no floor, or any other elements. High-quality, sharp details, 500x500 PNG.";
 
                         let genResult = await generateImageWithTwoTemplates(mainCharacterImage, characterImageUrl, characterReplacementPrompt);
                         if (!(genResult.success && genResult.url)) {
@@ -700,6 +700,15 @@
 
             const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
 
+            // Store template images to sessionStorage (copyright, dedication, last words, admin, back cover)
+            if (bookTemplate && browser) {
+                if (bookTemplate.copyright_page_image) sessionStorage.setItem('copyright_image', bookTemplate.copyright_page_image);
+                if (bookTemplate.dedication_page_image) sessionStorage.setItem('dedication_image', bookTemplate.dedication_page_image);
+                if (bookTemplate.last_words_page_image) sessionStorage.setItem('last_word_image', bookTemplate.last_words_page_image);
+                if (bookTemplate.last_story_page_image) sessionStorage.setItem('last_admin_image', bookTemplate.last_story_page_image);
+                if (bookTemplate.back_cover_image) sessionStorage.setItem('back_cover_image', bookTemplate.back_cover_image);
+            }
+
             // Update progress: All images generated (100%)
             storyTextProgress = 100;
             sceneImageProgress = 0; // Not used for interactive stories
@@ -785,6 +794,14 @@
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
             const currentStoryIdInter = browser ? sessionStorage.getItem('currentStoryId') : null;
+            
+            // Get template images from sessionStorage (stored in generateIntersearchStory)
+            const copyrightImage = browser ? sessionStorage.getItem('copyright_image') : null;
+            const templateDedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
+            const lastWordImage = browser ? sessionStorage.getItem('last_word_image') : null;
+            const lastAdminImage = browser ? sessionStorage.getItem('last_admin_image') : null;
+            const backCoverImage = browser ? sessionStorage.getItem('back_cover_image') : null;
+            
             // Prepare story data. Include uid when continued from draft so we update instead of insert.
             const storyData = {
                 ...(currentStoryIdInter ? { uid: currentStoryIdInter } : {}),
@@ -805,7 +822,11 @@
                 story_content: JSON.stringify(storyContent),
                 scene_images: sceneImages.slice(1).map(url => url.split('?')[0]),
                 dedication_text: dedicationText || undefined,
-                dedication_image: dedicationImage ? dedicationImage.split('?')[0] : undefined,
+                dedication_image: templateDedicationImage ? templateDedicationImage.split('?')[0] : (dedicationImage ? dedicationImage.split('?')[0] : undefined),
+                copyright_image: copyrightImage ? copyrightImage.split('?')[0] : undefined,
+                last_word_page_image: lastWordImage ? lastWordImage.split('?')[0] : undefined,
+                last_admin_page_image: lastAdminImage ? lastAdminImage.split('?')[0] : undefined,
+                back_cover_image: backCoverImage ? backCoverImage.split('?')[0] : undefined,
                 status: 'completed' as const,
                 story_type: 'search' as const,
                 purchased: isGiftStory
