@@ -28,6 +28,7 @@
   import { getStoryById, updateReadingState } from "../../../lib/database/stories";
   import { getChildProfileById } from "../../../lib/database/childProfiles";
   import promptImageData from "../../../lib/prompt_image.json";
+  import { attachGameEngine, detachGameEngine } from "$lib/gameengine";
 
   const goToDashboard = () => {
     goto('/dashboard');
@@ -55,6 +56,7 @@
   let isPurchased = false; // Whether the current story has been purchased
   let hasTemporaryStoryUnlock = false; // Temporary unlock after verified Stripe payment
   let currentStoryId: string | null = null; // Current story ID
+  let templateId: string | null = null; // template_id from stories table (if present)
   let isLoading = true;
   let loadError = "";
   let pageCounterText = ""; // Page counter display text
@@ -358,6 +360,8 @@
         // Check if story has been purchased
         // Ensure we properly check the purchased field from the database
         const storyData = Array.isArray(story) ? story[0] : story;
+        // Capture template_id (may be present on stories rows)
+        templateId = storyData?.template_id || storyData?.templateId || null;
         storyWorldRaw = String(storyData?.story_world ?? '');
         characterStyle = String(storyData?.character_style ?? '3d').toLowerCase() as any;
         isPurchased = storyData?.purchased === true;
@@ -1090,6 +1094,20 @@
   } else {
     // Not a character-finding page: clear to avoid showing template images
     characterImages = [];
+  }
+
+  // Attach/detach game engine when character-finding pages (3-6) are shown
+  $: if (browser && imageWrapperRef) {
+    if (showCharacterCounter) {
+      attachGameEngine({
+        container: imageWrapperRef,
+        getStoryUid: () => templateId || currentStoryId,
+        getPageNumber: () => currentStoryPageNumber,
+        isActive: () => showCharacterCounter
+      });
+    } else {
+      detachGameEngine(imageWrapperRef);
+    }
   }
   
   // Toggle fullscreen mode (same as /intersearch/1: fullscreen the story container only)
@@ -3132,6 +3150,7 @@
     border-radius: 0;
     position: relative;
     width: 100%;
+    user-select: none;
   }
   
   /* Make images 200% width to enable split view */

@@ -65,6 +65,15 @@
   let uploadInProgress = false;
   let deletingSceneInProgress = false;
 
+  // Positions modal state
+  let showPositionModal = false;
+  let positionModalTemplateId: string = '';
+  let positionModalTemplateName: string = '';
+  let positionModalPositions: { x: number; y: number }[] = [];
+  let newPositionX: string = '';
+  let newPositionY: string = '';
+  let positionSaving = false;
+
   // Track pending metadata changes per template
   let pendingChanges: Map<string, {
     story_world?: 'forest' | 'underwater' | 'outerspace' | '';
@@ -528,6 +537,74 @@
     modalFileInput?.click();
   }
 
+  // Open positions modal for a template
+  function openPositionModal(templateId: string, templateName: string) {
+    if (savingRows.has(templateId)) return;
+    const template = templates.find((t) => t.id === templateId);
+    positionModalTemplateId = templateId;
+    positionModalTemplateName = templateName;
+    positionModalPositions = (template?.positions || []).map((p: any) => ({ x: p.x, y: p.y }));
+    newPositionX = '';
+    newPositionY = '';
+    showPositionModal = true;
+  }
+
+  function closePositionModal() {
+    showPositionModal = false;
+    positionModalTemplateId = '';
+    positionModalTemplateName = '';
+    positionModalPositions = [];
+    newPositionX = '';
+    newPositionY = '';
+  }
+
+  async function handleAddPosition() {
+    if (!positionModalTemplateId) return;
+    const x = parseFloat(newPositionX);
+    const y = parseFloat(newPositionY);
+    if (Number.isNaN(x) || Number.isNaN(y)) {
+      alert('Please enter valid numeric x and y values');
+      return;
+    }
+    if (positionModalPositions.length >= 16) {
+      alert('Maximum 16 coordinates allowed');
+      return;
+    }
+    positionModalPositions = [...positionModalPositions, { x, y }];
+    newPositionX = '';
+    newPositionY = '';
+  }
+
+  async function removePosition(index: number) {
+    if (!positionModalTemplateId) return;
+    if (!confirm('Remove this coordinate?')) return;
+    positionModalPositions = positionModalPositions.filter((_, i) => i !== index);
+    // Save immediately
+    await savePositions();
+  }
+
+  async function savePositions() {
+    if (!positionModalTemplateId) return;
+    positionSaving = true;
+    try {
+      const result = await updateTemplate(positionModalTemplateId, { positions: positionModalPositions });
+      if (!result.success || result.error) {
+        throw new Error(result.error || 'Failed to save positions');
+      }
+      // Refresh row
+      if (result.data) {
+        refreshTemplateRow(result.data);
+      }
+      alert('Positions saved');
+      closePositionModal();
+    } catch (err: any) {
+      console.error('Save positions error', err);
+      alert(`Failed to save positions: ${err.message}`);
+    } finally {
+      positionSaving = false;
+    }
+  }
+
   function getModalSceneUrls(): string[] {
     if (previewUrls.length === 0) {
       return existingUploadUrls;
@@ -681,6 +758,7 @@
             {#if selectedStoryFormat === 'interactive_story'}
               <th>Main character images</th>
               <th>Character for Finding</th>
+              <th>Positions</th>
             {/if}
             <th>Last Words</th>
             <th>Last Story</th>
@@ -874,6 +952,20 @@
                     {/if}
                   </div>
                 </td>
+                <td class="positions-cell">
+                  {#if (template.positions && template.positions.length > 0)}
+                    <div class="positions-list">
+                      {#each template.positions as pos, idx}
+                        <div class="position-item">#{idx + 1}: ({pos.x.toFixed(2)}, {pos.y.toFixed(2)})</div>
+                      {/each}
+                    </div>
+                  {:else}
+                    <div class="positions-empty">—</div>
+                  {/if}
+                  <div class="positions-actions">
+                    <button class="scene-add-btn" on:click={() => openPositionModal(template.id, template.name)}>Add Coordinate</button>
+                  </div>
+                </td>
               {/if}
               
               <td class="image-cell">
@@ -1013,6 +1105,50 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" on:click={closeAddModal}>Cancel</button>
         <button class="btn btn-primary" on:click={handleAddTemplate}>Add Template</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Positions Modal -->
+{#if showPositionModal}
+  <div class="modal-overlay" on:click={closePositionModal} on:keydown={(e) => e.key === 'Escape' && closePositionModal()} role="button" tabindex="-1">
+    <div class="modal-content" on:click|stopPropagation on:keydown|stopPropagation role="dialog" tabindex="-1">
+      <div class="modal-header">
+        <h2>Manage Coordinates — {positionModalTemplateName}</h2>
+        <button class="close-btn" on:click={closePositionModal}>
+          <X size={24} />
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Existing Coordinates</label>
+          {#if positionModalPositions.length > 0}
+            <div class="positions-list-modal">
+              {#each positionModalPositions as pos, idx}
+                <div class="position-row">
+                  <div>#{idx + 1}: x={pos.x.toFixed(3)}, y={pos.y.toFixed(3)}</div>
+                  <button class="scene-delete-btn" on:click={() => removePosition(idx)}>Remove</button>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="no-selection">No coordinates yet.</div>
+          {/if}
+        </div>
+
+        <div class="form-group">
+          <label>Add Coordinate (0.0 - 1.0)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" placeholder="x (e.g. 0.12)" bind:value={newPositionX} />
+            <input type="text" placeholder="y (e.g. 0.34)" bind:value={newPositionY} />
+            <button class="scene-add-btn" on:click={handleAddPosition}>Add</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" on:click={closePositionModal} disabled={positionSaving}>Cancel</button>
+        <button class="btn btn-primary" on:click={savePositions} disabled={positionSaving}>{positionSaving ? 'Saving...' : 'Save Coordinates'}</button>
       </div>
     </div>
   </div>
@@ -1836,6 +1972,19 @@
     font-weight: 700;
     font-size: 0.75rem;
   }
+
+  .positions-cell {
+    min-width: 180px;
+    text-align: left;
+    padding: 0.75rem;
+  }
+
+  .positions-list { display:flex; flex-direction:column; gap:4px; }
+  .position-item { font-size:0.85rem; color:#374151 }
+  .positions-actions { margin-top:6px }
+  .positions-empty { color:#9ca3af }
+  .positions-list-modal { display:flex; flex-direction:column; gap:8px }
+  .position-row { display:flex; justify-content:space-between; align-items:center; gap:8px }
 
   .no-selection {
     text-align: center;

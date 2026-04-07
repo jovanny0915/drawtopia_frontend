@@ -31,6 +31,7 @@ export interface BookTemplate {
   story_page_images?: string[];
   main_character_images?: string[];
   character_for_finding?: string[];
+  positions?: { x: number; y: number }[];
   last_words_page_image?: string;
   last_story_page_image?: string;
   back_cover_image?: string;
@@ -777,6 +778,7 @@ export async function updateTemplate(
     story_page_images?: string[];
     main_character_images?: string[];
     character_for_finding?: string[];
+    positions?: { x: number; y: number }[];
     last_words_page_image?: string | null;
     last_story_page_image?: string | null;
     back_cover_image?: string | null;
