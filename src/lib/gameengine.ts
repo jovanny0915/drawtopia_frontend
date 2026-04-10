@@ -7,11 +7,17 @@ type Options = {
   getPageNumber?: () => number | null | undefined;
   isActive: () => boolean; // whether game should respond (pages 3-6)
   endpoint?: string; // override backend endpoint
+  onHitIndex?: (hitIndex: number) => void; // 1..4; 0 means "not found"
 };
 
 let attached = false;
 let clickHandler = null as null | ((ev: PointerEvent) => void);
 const MARKER_FADE_OUT_MS = 220;
+
+export function clearGameMarkers(container: HTMLElement) {
+  const markers = container.querySelectorAll('.game-pointer-marker');
+  markers.forEach((m) => m.remove());
+}
 
 function animateAndRemoveMarker(marker: HTMLElement) {
   marker.style.transition = `opacity ${MARKER_FADE_OUT_MS}ms ease, transform ${MARKER_FADE_OUT_MS}ms ease`;
@@ -25,6 +31,7 @@ function animateAndRemoveMarker(marker: HTMLElement) {
 function showPersistentPointerMarker(img: HTMLImageElement, clientX: number, clientY: number) {
   const markerRadiusPx = 20;
   const marker = document.createElement('span');
+  marker.className = 'game-pointer-marker';
   const imageContainer = (img.parentElement || img) as HTMLElement;
   // Prefer the full page image wrapper so the marker is shown on the whole story image view.
   const markerHost =
@@ -72,6 +79,7 @@ export function attachGameEngine(opts: Options) {
   if (attached) return;
   const container = opts.container;
   const endpoint = 'https://image-edit-five.vercel.app/api/game/check-point';
+  clearGameMarkers(container);
 
   clickHandler = async (ev: PointerEvent) => {
     try {
@@ -148,14 +156,31 @@ export function attachGameEngine(opts: Options) {
       }
 
       const data = await resp.json().catch(() => null);
-      const hit = data && (data.hit === true || data.hit === 'true');
+      const hitRaw = data?.hit;
 
-      if (hit) {
-        addNotification({ type: 'success', message: 'Found! Great job.' });
-      } else {
-        animateAndRemoveMarker(marker);
-        addNotification({ type: 'info', message: "Not found — try another spot." });
+      let hitIndex = 0;
+      if (typeof hitRaw === 'number' && Number.isFinite(hitRaw)) {
+        hitIndex = hitRaw;
+      } else if (typeof hitRaw === 'string') {
+        const n = Number(hitRaw);
+        if (Number.isFinite(n)) hitIndex = n;
       }
+
+      if (hitIndex === 0) {
+        animateAndRemoveMarker(marker);
+        addNotification({ type: 'warning', message: 'Not found!' });
+        return;
+      }
+
+      if (hitIndex >= 1 && hitIndex <= 4) {
+        addNotification({ type: 'success', message: 'Found!' });
+        opts.onHitIndex?.(hitIndex);
+        return;
+      }
+
+      // Unknown response shape; treat as not found.
+      animateAndRemoveMarker(marker);
+      addNotification({ type: 'warning', message: 'Not found!' });
     } catch (err) {
       addNotification({ type: 'error', message: 'Unexpected error checking point' });
       console.error('gameengine click handler error', err);
@@ -170,8 +195,9 @@ export function attachGameEngine(opts: Options) {
 export function detachGameEngine(container: HTMLElement) {
   if (!attached) return;
   if (clickHandler) container.removeEventListener('pointerdown', clickHandler as EventListener);
+  clearGameMarkers(container);
   attached = false;
   clickHandler = null;
 }
 
-export default { attachGameEngine, detachGameEngine };
+export default { attachGameEngine, detachGameEngine, clearGameMarkers };

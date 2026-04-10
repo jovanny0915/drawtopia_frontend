@@ -3,6 +3,7 @@
   export let collectedCount: number = 0; // Number of collected items (0-4)
   export let totalCount: number = 4; // Total items (always 4)
   export let isVisible: boolean = true; // Control visibility
+  export let foundIndices: boolean[] = [false, false, false, false]; // 0..3; true means that specific character is found
 </script>
 
 <div class="character-item-counter" class:hidden={!isVisible}>
@@ -14,7 +15,7 @@
     {#each Array(totalCount) as _, index}
       <div
         class="character-image-slot"
-        class:collected={index < collectedCount}
+        class:collected={(foundIndices?.[index] === true) || index < collectedCount}
       >
         {#if index < characterImages.length && characterImages[index]}
           <img
@@ -25,6 +26,11 @@
           />
         {:else}
           <div class="image-placeholder"></div>
+        {/if}
+        {#if foundIndices?.[index] === true}
+          <div class="found-check-badge" aria-hidden="true">
+            <span class="found-check-icon">&#10003;</span>
+          </div>
         {/if}
       </div>
     {/each}
@@ -86,8 +92,9 @@
 
   .character-image-slot {
     position: relative;
-    width: 64px;
-    height: 64px;
+    --slot-size: 64px;
+    width: var(--slot-size);
+    height: var(--slot-size);
     border: none;
     border-radius: 50%;
     overflow: hidden;
@@ -102,6 +109,27 @@
   .character-image-slot.collected {
     box-shadow: 0 4px 14px rgba(76, 175, 80, 0.28);
     transform: translateY(-2px);
+  }
+
+  .found-check-badge {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(74, 222, 128, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    box-shadow: 0 6px 16px rgba(74, 222, 128, 0.18);
+  }
+
+  .found-check-icon {
+    font-size: calc(var(--slot-size) * 0.55);
+    color: rgba(21, 128, 61, 0.95);
+    font-weight: 700;
+    line-height: 1;
   }
 
   .character-image {
@@ -133,8 +161,9 @@
     }
 
     .character-image-slot {
-      width: 56px;
-      height: 56px;
+      --slot-size: 56px;
+      width: var(--slot-size);
+      height: var(--slot-size);
     }
   }
 
@@ -154,8 +183,9 @@
     }
 
     .character-image-slot {
-      width: 48px;
-      height: 48px;
+      --slot-size: 48px;
+      width: var(--slot-size);
+      height: var(--slot-size);
     }
   }
 </style>

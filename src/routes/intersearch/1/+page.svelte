@@ -28,7 +28,7 @@
   import { getStoryById, updateReadingState } from "../../../lib/database/stories";
   import { getChildProfileById } from "../../../lib/database/childProfiles";
   import promptImageData from "../../../lib/prompt_image.json";
-  import { attachGameEngine, detachGameEngine } from "$lib/gameengine";
+  import { attachGameEngine, clearGameMarkers, detachGameEngine } from "$lib/gameengine";
 
   const goToDashboard = () => {
     goto('/dashboard');
@@ -125,7 +125,62 @@
   let characterImages: string[] = []; // Array of character images (1-4)
   let characterForFinding: string[] = []; // Full set of character-for-finding URLs (expected up to 16)
   let collectedCount: number = 0; // Number of collected items
+  let foundCharacterIndices: boolean[] = [false, false, false, false]; // 0..3; maps to response 1..4
+  $: collectedCount = foundCharacterIndices.filter(Boolean).length;
   let showCharacterCounter: boolean = false; // Show/hide counter based on current page
+
+  let displayedPageNumber = -1; // Actual page number the user is looking at (respects one/two-page view)
+  let lastCharacterResetPageNumber = -1; // Helps avoid resetting found state multiple times
+  let lastAutoAdvancePageNumber = -1; // Helps avoid firing nextScene repeatedly
+  let autoAdvanceTimer: number | null = null;
+
+  $: displayedPageNumber = (() => {
+    const adjustedIndex = getStoryPageIndex(currentSceneIndex);
+    if (viewMode === 'one-page') {
+      return adjustedIndex >= 0 ? adjustedIndex * 2 + (currentSubPage === 'left' ? 1 : 2) : 1;
+    }
+    return adjustedIndex >= 0 ? adjustedIndex + 1 : -1;
+  })();
+
+  // Reset "found" state when user navigates to a different page (including left/right changes in one-page mode).
+  $: if (browser) {
+    const isCharacterPage = showCharacterCounter && displayedPageNumber >= 3 && displayedPageNumber <= 6;
+    if (!isCharacterPage) {
+      if (foundCharacterIndices.some(Boolean)) {
+        foundCharacterIndices = [false, false, false, false];
+      }
+      lastCharacterResetPageNumber = -1;
+      lastAutoAdvancePageNumber = -1;
+    } else if (displayedPageNumber !== lastCharacterResetPageNumber) {
+      foundCharacterIndices = [false, false, false, false];
+      lastCharacterResetPageNumber = displayedPageNumber;
+      lastAutoAdvancePageNumber = -1;
+    }
+  }
+
+  // Auto-advance when all 4 character points are found on pages 3-6.
+  $: if (browser) {
+    const isCharacterPage = showCharacterCounter && displayedPageNumber >= 3 && displayedPageNumber <= 6;
+    if (!isCharacterPage) {
+      // no-op when not on a character-finding page
+    } else {
+      const allFound = foundCharacterIndices.length === 4 && foundCharacterIndices.every(Boolean);
+      if (!allFound) {
+        // no-op until all are found
+      } else {
+        if (displayedPageNumber !== lastAutoAdvancePageNumber) {
+          lastAutoAdvancePageNumber = displayedPageNumber;
+
+          if (autoAdvanceTimer) window.clearTimeout(autoAdvanceTimer);
+          autoAdvanceTimer = window.setTimeout(() => {
+            autoAdvanceTimer = null;
+            nextScene();
+          }, 250);
+        }
+      }
+    }
+
+  }
 
   // Reading time tracking
   let readingStartTime: number = 0; // Timestamp when reading started
@@ -1103,11 +1158,26 @@
         container: imageWrapperRef,
         getStoryUid: () => templateId || currentStoryId,
         getPageNumber: () => currentStoryPageNumber,
+        onHitIndex: (hitIndex: number) => {
+          if (hitIndex < 1 || hitIndex > 4) return;
+          const next = [...foundCharacterIndices];
+          next[hitIndex - 1] = true;
+          foundCharacterIndices = next;
+        },
         isActive: () => showCharacterCounter
       });
     } else {
       detachGameEngine(imageWrapperRef);
     }
+  }
+
+  // Clear any drawn markers when changing pages/subpages so they don't persist across navigation.
+  $: if (browser && imageWrapperRef) {
+    // Reference reactive values so this runs on navigation.
+    void currentSceneIndex;
+    void currentSubPage;
+    void currentStoryPageNumber;
+    clearGameMarkers(imageWrapperRef);
   }
   
   // Toggle fullscreen mode (same as /intersearch/1: fullscreen the story container only)
@@ -1581,6 +1651,7 @@
                             <CharacterItemCounter 
                               {characterImages}
                               collectedCount={collectedCount}
+                              foundIndices={foundCharacterIndices}
                               totalCount={4}
                               isVisible={showCharacterCounter}
                             />
@@ -1702,6 +1773,7 @@
                             <CharacterItemCounter 
                               {characterImages}
                               collectedCount={collectedCount}
+                              foundIndices={foundCharacterIndices}
                               totalCount={4}
                               isVisible={showCharacterCounter}
                             />
