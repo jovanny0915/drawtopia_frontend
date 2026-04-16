@@ -72,7 +72,7 @@
         : Math.max(1, ESTIMATED_GENERATION_SECONDS - Math.round(completionPercent));
 
     // Track story type (interactive or story) — only read from sessionStorage in browser (SSR-safe)
-    $: storyType = browser ? (sessionStorage.getItem('selectedFormat') || 'story') : 'story';
+    $: storyType = browser ? normalizeSelectedStoryFormat(sessionStorage.getItem('selectedFormat')) : 'story';
 
     // Navigate to appropriate page when completion reaches 100%
     $: if (completionPercent >= 100 && !hasNavigated && storyGenerated) {
@@ -153,6 +153,27 @@
 
         // Legacy style labels (3d/anime/cartoon) are not reliable story-type markers.
         return null;
+    }
+
+    function normalizeSelectedStoryFormat(value: string | undefined | null): TemplateStoryType {
+        const normalized = (value || '').toLowerCase().trim();
+        if (
+            [
+                'interactive',
+                'interactive_story',
+                'interactive-story',
+                'interactive_search',
+                'interactive-search',
+                'search',
+                'search-and-find',
+                'search_and_find',
+                'intersearch'
+            ].includes(normalized)
+        ) {
+            return 'interactive';
+        }
+
+        return 'story';
     }
 
     function selectMatchingBookTemplate(
@@ -796,6 +817,7 @@
             const currentStoryIdInter = browser ? sessionStorage.getItem('currentStoryId') : null;
             
             // Get template images from sessionStorage (stored in generateIntersearchStory)
+            const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
             const copyrightImage = browser ? sessionStorage.getItem('copyright_image') : null;
             const templateDedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
             const lastWordImage = browser ? sessionStorage.getItem('last_word_image') : null;
@@ -817,6 +839,7 @@
                 original_image_url: originalImageUrl.split('?')[0],
                 enhanced_images: storyState.enhancedImages || [],
                 story_title: storyTitle,
+                template_id: bookTemplateId || undefined,
                 story_cover: sceneImages[0]?.split('?')[0] || undefined,
                 cover_design: undefined,
                 story_content: JSON.stringify(storyContent),
@@ -1050,6 +1073,7 @@
             // Get dedication text and image from sessionStorage
             const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
             const dedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
+            const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
 
             const copyrightImage = browser ? sessionStorage.getItem('copyright_image') : null;
             const lastWordImage = browser ? sessionStorage.getItem('last_word_image') : null;
@@ -1087,6 +1111,7 @@
                 story_content: JSON.stringify(storyContent),
                 scene_images: sceneImages.length > 0 ? sceneImages.map(url => url.split('?')[0]) : [],
                 audio_urls: audioUrls && audioUrls.length > 0 ? audioUrls.map(url => url ? url.split('?')[0] : null) : [],
+                template_id: bookTemplateId || undefined,
                 dedication_text: dedicationText || undefined,
                 dedication_image: dedicationImage ? dedicationImage.split('?')[0] : undefined,
                 copyright_image: copyrightImage ? copyrightImage.split('?')[0] : undefined,
@@ -1329,8 +1354,10 @@
 
             const { data: templates } = await getBookTemplates();
             const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
-            const selectedFormat = (browser ? sessionStorage.getItem('selectedFormat') : null) || storyType || 'story';
-            const requestedStoryType: TemplateStoryType = selectedFormat === 'interactive' ? 'interactive' : 'story';
+            const selectedFormat = normalizeSelectedStoryFormat(
+                (browser ? sessionStorage.getItem('selectedFormat') : null) || storyType || 'story'
+            );
+            const requestedStoryType: TemplateStoryType = selectedFormat;
             const bookTemplate = selectMatchingBookTemplate(
                 templates || [],
                 bookTemplateId,
@@ -1460,7 +1487,7 @@
         if (browser) {
             storyCreation.init();
             // Check story type from sessionStorage
-            storyType = sessionStorage.getItem('selectedFormat') || 'story';
+            storyType = normalizeSelectedStoryFormat(sessionStorage.getItem('selectedFormat'));
         }
 
         // Progress ticker: increase exactly 1% while generation is running.

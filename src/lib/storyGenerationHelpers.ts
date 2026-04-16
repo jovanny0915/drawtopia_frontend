@@ -63,8 +63,13 @@ function normalizeStoryFormatForPrompts(storyFormat?: string): StoryFormatKey {
   const normalized = (storyFormat || '').toLowerCase().trim();
   if (
     normalized === 'interactive_story' ||
+    normalized === 'interactive-story' ||
     normalized === 'interactive' ||
+    normalized === 'interactive_search' ||
+    normalized === 'interactive-search' ||
     normalized === 'search' ||
+    normalized === 'search-and-find' ||
+    normalized === 'search_and_find' ||
     normalized === 'intersearch'
   ) {
     return 'interactive_story';

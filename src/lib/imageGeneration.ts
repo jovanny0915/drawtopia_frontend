@@ -25,6 +25,7 @@ export interface ImageGenerationOptions {
   characterName?: string;
   characterType?: 'person' | 'animal' | 'magical';
   specialAbility?: string;
+  ageGroup?: string;
 }
 
 /**
@@ -39,7 +40,8 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
     storageKey,
     characterName,
     characterType,
-    specialAbility
+    specialAbility,
+    ageGroup
   } = options;
   
   if (!imageUrl) {
@@ -60,8 +62,9 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
       let charName = characterName;
       let charType = characterType;
       let ability = specialAbility;
+      let targetAgeGroup = ageGroup;
       
-      if (browser && (!charName || !charType || !ability)) {
+      if (browser && (!charName || !charType || !ability || !targetAgeGroup)) {
         // Try to load from sessionStorage if not provided
         charName = charName || sessionStorage.getItem('characterName') || 'Character';
         const storedType = characterType || sessionStorage.getItem('selectedCharacterType') || 'person';
@@ -74,6 +77,7 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
           charType = 'person';
         }
         ability = ability || sessionStorage.getItem('specialAbility') || '';
+        targetAgeGroup = targetAgeGroup || sessionStorage.getItem('ageGroup') || '7-10';
       }
       
       // Build prompt using prompt1.json
@@ -83,7 +87,8 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
         characterStyle: style as '3d' | 'cartoon' | 'anime',
         specialAbility: ability || '',
         enhancementLevel: quality as 'minimal' | 'normal' | 'high',
-        uploadedImageUrl: imageUrl
+        uploadedImageUrl: imageUrl,
+        ageGroup: targetAgeGroup || '7-10'
       });
     } else if (style === 'environment') {
       // Handle environment prompts - create simple prompts based on world

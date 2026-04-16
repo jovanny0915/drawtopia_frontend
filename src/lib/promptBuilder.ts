@@ -200,6 +200,27 @@ interface PromptBuilderOptions {
   enhancementLevel: 'minimal' | 'normal' | 'high';
   ageGroup?: string;
   uploadedImageUrl?: string;
+  originalColors?: string;
+  distinctiveFeatures?: string;
+  facialExpression?: string;
+  proportions?: string;
+}
+
+interface EnhanceCharacterPromptConfig {
+  characterType?: Record<'person' | 'animal' | 'magical', string>;
+  characterStyle?: Record<'3d' | 'cartoon' | 'anime', string>;
+  specialAbility?: Record<string, string>;
+  enhancementLevel?: Record<'initial' | 'minimal' | 'normal' | 'high', string>;
+  referencePreservation?: Record<'originalColors' | 'distinctiveFeatures' | 'facialExpression' | 'proportions', string>;
+  additionalGuidance?: Record<'colorEnhancement' | 'featurePreservation' | 'expressionFidelity' | 'noReplacement' | 'sceneComplexity', string>;
+  additionalEnhancement?: Record<
+    'normal' | 'high',
+    {
+      characterType?: Record<'person' | 'animal' | 'magical', string>;
+      characterStyle?: Record<'3d' | 'cartoon' | 'anime', string>;
+      specialAbility?: Record<string, string>;
+    }
+  >;
 }
 
 /**
@@ -214,10 +235,13 @@ function mapSpecialAbilityKey(specialAbility: string): string {
     'animal-communication': 'animalCommunication',
     'time-control': 'timeControl',
     'shape-shifting': 'shapeShifting',
+    'magic-casting': 'magicCasting',
+    'magic casting': 'magicCasting',
+    'none': 'none',
     'custom': 'custom'
   };
   
-  return mapping[specialAbility.toLowerCase()] || 'custom';
+  return mapping[specialAbility.toLowerCase().trim()] || 'custom';
 }
 
 /**
@@ -245,9 +269,57 @@ function replacePlaceholders(
   result = result.replace(/\{special_ability\}/g, options.specialAbility);
   result = result.replace(/\{character_style\}/g, options.characterStyle);
   result = result.replace(/\{age_group\}/g, options.ageGroup || '7-10');
+  result = result.replace(/\{target_age_group\}/g, options.ageGroup || '7-10');
   result = result.replace(/\{uploaded_child_drawing\}/g, options.uploadedImageUrl || '[REFERENCE IMAGE]');
+  result = result.replace(/\{original_colors\}/g, options.originalColors || 'Infer the exact original colors directly from the reference image and preserve every one of them.');
+  result = result.replace(/\{distinctive_features\}/g, options.distinctiveFeatures || 'Infer every distinctive identifying feature directly from the reference image and preserve all of them.');
+  result = result.replace(/\{facial_expression\}/g, options.facialExpression || 'Infer the facial expression directly from the reference image and preserve it clearly.');
+  result = result.replace(/\{proportions\}/g, options.proportions || 'Infer the original proportions directly from the reference image and preserve them.');
   
   return result;
+}
+
+function buildReferencePreservationSummary(options: PromptBuilderOptions): Record<'originalColors' | 'distinctiveFeatures' | 'facialExpression' | 'proportions', string> {
+  return {
+    originalColors: options.originalColors || 'Infer the exact original colors from the reference image and preserve them exactly.',
+    distinctiveFeatures: options.distinctiveFeatures || 'Infer all distinctive identifying features from the reference image and preserve every one of them.',
+    facialExpression: options.facialExpression || 'Infer the original facial expression from the reference image and preserve it in the final result.',
+    proportions: options.proportions || 'Infer the original body and feature proportions from the reference image and preserve them.'
+  };
+}
+
+function buildExactReferencePreservationSection(
+  referencePreservation: NonNullable<EnhanceCharacterPromptConfig['referencePreservation']>,
+  options: PromptBuilderOptions
+): string {
+  const summary = buildReferencePreservationSummary(options);
+
+  return [
+    'REFERENCE PRESERVATION (USE THESE INSTRUCTIONS EXACTLY):',
+    `- originalColors: ${referencePreservation.originalColors}`,
+    `  Resolved for this reference image: ${summary.originalColors}`,
+    `- distinctiveFeatures: ${referencePreservation.distinctiveFeatures}`,
+    `  Resolved for this reference image: ${summary.distinctiveFeatures}`,
+    `- facialExpression: ${referencePreservation.facialExpression}`,
+    `  Resolved for this reference image: ${summary.facialExpression}`,
+    `- proportions: ${referencePreservation.proportions}`,
+    `  Resolved for this reference image: ${summary.proportions}`
+  ].join('\n');
+}
+
+function buildExactAdditionalGuidanceSection(
+  guidance: NonNullable<EnhanceCharacterPromptConfig['additionalGuidance']>,
+  enhancementLevel: PromptBuilderOptions['enhancementLevel']
+): string {
+  return [
+    'ADDITIONAL GUIDANCE (USE THESE INSTRUCTIONS EXACTLY):',
+    `- colorEnhancement: ${guidance.colorEnhancement}`,
+    `- featurePreservation: ${guidance.featurePreservation}`,
+    `- expressionFidelity: ${guidance.expressionFidelity}`,
+    `- noReplacement: ${guidance.noReplacement}`,
+    `- sceneComplexity: ${guidance.sceneComplexity}`,
+    `  Apply only the ${enhancementLevel.toUpperCase()} scene-complexity clause for this generation request.`
+  ].join('\n');
 }
 
 /**
@@ -255,29 +327,26 @@ function replacePlaceholders(
  * 
  * The prompt is built by combining:
  * 1. Base enhancement level prompt (minimal/normal/high)
- * 2. Base character type specifications
- * 3. Additional enhancement specifications (from additionalEnhancement) based on:
- *    - Enhancement level (normal/high only - minimal doesn't have additional specs)
- *    - Character type
- *    - Character style (3d/cartoon/anime)
- * 4. Base special ability specifications (from enhanceCharacter.specialAbility)
- * 
- * Note: Special ability prompts from additionalEnhancement are intentionally excluded
- * for character enhancement functionality.
+ * 2. Base character type, style, and special ability specifications
+ * 3. Additional enhancement specifications (from additionalEnhancement) for
+ *    character type, character style, and special ability when provided
+ * 4. Exact referencePreservation and additionalGuidance sections from prompt1.json
  */
 export function buildEnhancementPrompt(options: PromptBuilderOptions): string {
   const { characterType, characterStyle, specialAbility, enhancementLevel } = options;
+  const enhanceCharacter = ((prompt1Data as any).enhanceCharacter || {}) as EnhanceCharacterPromptConfig;
   
   // Get base enhancement level prompt (minimal/normal/high)
-  const basePrompt = (prompt1Data as any).enhanceCharacter?.enhancementLevel?.[enhancementLevel] || '';
+  const basePrompt = enhanceCharacter.enhancementLevel?.[enhancementLevel] || '';
   
   // Get character type specifications (base specs, always included)
   const characterTypeKey = getCharacterTypeKey(characterType);
-  const characterTypeSpecs = (prompt1Data as any).enhanceCharacter?.characterType?.[characterTypeKey] || '';
+  const characterTypeSpecs = enhanceCharacter.characterType?.[characterTypeKey] || '';
+  const characterStyleSpecs = enhanceCharacter.characterStyle?.[characterStyle] || '';
   
   // Get additional enhancement specs based on enhancement level (normal/high)
   // Note: minimal level doesn't have additionalEnhancement, which is fine
-  const additionalEnhancement = (prompt1Data as any).enhanceCharacter?.additionalEnhancement?.[enhancementLevel];
+  const additionalEnhancement = enhanceCharacter.additionalEnhancement?.[enhancementLevel as 'normal' | 'high'];
   
   // Get additional character type specs from additionalEnhancement (if exists and has content)
   const additionalCharacterTypeSpecs = additionalEnhancement?.characterType?.[characterTypeKey];
@@ -286,11 +355,12 @@ export function buildEnhancementPrompt(options: PromptBuilderOptions): string {
   // Get style specifications from additionalEnhancement (if exists and has content)
   const styleSpecs = additionalEnhancement?.characterStyle?.[characterStyle];
   const hasStyleSpecs = styleSpecs && styleSpecs.trim().length > 0;
+  const additionalAbilitySpecs = additionalEnhancement?.specialAbility?.[mapSpecialAbilityKey(specialAbility)];
+  const hasAdditionalAbilitySpecs = additionalAbilitySpecs && additionalAbilitySpecs.trim().length > 0;
   
   // Map and get special ability specifications from base enhanceCharacter.specialAbility
-  // Note: Special ability prompts from additionalEnhancement are intentionally excluded
   const abilityKey = mapSpecialAbilityKey(specialAbility);
-  let specialAbilitySpecs = (prompt1Data as any).enhanceCharacter?.specialAbility?.[abilityKey] || '';
+  let specialAbilitySpecs = enhanceCharacter.specialAbility?.[abilityKey] || '';
   
   // If it's a custom ability and no predefined specs exist, create a custom description
   if (abilityKey === 'custom' && !specialAbilitySpecs && specialAbility && specialAbility.trim()) {
@@ -309,22 +379,43 @@ export function buildEnhancementPrompt(options: PromptBuilderOptions): string {
   if (characterTypeSpecs && characterTypeSpecs.trim().length > 0) {
     promptParts.push(`\n\nCHARACTER TYPE SPECIFICATIONS:\n${characterTypeSpecs}`);
   }
+
+  // 3. Base character style specifications
+  if (characterStyleSpecs && characterStyleSpecs.trim().length > 0) {
+    promptParts.push(`\n\nCHARACTER STYLE SPECIFICATIONS:\n${replacePlaceholders(characterStyleSpecs, options)}`);
+  }
+
+  // 4. Base special ability specifications
+  if (specialAbilitySpecs && specialAbilitySpecs.trim().length > 0) {
+    promptParts.push(`\n\nSPECIAL ABILITY SPECIFICATIONS:\n${replacePlaceholders(specialAbilitySpecs, options)}`);
+  }
   
-  // 3. Additional character type specifications from additionalEnhancement (based on enhancement level)
+  // 5. Additional character type specifications from additionalEnhancement (based on enhancement level)
   if (hasAdditionalCharacterTypeSpecs) {
-    promptParts.push(`\n\n${replacePlaceholders(additionalCharacterTypeSpecs, options)}`);
+    promptParts.push(`\n\nADDITIONAL CHARACTER TYPE ENHANCEMENT:\n${replacePlaceholders(additionalCharacterTypeSpecs, options)}`);
   }
   
-  // 4. Style specifications from additionalEnhancement (based on enhancement level and character style)
+  // 6. Style specifications from additionalEnhancement (based on enhancement level and character style)
   if (hasStyleSpecs) {
-    promptParts.push(`\n\n${replacePlaceholders(styleSpecs, options)}`);
+    promptParts.push(`\n\nADDITIONAL STYLE ENHANCEMENT:\n${replacePlaceholders(styleSpecs, options)}`);
+  }
+
+  // 7. Special ability enhancement specifications from additionalEnhancement when present
+  if (hasAdditionalAbilitySpecs) {
+    promptParts.push(`\n\nADDITIONAL SPECIAL ABILITY ENHANCEMENT:\n${replacePlaceholders(additionalAbilitySpecs, options)}`);
   }
   
-  // 5. Base special ability specifications (always included if exists)
-  // Note: Special ability prompts from additionalEnhancement are intentionally excluded
-  // if (specialAbilitySpecs && specialAbilitySpecs.trim().length > 0) {
-  //   promptParts.push(`\n\n${specialAbilitySpecs}`);
-  // }
+  // 8. Exact reference-preservation checklist from prompt1.json
+  if (enhanceCharacter.referencePreservation) {
+    promptParts.push(`\n\n${buildExactReferencePreservationSection(enhanceCharacter.referencePreservation, options)}`);
+  }
+
+  // 9. Exact additional-guidance block from prompt1.json
+  if (enhanceCharacter.additionalGuidance) {
+    promptParts.push(`\n\n${buildExactAdditionalGuidanceSection(enhanceCharacter.additionalGuidance, enhancementLevel)}`);
+  }
+
+  promptParts.push(`\n\nFINAL ENFORCEMENT:\n- The uploaded drawing is the source of truth.\n- Preserve identity before stylization.\n- Preserve the original aspect ratio of the reference image.\n- Do not replace, redesign, or genericize the character.`);
   
   // Combine all parts
   const finalPrompt = promptParts.join('');
