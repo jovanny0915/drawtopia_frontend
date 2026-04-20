@@ -255,6 +255,34 @@ function getCharacterTypeKey(characterType: string): 'person' | 'animal' | 'magi
   return normalized as 'person' | 'animal';
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function replaceTemplateVariables(template: string, replacements: Record<string, string>): string {
+  let result = template;
+
+  for (const [rawKey, rawValue] of Object.entries(replacements)) {
+    const value = rawValue ?? '';
+    const keyVariants = new Set([
+      rawKey,
+      rawKey.toLowerCase(),
+      rawKey.toUpperCase(),
+      rawKey.replace(/([a-z])([A-Z])/g, '$1_$2'),
+      rawKey.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase(),
+      rawKey.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase()
+    ]);
+
+    for (const key of keyVariants) {
+      const escapedKey = escapeRegExp(key);
+      result = result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), value);
+      result = result.replace(new RegExp(`\\[${escapedKey}\\]`, 'g'), value);
+    }
+  }
+
+  return result;
+}
+
 /**
  * Replaces placeholders in a prompt template
  */
@@ -262,21 +290,19 @@ function replacePlaceholders(
   template: string,
   options: PromptBuilderOptions
 ): string {
-  let result = template;
-  
-  result = result.replace(/\{character_name\}/g, options.characterName);
-  result = result.replace(/\{character_type\}/g, options.characterType);
-  result = result.replace(/\{special_ability\}/g, options.specialAbility);
-  result = result.replace(/\{character_style\}/g, options.characterStyle);
-  result = result.replace(/\{age_group\}/g, options.ageGroup || '7-10');
-  result = result.replace(/\{target_age_group\}/g, options.ageGroup || '7-10');
-  result = result.replace(/\{uploaded_child_drawing\}/g, options.uploadedImageUrl || '[REFERENCE IMAGE]');
-  result = result.replace(/\{original_colors\}/g, options.originalColors || 'Infer the exact original colors directly from the reference image and preserve every one of them.');
-  result = result.replace(/\{distinctive_features\}/g, options.distinctiveFeatures || 'Infer every distinctive identifying feature directly from the reference image and preserve all of them.');
-  result = result.replace(/\{facial_expression\}/g, options.facialExpression || 'Infer the facial expression directly from the reference image and preserve it clearly.');
-  result = result.replace(/\{proportions\}/g, options.proportions || 'Infer the original proportions directly from the reference image and preserve them.');
-  
-  return result;
+  return replaceTemplateVariables(template, {
+    characterName: options.characterName,
+    characterType: options.characterType,
+    specialAbility: options.specialAbility,
+    characterStyle: options.characterStyle,
+    ageGroup: options.ageGroup || '7-10',
+    targetAgeGroup: options.ageGroup || '7-10',
+    uploadedChildDrawing: options.uploadedImageUrl || '[REFERENCE IMAGE]',
+    originalColors: options.originalColors || 'Infer the exact original colors directly from the reference image and preserve every one of them.',
+    distinctiveFeatures: options.distinctiveFeatures || 'Infer every distinctive identifying feature directly from the reference image and preserve all of them.',
+    facialExpression: options.facialExpression || 'Infer the facial expression directly from the reference image and preserve it clearly.',
+    proportions: options.proportions || 'Infer the original proportions directly from the reference image and preserve them.'
+  });
 }
 
 function buildReferencePreservationSummary(options: PromptBuilderOptions): Record<'originalColors' | 'distinctiveFeatures' | 'facialExpression' | 'proportions', string> {
@@ -506,7 +532,7 @@ function compactStoryTextPageTemplate(template: string, pageNum: number): string
   // Remove repeated variable sections from each page; variables are added once globally.
   compacted = compacted
     .replace(/^VARIABLES:\s*$/gim, '')
-    .replace(/^\[[A-Z_]+\]\s*=\s*.*$/gim, '');
+    .replace(/^(?:\[[A-Z_]+\]|\{[A-Z_]+\})\s*=\s*.*$/gim, '');
 
   // Remove repeated per-page generation cue and keep one global cue.
   compacted = compacted.replace(/^\s*Generate the story text now\.?\s*$/gim, '');
@@ -530,27 +556,26 @@ function replaceStoryTextPlaceholders(
   template: string,
   options: StoryTextGenerationPromptOptions
 ): string {
-  let result = template;
-  
-  result = result.replace(/\{character_name\}/g, options.characterName);
-  result = result.replace(/\{character_type\}/g, options.characterType);
-  result = result.replace(/\{special_ability\}/g, options.specialAbility);
-  result = result.replace(/\{character_style\}/g, options.characterStyle);
-  result = result.replace(/\{story_world\}/g, options.storyWorld);
-  result = result.replace(/\{adventure_type\}/g, options.adventureType);
-  result = result.replace(/\{occasion_theme\}/g, options.occasionTheme || 'general');
-  result = result.replace(/\{age_group\}/g, options.ageGroup);
-  result = result.replace(/\{reading_level\}/g, options.readingLevel);
-  result = result.replace(/\{story_title\}/g, options.storyTitle);
-  result = result.replace(/\{page_number\}/g, String(options.pageNumber));
-  result = result.replace(/\{child's character name\}/g, options.characterName);
-  result = result.replace(/\[CHARACTER_NAME\]/g, options.characterName);
-  result = result.replace(/\[WORLD_NAME\]/g, getWorldDisplayName(options.storyWorld));
-  
+  const result = replaceTemplateVariables(template, {
+    characterName: options.characterName,
+    characterType: options.characterType,
+    specialAbility: options.specialAbility,
+    characterStyle: options.characterStyle,
+    storyWorld: options.storyWorld,
+    adventureType: options.adventureType,
+    occasionTheme: options.occasionTheme || 'general',
+    ageGroup: options.ageGroup,
+    readingLevel: options.readingLevel,
+    storyTitle: options.storyTitle,
+    pageNumber: String(options.pageNumber),
+    WORLD_NAME: getWorldDisplayName(options.storyWorld),
+    "child's character name": options.characterName
+  });
+
   const adventureDisplay = getAdventureTypeDisplayName(options.adventureType);
-  result = result.replace(/\{adventure_objective\}/g, adventureDisplay.toLowerCase());
-  
-  return result;
+  return replaceTemplateVariables(result, {
+    adventureObjective: adventureDisplay.toLowerCase()
+  });
 }
 
 /**
@@ -619,7 +644,7 @@ export function buildStoryTextPrompt(options: StoryTextGenerationPromptOptions):
   if (sharedVariables.length > 0) {
     promptParts.push(
       `\n\nSHARED VARIABLES (apply across all pages unless a page says otherwise):
-${sharedVariables.map(({ key, value }) => `- [${key}] = ${value}`).join('\n')}`
+${sharedVariables.map(({ key, value }) => `- {${key}} = ${value}`).join('\n')}`
     );
   }
 
@@ -634,11 +659,12 @@ ${sharedVariables.map(({ key, value }) => `- [${key}] = ${value}`).join('\n')}`
       continue;
     }
 
-    const mergedTemplate = template
-      .replace(/\[ALLY_NAME\]/g, allyNameForWorld)
-      .replace(/\[LEARNING_THEME\]/g, themeVariables.learningTheme || selectedTheme.themeName || '')
-      .replace(/\[OBSTACLE\]/g, themeVariables.obstacle || '')
-      .replace(/\[BUNNY_NAME\]/g, themeVariables.bunnyName || 'Little Bunny');
+    const mergedTemplate = replaceTemplateVariables(template, {
+      ALLY_NAME: allyNameForWorld,
+      LEARNING_THEME: themeVariables.learningTheme || selectedTheme.themeName || '',
+      OBSTACLE: themeVariables.obstacle || '',
+      BUNNY_NAME: themeVariables.bunnyName || 'Little Bunny'
+    });
 
     const compactTemplate = compactStoryTextPageTemplate(mergedTemplate, pageNum);
     promptParts.push(`\n\n${replaceStoryTextPlaceholders(compactTemplate, options)}`);
@@ -757,18 +783,16 @@ function replaceIntersearchPlaceholders(
   template: string,
   options: IntersearchSearchAdventurePromptOptions
 ): string {
-  let result = template;
-  
-  result = result.replace(/\{character_name\}/g, options.characterName);
-  result = result.replace(/\{character_type\}/g, options.characterType);
-  result = result.replace(/\{character_description\}/g, options.characterDescription);
-  result = result.replace(/\{character_style\}/g, options.characterStyle);
-  result = result.replace(/\{story_world\}/g, options.storyWorld);
-  result = result.replace(/\{story_title\}/g, options.storyTitle);
-  result = result.replace(/\{age_group\}/g, options.ageGroup);
-  result = result.replace(/\{character_reference_image\}/g, options.characterReferenceImage || '[REFERENCE IMAGE]');
-  
-  return result;
+  return replaceTemplateVariables(template, {
+    characterName: options.characterName,
+    characterType: options.characterType,
+    characterDescription: options.characterDescription,
+    characterStyle: options.characterStyle,
+    storyWorld: options.storyWorld,
+    storyTitle: options.storyTitle,
+    ageGroup: options.ageGroup,
+    characterReferenceImage: options.characterReferenceImage || '[REFERENCE IMAGE]'
+  });
 }
 
 /**
@@ -940,31 +964,27 @@ function replaceStoryScenePlaceholders(
   template: string,
   options: StoryScenePromptOptions
 ): string {
-  let result = template;
   const resolvedSceneDescription = options.pageSceneDescription || '';
   const resolvedCharacterAction = options.pageCharacterAction || '';
   const resolvedCompanionCharacters = options.companionCharacters?.trim() || 'Fox';
-  
-  result = result.replace(/\{character_name\}/g, options.characterName);
-  result = result.replace(/\{character_type\}/g, options.characterType);
-  result = result.replace(/\{special_ability\}/g, options.specialAbility);
-  result = result.replace(/\{character_style\}/g, options.characterStyle);
-  result = result.replace(/\{story_world\}/g, options.storyWorld);
-  result = result.replace(/\{adventure_type\}/g, options.adventureType);
-  result = result.replace(/\{age_group\}/g, options.ageGroup);
-  result = result.replace(/\{story_title\}/g, options.storyTitle);
-  // Support both snake_case and camelCase placeholders for compatibility.
-  result = result.replace(/\{page_number\}/g, String(options.pageNumber));
-  result = result.replace(/\{pageNumber\}/g, String(options.pageNumber));
-  result = result.replace(/\{story_page_text\}/g, options.pageText);
-  result = result.replace(/\{storyText\}/g, options.pageText);
-  result = result.replace(/\{sceneDescription\}/g, resolvedSceneDescription);
-  result = result.replace(/\{characterAction\}/g, resolvedCharacterAction);
-  result = result.replace(/\{companion_characters\}/g, resolvedCompanionCharacters);
-  result = result.replace(/\{companionCharacters\}/g, resolvedCompanionCharacters);
 
-  
-  return result;
+  return replaceTemplateVariables(template, {
+    characterName: options.characterName,
+    characterType: options.characterType,
+    specialAbility: options.specialAbility,
+    characterStyle: options.characterStyle,
+    storyWorld: options.storyWorld,
+    adventureType: options.adventureType,
+    ageGroup: options.ageGroup,
+    storyTitle: options.storyTitle,
+    pageNumber: String(options.pageNumber),
+    storyPageText: options.pageText,
+    storyText: options.pageText,
+    sceneDescription: resolvedSceneDescription,
+    characterAction: resolvedCharacterAction,
+    companionCharacters: resolvedCompanionCharacters,
+    pageEmotion: options.pageEmotion || 'warm and engaging'
+  });
 }
 
 /**
@@ -1121,6 +1141,7 @@ export interface StoryAdventureCoverPromptOptions {
   ageGroup: string
   storyTitle: string
   characterImageUrl?: string
+
 }
 
 /**
@@ -1131,13 +1152,10 @@ function getStoryWorldKeyForCover(storyWorld: string): string {
   if (worldLower.includes('outer') || worldLower.includes('space')) {
     return 'outerSpace';
   }
-  if (worldLower.includes('forest') || worldLower.includes('enchanted')) {
-    return 'enchantedForest';
-  }
   if (worldLower.includes('underwater') || worldLower.includes('ocean') || worldLower.includes('sea')) {
     return 'underwaterKingdom';
   }
-  return 'enchantedForest'; // default
+  return 'enchantedForest';
 }
 
 /**
@@ -1174,13 +1192,11 @@ function replaceStoryCoverPlaceholders(
   template: string,
   options: StoryAdventureCoverPromptOptions
 ): string {
-  let result = template;
-  
-  result = result.replace(/\{character_name\}/g, options.characterName);
-  result = result.replace(/\{character_style\}/g, options.characterStyle);
-  result = result.replace(/\{story_world\}/g, options.storyWorld);
-  
-  return result;
+  return replaceTemplateVariables(template, {
+    characterName: options.characterName,
+    characterStyle: options.characterStyle,
+    storyWorld: options.storyWorld
+  });
 }
 
 /**
@@ -1204,15 +1220,14 @@ export function buildTemplateCompositeCoverPrompt(
     throw new Error('templateCompositePrompt not found in generateStoryScene.cover');
   }
 
-  let result = templateCompositePrompt;
-  result = result.replace(/\{character_name\}/g, options.characterName);
-  result = result.replace(/\{character_type\}/g, options.characterType);
-  result = result.replace(/\{character_style\}/g, options.characterStyle);
-  result = result.replace(/\{story_world\}/g, options.storyWorld);
-  result = result.replace(/\{age_group\}/g, options.ageGroup);
-  result = result.replace(/\{story_title\}/g, options.storyTitle || 'Adventure Story');
-
-  return result;
+  return replaceTemplateVariables(templateCompositePrompt, {
+    characterName: options.characterName,
+    characterType: options.characterType,
+    characterStyle: options.characterStyle,
+    storyWorld: options.storyWorld,
+    ageGroup: options.ageGroup,
+    storyTitle: options.storyTitle || 'Adventure Story'
+  });
 }
 
 /**

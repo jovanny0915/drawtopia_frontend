@@ -57,6 +57,22 @@
     ];
   };
 
+  const normalizeStoryFormatForTitleGeneration = (formatValue: string): 'interactive' | 'story' => {
+    const normalized = (formatValue || '').trim().toLowerCase().replace(/[-\s]/g, '_');
+    if (
+      normalized === 'interactive' ||
+      normalized === 'interactive_story' ||
+      normalized === 'interactive_search' ||
+      normalized === 'search' ||
+      normalized === 'search_and_find' ||
+      normalized === 'intersearch'
+    ) {
+      return 'interactive';
+    }
+
+    return 'story';
+  };
+
   const normalizeStoryWorld = (worldValue: string): 'forest' | 'outerspace' | 'underwater' => {
     const normalized = (worldValue || '').trim().toLowerCase().replace(/[_\s]/g, '-');
     if (
@@ -100,7 +116,9 @@
     try {
       const mappedWorld = normalizeStoryWorld(selectedWorld);
       const mappedStyle = (selectedStyle || '').trim().toLowerCase();
-      const selectedFormat = sessionStorage.getItem('selectedFormat') || 'story';
+      const selectedFormat = normalizeStoryFormatForTitleGeneration(
+        sessionStorage.getItem('selectedFormat') || 'story'
+      );
 
       let templateResult = await getRandomTemplateByStoryWorld(
         mappedWorld,
@@ -214,7 +232,9 @@
       const specialAbility = sessionStorage.getItem('specialAbility') || '';
       const characterType = sessionStorage.getItem('selectedCharacterType') || 'person';
       const selectedAdventure = sessionStorage.getItem('selectedAdventure') || 'treasure';
-      const selectedFormat = sessionStorage.getItem('selectedFormat') || 'story';
+      const selectedFormat = normalizeStoryFormatForTitleGeneration(
+        sessionStorage.getItem('selectedFormat') || 'story'
+      );
       const ageGroup = sessionStorage.getItem('ageGroup') || '7-10';
 
       isGeneratingTitles = true;

@@ -33,11 +33,28 @@ function toTokenKey(key: string): string {
   return key.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function replacePageVariables(pagePrompt: string, variables: Record<string, string>): string {
-  return pagePrompt.replace(/\[([A-Z_]+)\]/g, (fullMatch, rawToken) => {
-    const value = variables[rawToken];
-    return value ?? fullMatch;
-  });
+  let result = pagePrompt;
+
+  for (const [rawToken, value] of Object.entries(variables)) {
+    const tokenVariants = new Set([
+      rawToken,
+      rawToken.toLowerCase(),
+      rawToken.toUpperCase()
+    ]);
+
+    for (const token of tokenVariants) {
+      const escapedToken = escapeRegExp(token);
+      result = result.replace(new RegExp(`\\{${escapedToken}\\}`, 'g'), value);
+      result = result.replace(new RegExp(`\\[${escapedToken}\\]`, 'g'), value);
+    }
+  }
+
+  return result;
 }
 
 export function buildStoryTextPrompt(

@@ -62,11 +62,40 @@ export interface AdminUser {
   email: string;
   first_name?: string | null;
   last_name?: string | null;
+  full_name?: string | null;
   avatar_url?: string | null;
   role?: string | null;
+  account_type?: string | null;
   subscription_status?: string | null;
+  subscription_expires?: string | null;
   credit?: number | null;
   created_at?: string | null;
+  registration_date?: string | null;
+  last_login?: string | null;
+  total_stories_created?: number | null;
+  story_count?: number | null;
+  child_count?: number | null;
+  purchase_count?: number | null;
+  total_amount_paid?: number | null;
+  latest_subscription?: Record<string, unknown> | null;
+}
+
+export interface AdminUserListFilters {
+  search?: string;
+  account_type?: string;
+  subscription_status?: string;
+  registered_from?: string;
+  registered_to?: string;
+  story_count_min?: number;
+  story_count_max?: number;
+}
+
+export interface AdminUserDetail {
+  account_information: Record<string, unknown> & AdminUser;
+  characters: Array<Record<string, unknown>>;
+  story_library: Array<Record<string, unknown>>;
+  payment_history: Array<Record<string, unknown>>;
+  generation_history: Array<Record<string, unknown>>;
 }
 
 export interface AdminUserCreateInput {
@@ -136,9 +165,22 @@ export async function getUserAuthCountsByDay(days: number = 90): Promise<ApiResp
 /**
  * Get users list for admin user management page
  */
-export async function getUsers(): Promise<ApiResponse<AdminUser[]>> {
+export async function getUsers(filters?: AdminUserListFilters): Promise<ApiResponse<AdminUser[]>> {
   try {
-    const response = await fetch(`${API_URL}/admin/users`, {
+    const query = new URLSearchParams();
+    if (filters?.search?.trim()) query.set('search', filters.search.trim());
+    if (filters?.account_type?.trim()) query.set('account_type', filters.account_type.trim());
+    if (filters?.subscription_status?.trim()) query.set('subscription_status', filters.subscription_status.trim());
+    if (filters?.registered_from?.trim()) query.set('registered_from', filters.registered_from.trim());
+    if (filters?.registered_to?.trim()) query.set('registered_to', filters.registered_to.trim());
+    if (typeof filters?.story_count_min === 'number' && Number.isFinite(filters.story_count_min)) {
+      query.set('story_count_min', String(filters.story_count_min));
+    }
+    if (typeof filters?.story_count_max === 'number' && Number.isFinite(filters.story_count_max)) {
+      query.set('story_count_max', String(filters.story_count_max));
+    }
+
+    const response = await fetch(`${API_URL}/admin/users${query.toString() ? `?${query.toString()}` : ''}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -153,6 +195,29 @@ export async function getUsers(): Promise<ApiResponse<AdminUser[]>> {
     return { success: true, data: json.data ?? [] };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Failed to fetch users' };
+  }
+}
+
+/**
+ * Get a single user detail payload for admin.
+ */
+export async function getUserDetail(userId: string): Promise<ApiResponse<AdminUserDetail>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    return { success: true, data: json.data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to fetch user detail' };
   }
 }
 

@@ -2,6 +2,23 @@ import { env } from '../env';
 
 const API_BASE_URL = (env.API_BASE_URL || 'https://image-edit-five.vercel.app').replace(/\/api\/?$/, '');
 
+function normalizeStoryFormatForTitleGeneration(storyFormat?: string): 'interactive' | 'story' {
+  const normalized = (storyFormat || 'story').trim().toLowerCase().replace(/[-\s]/g, '_');
+
+  if (
+    normalized === 'interactive' ||
+    normalized === 'interactive_story' ||
+    normalized === 'interactive_search' ||
+    normalized === 'search' ||
+    normalized === 'search_and_find' ||
+    normalized === 'intersearch'
+  ) {
+    return 'interactive';
+  }
+
+  return 'story';
+}
+
 export interface GenerateStoryTitlesOptions {
   characterName: string;
   specialAbility: string;
@@ -20,13 +37,15 @@ export interface GenerateStoryTitlesResult {
 }
 
 /**
- * Generate 3 story title suggestions via the backend API using OpenAI.
- * Uses character and story information to create personalized titles.
+ * Generate 3 story title suggestions via the backend API.
+ * The backend selects the exact prompt template based on the normalized story format.
  */
 export async function generateStoryTitles(
   options: GenerateStoryTitlesOptions
 ): Promise<GenerateStoryTitlesResult> {
   try {
+    const normalizedStoryFormat = normalizeStoryFormatForTitleGeneration(options.storyFormat);
+
     const response = await fetch(`${API_BASE_URL}/story/generate-titles`, {
       method: 'POST',
       headers: {
@@ -39,7 +58,7 @@ export async function generateStoryTitles(
         adventure_type: options.adventureType,
         character_type: options.characterType || 'person',
         character_style: options.characterStyle || 'cartoon',
-        story_format: options.storyFormat || 'story',
+        story_format: normalizedStoryFormat,
         age_group: options.ageGroup || '7-10'
       })
     });
