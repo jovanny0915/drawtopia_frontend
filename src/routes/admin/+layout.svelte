@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { user, isAuthenticated, authLoading } from '$lib/stores/auth';
   import { supabase } from '$lib/supabase';
+  import { signOut } from '$lib/auth';
   import { onMount } from 'svelte';
   import { Book, LayoutDashboard, Users, LogOut, MessageSquareText, History } from 'lucide-svelte';
   import logo from '../../assets/white-logo.webp';
@@ -87,7 +88,7 @@
 
   // Logout
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await signOut();
     goto('/login');
   }
 

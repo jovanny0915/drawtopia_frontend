@@ -5,7 +5,7 @@
 
 import { writable, derived } from 'svelte/store';
 import { supabase, AUTH_STORAGE_KEY } from '../supabase';
-import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory, fetchPhoneSessionUser, clearPhoneSession, PHONE_TOKEN_STORAGE_KEY } from '../auth';
+import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory, fetchPhoneSessionUser, clearPhoneSession, PHONE_TOKEN_STORAGE_KEY, signOut } from '../auth';
 import type { PhoneSession } from '../auth';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -80,7 +80,7 @@ async function enforceHardSessionTimeout(session: Session | null): Promise<boole
   }
 
   console.warn('Session exceeded hard max age. Signing out user.');
-  await supabase.auth.signOut();
+  await signOut();
   clearSessionStartMarker();
   return true;
 }

@@ -6,6 +6,16 @@
 import { supabase, supabaseAdmin } from './supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
+/** Fetch/session teardown (navigation, duplicate sign-out, Supabase aborting in-flight requests). */
+export function isAuthAbortError(err: unknown): boolean {
+  if (err == null) return false;
+  if (typeof err === 'object' && err !== null && 'name' in err && (err as { name?: string }).name === 'AbortError') {
+    return true;
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  return /aborted|AbortError/i.test(msg);
+}
+
 export interface SignUpData {
   email?: string;
   phone?: string;
@@ -399,6 +409,12 @@ export async function signInWithEmail(email: string): Promise<AuthResponse> {
     });
 
     if (error) {
+      if (isAuthAbortError(error)) {
+        return {
+          success: false,
+          error: 'Sign-in was interrupted. Please try again.'
+        };
+      }
       return {
         success: false,
         error: error.message
@@ -411,6 +427,12 @@ export async function signInWithEmail(email: string): Promise<AuthResponse> {
       session: data.session
     };
   } catch (error) {
+    if (isAuthAbortError(error)) {
+      return {
+        success: false,
+        error: 'Sign-in was interrupted. Please try again.'
+      };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An unexpected error occurred'
@@ -429,6 +451,12 @@ export async function signInWithPhone(phone: string, password: string): Promise<
     });
 
     if (error) {
+      if (isAuthAbortError(error)) {
+        return {
+          success: false,
+          error: 'Sign-in was interrupted. Please try again.'
+        };
+      }
       return {
         success: false,
         error: error.message
@@ -446,6 +474,12 @@ export async function signInWithPhone(phone: string, password: string): Promise<
       session: data.session
     };
   } catch (error) {
+    if (isAuthAbortError(error)) {
+      return {
+        success: false,
+        error: 'Sign-in was interrupted. Please try again.'
+      };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An unexpected error occurred'
@@ -457,27 +491,37 @@ export async function signInWithPhone(phone: string, password: string): Promise<
  * Sign out the current user (works for all auth providers including Google OAuth)
  */
 export async function signOut(): Promise<{ success: boolean; error?: string }> {
-  try {
-    console.log('Signing out user...');
-    clearPhoneSession();
+  const dispatchSignOutUi = () => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('drawtopia-signout'));
     }
+  };
 
-    // Get current user info for logging
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      console.log('Signing out user:', {
-        id: user.id,
-        email: user.email,
-        provider: user.app_metadata?.provider
-      });
+  const finishIfSessionCleared = async (): Promise<{ success: boolean; error?: string } | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      dispatchSignOutUi();
+      return { success: true };
     }
+    return null;
+  };
 
-    // Sign out from Supabase (handles all providers including Google OAuth)
+  try {
+    console.log('Signing out user...');
+    clearPhoneSession();
+
+    // Run Supabase sign-out before dispatching drawtopia-signout so we do not clear UI state
+    // while in-flight auth requests are still torn down (avoids AbortError noise).
     const { error } = await supabase.auth.signOut();
 
     if (error) {
+      if (isAuthAbortError(error)) {
+        const resolved = await finishIfSessionCleared();
+        if (resolved) {
+          console.log('User signed out (session cleared after abort)');
+          return resolved;
+        }
+      }
       console.error('Sign out error:', error);
       return {
         success: false,
@@ -485,10 +529,18 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
       };
     }
 
+    dispatchSignOutUi();
     console.log('User signed out successfully');
     return { success: true };
   } catch (error) {
     console.error('Sign out error:', error);
+    if (isAuthAbortError(error)) {
+      const resolved = await finishIfSessionCleared();
+      if (resolved) {
+        console.log('User signed out (session cleared after abort)');
+        return resolved;
+      }
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An unexpected error occurred'
@@ -565,6 +617,12 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
 
     console.log("signInWithGoogle", data);
     if (error) {
+      if (isAuthAbortError(error)) {
+        return {
+          success: false,
+          error: 'Sign-in was interrupted. Please try again.'
+        };
+      }
       return {
         success: false,
         error: error.message
@@ -579,6 +637,12 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
       session: undefined
     };
   } catch (error) {
+    if (isAuthAbortError(error)) {
+      return {
+        success: false,
+        error: 'Sign-in was interrupted. Please try again.'
+      };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An unexpected error occurred'
