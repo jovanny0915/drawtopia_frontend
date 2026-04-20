@@ -5,7 +5,7 @@
   import { user, isAuthenticated, authLoading } from '$lib/stores/auth';
   import { supabase } from '$lib/supabase';
   import { onMount } from 'svelte';
-  import { Book, BarChart2, Users, LogOut, MessageSquareText } from 'lucide-svelte';
+  import { Book, LayoutDashboard, Users, LogOut, MessageSquareText, History } from 'lucide-svelte';
   import logo from '../../assets/white-logo.webp';
 
   let userRole: string | null = null;
@@ -93,10 +93,36 @@
 
   // Sidebar nav items (icon component per item)
   const navItems = [
-    { label: 'Analysis', path: '/admin', icon: BarChart2 },
-    { label: 'Book Templates', path: '/admin/book-templates', icon: Book },
-    { label: 'User Manage', path: '/admin/user-manage', icon: Users },
-    { label: 'Prompts Manage', path: '/admin/prompts-manage', icon: MessageSquareText },
+    {
+      label: 'Dashboard',
+      description: 'Overview and quick stats',
+      path: '/admin',
+      icon: LayoutDashboard
+    },
+    {
+      label: 'Users',
+      description: 'User management',
+      path: '/admin/user-manage',
+      icon: Users
+    },
+    {
+      label: 'Stories',
+      description: 'Story/book management',
+      path: '/admin/book-templates',
+      icon: Book
+    },
+    {
+      label: 'Generation Logs',
+      description: 'Detailed AI generation history',
+      path: '/admin/generation-logs',
+      icon: History
+    },
+    {
+      label: 'AI Prompts',
+      description: 'Prompt management',
+      path: '/admin/prompts-manage',
+      icon: MessageSquareText
+    },
   ];
 
   $: currentPath = $page.url.pathname;
@@ -127,7 +153,10 @@
               <svelte:component this={item.icon} size={20} />
             </span>
             {#if sidebarOpen}
-              <span class="nav-label">{item.label}</span>
+              <span class="nav-copy">
+                <span class="nav-label">{item.label}</span>
+                <span class="nav-description">{item.description}</span>
+              </span>
             {/if}
           </a>
         {/each}
@@ -223,7 +252,7 @@
 
   .nav-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.75rem;
     padding: 0.875rem 1rem;
     color: rgba(255, 255, 255, 0.9);
@@ -245,12 +274,27 @@
     font-size: 1.25rem;
     min-width: 1.5rem;
     text-align: center;
+    margin-top: 0.15rem;
+  }
+
+  .nav-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 0.15rem;
   }
 
   .nav-label {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-weight: 600;
+  }
+
+  .nav-description {
+    font-size: 0.8rem;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.68);
   }
 
   .sidebar-footer {
