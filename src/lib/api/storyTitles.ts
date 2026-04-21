@@ -28,6 +28,8 @@ export interface GenerateStoryTitlesOptions {
   characterStyle?: string;
   storyFormat?: string;
   ageGroup?: string;
+  /** Learning / story theme label (e.g. from session selectedStoryThemeName) */
+  learningTheme?: string;
 }
 
 export interface GenerateStoryTitlesResult {
@@ -59,7 +61,8 @@ export async function generateStoryTitles(
         character_type: options.characterType || 'person',
         character_style: options.characterStyle || 'cartoon',
         story_format: normalizedStoryFormat,
-        age_group: options.ageGroup || '7-10'
+        age_group: options.ageGroup || '7-10',
+        learning_theme: options.learningTheme?.trim() || undefined
       })
     });
 

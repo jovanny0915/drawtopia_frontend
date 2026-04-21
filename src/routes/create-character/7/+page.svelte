@@ -20,6 +20,15 @@
   const STEP7_UNTITLED_COVER_IMAGE_KEY = "step7UntitledCoverImage";
   const CUSTOM_TITLE_OPTION = "Custom Title";
 
+  /** Matches theme ids saved in session on create-character/5 (+ selectedStoryThemeName) */
+  const STORY_THEME_ID_TO_LABEL: Record<string, string> = {
+    kindnessEmpathy: "Kindness & Empathy",
+    bedtimeRoutineSleepHygiene: "Bedtime Routine",
+    courage: "Courage",
+    connection: "Connection",
+    patienceEndurance: "Patience & Endurance"
+  };
+
   let isMobile = false;
   let characterName = "";
   let selectedImageFromStep6 = "";
@@ -237,6 +246,11 @@
       );
       const ageGroup = sessionStorage.getItem('ageGroup') || '7-10';
 
+      const learningThemeDisplay =
+        sessionStorage.getItem('selectedStoryThemeName')?.trim() ||
+        STORY_THEME_ID_TO_LABEL[sessionStorage.getItem('storyTheme') || ''] ||
+        '';
+
       isGeneratingTitles = true;
       const titlesResult = await generateStoryTitles({
         characterName: characterName || 'Character',
@@ -246,7 +260,8 @@
         characterType: characterType,
         characterStyle: selectedStyle || 'cartoon',
         storyFormat: selectedFormat,
-        ageGroup: ageGroup
+        ageGroup: ageGroup,
+        learningTheme: learningThemeDisplay || undefined
       });
 
       if (titlesResult.success && titlesResult.titles && titlesResult.titles.length >= 3) {
