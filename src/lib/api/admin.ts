@@ -116,6 +116,351 @@ export interface AdminUserUpdateInput {
   credit?: number;
 }
 
+export type AdminStoryFormat =
+  | 'interactive_search'
+  | 'story_adventure'
+  | 'interactive_story'
+  | 'adventure_story';
+export type AdminStoryStatus = 'draft' | 'generating' | 'completed' | 'failed' | string;
+
+export interface AdminStoryListFilters {
+  search?: string;
+  status?: string;
+  format_type?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
+export interface AdminStorySummary {
+  id: string;
+  uid?: string | null;
+  story_title: string;
+  character_name: string;
+  format: AdminStoryFormat;
+  status: AdminStoryStatus;
+  created_at?: string | null;
+  generation_duration_seconds?: number | null;
+  user_id?: string | null;
+  user_email?: string | null;
+  user_name?: string | null;
+  child_name?: string | null;
+  cover_image?: string | null;
+  error_message?: string | null;
+}
+
+export interface AdminStoryPage {
+  key: string;
+  label: string;
+  image_url: string;
+  page_number?: number | null;
+  text?: string | null;
+}
+
+export interface AdminStoryTextPage {
+  page_number: number;
+  text: string;
+  audio_url?: string | null;
+}
+
+export interface AdminStoryDetail {
+  id: string;
+  uid?: string | null;
+  story_title: string;
+  character_name: string;
+  status: AdminStoryStatus;
+  format: AdminStoryFormat;
+  created_at?: string | null;
+  generation_duration_seconds?: number | null;
+  owner?: {
+    user_id?: string | null;
+    email?: string | null;
+    name?: string | null;
+  } | null;
+  child_profile?: Record<string, unknown> | null;
+  character?: {
+    id?: string | null;
+    character_name?: string | null;
+    original_image_url?: string | null;
+    enhanced_images?: string[] | null;
+  } | null;
+  cover_image?: string | null;
+  pages: AdminStoryPage[];
+  story_pages_text: AdminStoryTextPage[];
+  jobs: Array<Record<string, unknown>>;
+  raw_story: Record<string, unknown>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function pickString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function pickIdentifier(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function pickNumber(...values: unknown[]): number | null | undefined {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return undefined;
+}
+
+function unwrapAdminPayload(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+
+  const nestedData = value.data;
+  if (Array.isArray(nestedData) || isRecord(nestedData)) {
+    return nestedData;
+  }
+
+  return value;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return [value.trim()];
+  }
+  return [];
+}
+
+function normalizeAdminStorySummary(value: unknown): AdminStorySummary | undefined {
+  const raw = isRecord(value) ? value : undefined;
+  if (!raw) return undefined;
+
+  const normalizedFormat = normalizeStoryFormat(raw.format ?? raw.story_format ?? raw.story_type);
+
+  return {
+    id: pickIdentifier(raw.id, raw.uid) ?? '',
+    uid: pickIdentifier(raw.uid) ?? null,
+    story_title: pickString(raw.story_title, raw.title, raw.story_name) ?? 'Untitled story',
+    character_name: pickString(raw.character_name) ?? 'Untitled character',
+    format: normalizedFormat,
+    status: pickString(raw.status, raw.story_status) ?? 'Unknown',
+    created_at: pickString(raw.created_at, raw.createdAt) ?? null,
+    generation_duration_seconds: pickNumber(
+      raw.generation_duration_seconds,
+      raw.generation_duration,
+      raw.duration_seconds
+    ) ?? null,
+    user_id: pickIdentifier(raw.user_id) ?? null,
+    user_email: pickString(raw.user_email, raw.email) ?? null,
+    user_name: pickString(raw.user_name, raw.owner_name, raw.name) ?? null,
+    child_name: pickString(raw.child_name) ?? null,
+    cover_image: pickString(raw.cover_image, raw.story_cover, raw.coverImage) ?? null,
+    error_message: pickString(raw.error_message, raw.error) ?? null
+  };
+}
+
+function normalizeStoryFormat(value: unknown): AdminStoryFormat {
+  if (value === 'interactive_story') return 'interactive_search';
+  if (value === 'adventure_story') return 'story_adventure';
+  if (value === 'interactive_search' || value === 'story_adventure') return value;
+  return 'story_adventure';
+}
+
+function normalizeStoryTextPages(raw: Record<string, unknown>): AdminStoryTextPage[] {
+  if (Array.isArray(raw.story_pages_text)) {
+    return raw.story_pages_text
+      .map((item, index): AdminStoryTextPage | null => {
+        if (typeof item === 'string') {
+          return { page_number: index + 1, text: item, audio_url: null };
+        }
+        if (!isRecord(item)) return null;
+
+        const text = pickString(item.text, item.story, item.pageText);
+        if (!text) return null;
+
+        return {
+          page_number: pickNumber(item.page_number, item.pageNumber) ?? index + 1,
+          text,
+          audio_url: pickString(item.audio_url, item.audioUrl) ?? null
+        };
+      })
+      .filter((item): item is AdminStoryTextPage => item !== null);
+  }
+
+  const storyContent = raw.story_content;
+  const parsed =
+    typeof storyContent === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(storyContent);
+          } catch {
+            return storyContent.trim() ? { pages: [storyContent.trim()] } : null;
+          }
+        })()
+      : storyContent;
+
+  const pagesSource =
+    Array.isArray(parsed) ? parsed : isRecord(parsed) && Array.isArray(parsed.pages) ? parsed.pages : [];
+
+  return pagesSource
+    .map((item, index): AdminStoryTextPage | null => {
+      if (typeof item === 'string') {
+        return item.trim() ? { page_number: index + 1, text: item.trim(), audio_url: null } : null;
+      }
+      if (!isRecord(item)) return null;
+
+      const text = pickString(item.text, item.story, item.pageText);
+      if (!text) return null;
+
+      return {
+        page_number: pickNumber(item.page_number, item.pageNumber) ?? index + 1,
+        text,
+        audio_url: pickString(item.audio_url, item.audioUrl) ?? null
+      };
+    })
+    .filter((item): item is AdminStoryTextPage => item !== null);
+}
+
+function normalizeStoryPages(raw: Record<string, unknown>, format: AdminStoryFormat): AdminStoryPage[] {
+  if (Array.isArray(raw.pages)) {
+    return raw.pages
+      .map((item, index): AdminStoryPage | null => {
+        if (!isRecord(item)) return null;
+
+        const imageUrl = pickString(item.image_url, item.imageUrl, item.url);
+        if (!imageUrl) return null;
+
+        return {
+          key: pickString(item.key) ?? `page-${index + 1}`,
+          label: pickString(item.label, item.title) ?? `Page ${index + 1}`,
+          image_url: imageUrl,
+          page_number: pickNumber(item.page_number, item.pageNumber) ?? null,
+          text: pickString(item.text, item.story) ?? null
+        };
+      })
+      .filter((item): item is AdminStoryPage => item !== null);
+  }
+
+  const pages: AdminStoryPage[] = [];
+  const addPage = (
+    label: string,
+    imageUrl: string | undefined,
+    key: string,
+    pageNumber: number | null = null,
+    text: string | null = null
+  ) => {
+    if (!imageUrl) return;
+    pages.push({
+      key,
+      label,
+      image_url: imageUrl,
+      page_number: pageNumber,
+      text
+    });
+  };
+
+  addPage(
+    'Copyright',
+    pickString(raw.copyright_image, raw.copyright_page_image),
+    'copyright'
+  );
+  addPage(
+    'Dedication',
+    pickString(raw.dedication_image, raw.dedication_page_image),
+    'dedication'
+  );
+
+  const textPages = normalizeStoryTextPages(raw);
+  const sceneImages = normalizeStringArray(raw.scene_images ?? raw.story_page_images ?? raw.page_images);
+  const itemLabel = format === 'interactive_search' ? 'Scene' : 'Page';
+  sceneImages.forEach((imageUrl, index) => {
+    const pageNumber = index + 1;
+    const matchingText = textPages.find((item) => item.page_number === pageNumber)?.text ?? null;
+    addPage(`${itemLabel} ${pageNumber}`, imageUrl, `scene-${pageNumber}`, pageNumber, matchingText);
+  });
+
+  addPage(
+    'Last Words',
+    pickString(raw.last_word_page_image, raw.last_words_page_image),
+    'last-words'
+  );
+  addPage(
+    'Final Page',
+    pickString(raw.last_admin_page_image, raw.last_story_page_image),
+    'final-page'
+  );
+  addPage(
+    'Back Cover',
+    pickString(raw.back_cover_image, raw.back_page_image),
+    'back-cover'
+  );
+
+  return pages;
+}
+
+function normalizeAdminStoryDetail(value: unknown): AdminStoryDetail | undefined {
+  const unwrapped = unwrapAdminPayload(value);
+  const raw = isRecord(unwrapped) ? unwrapped : undefined;
+  if (!raw) return undefined;
+
+  const normalizedFormat = normalizeStoryFormat(raw.format ?? raw.story_format);
+  const owner = isRecord(raw.owner) ? raw.owner : {};
+  const character = isRecord(raw.character) ? raw.character : {};
+
+  return {
+    id: pickIdentifier(raw.id) ?? '',
+    uid: pickIdentifier(raw.uid) ?? null,
+    story_title: pickString(raw.story_title, raw.title, raw.story_name) ?? 'Untitled story',
+    character_name: pickString(raw.character_name, character.character_name) ?? 'Untitled character',
+    status: pickString(raw.status, raw.story_status) ?? 'Unknown',
+    format: normalizedFormat,
+    created_at: pickString(raw.created_at, raw.createdAt) ?? null,
+    generation_duration_seconds: pickNumber(
+      raw.generation_duration_seconds,
+      raw.generation_duration,
+      raw.duration_seconds
+    ) ?? null,
+    owner: {
+      user_id: pickIdentifier(owner.user_id, raw.user_id) ?? null,
+      email: pickString(owner.email, raw.user_email) ?? null,
+      name: pickString(owner.name, raw.user_name, raw.owner_name) ?? null
+    },
+    child_profile: isRecord(raw.child_profile) ? raw.child_profile : null,
+    character: {
+      id: pickIdentifier(character.id, raw.character_id) ?? null,
+      character_name: pickString(character.character_name, raw.character_name) ?? null,
+      original_image_url: pickString(
+        character.original_image_url,
+        raw.original_image_url,
+        raw.character_image,
+        raw.character_original_image
+      ) ?? null,
+      enhanced_images: normalizeStringArray(character.enhanced_images ?? raw.enhanced_images)
+    },
+    cover_image: pickString(raw.cover_image, raw.story_cover, raw.coverImage) ?? null,
+    pages: normalizeStoryPages(raw, normalizedFormat),
+    story_pages_text: normalizeStoryTextPages(raw),
+    jobs: Array.isArray(raw.jobs) ? raw.jobs.filter(isRecord) : [],
+    raw_story: isRecord(raw.raw_story) ? raw.raw_story : raw
+  };
+}
+
 /**
  * Get story generation counts per day (from stories table) for the last N days.
  */
@@ -289,6 +634,72 @@ export async function deleteUser(userId: string): Promise<ApiResponse<void>> {
     return { success: true, message: json.message };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Failed to delete user' };
+  }
+}
+
+/**
+ * Get admin story list for the Stories > Story List view.
+ */
+export async function getAdminStories(filters?: AdminStoryListFilters): Promise<ApiResponse<AdminStorySummary[]>> {
+  try {
+    const query = new URLSearchParams();
+    if (filters?.search?.trim()) query.set('search', filters.search.trim());
+    if (filters?.status?.trim()) query.set('status', filters.status.trim());
+    if (filters?.format_type?.trim()) query.set('format_type', filters.format_type.trim());
+    if (filters?.created_from?.trim()) query.set('created_from', filters.created_from.trim());
+    if (filters?.created_to?.trim()) query.set('created_to', filters.created_to.trim());
+
+    const response = await fetch(`${API_URL}/admin/stories${query.toString() ? `?${query.toString()}` : ''}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    const rawData = unwrapAdminPayload(json);
+    const data = Array.isArray(rawData)
+      ? rawData
+          .map(normalizeAdminStorySummary)
+          .filter((story): story is AdminStorySummary => story !== undefined)
+      : [];
+
+    return { success: true, data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to fetch admin stories' };
+  }
+}
+
+/**
+ * Get the detailed admin story payload for the detail modal.
+ */
+export async function getAdminStoryDetail(storyId: string): Promise<ApiResponse<AdminStoryDetail>> {
+  try {
+    const response = await fetch(`${API_URL}/admin/stories/${encodeURIComponent(storyId)}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      return {
+        success: false,
+        error: errorData.detail || `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+    const json = await response.json();
+    const normalized = normalizeAdminStoryDetail(json.data ?? json);
+
+    if (!normalized) {
+      return { success: false, error: 'Admin story detail response was empty or invalid' };
+    }
+
+    return { success: true, data: normalized };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed to fetch admin story detail' };
   }
 }
 

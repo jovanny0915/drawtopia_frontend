@@ -92,8 +92,24 @@
     goto('/login');
   }
 
+  type NavChildItem = {
+    label: string;
+    description?: string;
+    href: string;
+    match: (path: string, tab: string) => boolean;
+  };
+
+  type NavItem = {
+    label: string;
+    description: string;
+    path: string;
+    icon: typeof LayoutDashboard;
+    match?: (path: string, tab: string) => boolean;
+    children?: NavChildItem[];
+  };
+
   // Sidebar nav items (icon component per item)
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       label: 'Dashboard',
       description: 'Overview and quick stats',
@@ -108,9 +124,24 @@
     },
     {
       label: 'Stories',
-      description: 'Story/book management',
-      path: '/admin/book-templates',
-      icon: Book
+      description: 'Templates and generated stories',
+      path: '/admin/stories',
+      icon: Book,
+      match: (path) => path === '/admin/stories' || path === '/admin/book-templates',
+      children: [
+        {
+          label: 'Book Templates',
+          description: 'Manage book templates',
+          href: '/admin/stories?tab=book-templates',
+          match: (path, tab) => path === '/admin/book-templates' || (path === '/admin/stories' && tab === 'book-templates')
+        },
+        {
+          label: 'Story List',
+          description: 'Review generated stories',
+          href: '/admin/stories?tab=story-list',
+          match: (path, tab) => path === '/admin/stories' && tab === 'story-list'
+        }
+      ]
     },
     {
       label: 'Generation Logs',
@@ -126,7 +157,20 @@
     },
   ];
 
+  function normalizeStoriesTab(value: string | null): 'book-templates' | 'story-list' {
+    return value === 'book-templates' ? 'book-templates' : 'story-list';
+  }
+
+  function isNavItemActive(item: NavItem, path: string, tab: string): boolean {
+    if (item.match) {
+      return item.match(path, tab);
+    }
+
+    return path === item.path || (item.path !== '/admin' && path.startsWith(item.path));
+  }
+
   $: currentPath = $page.url.pathname;
+  $: currentStoriesTab = normalizeStoriesTab($page.url.searchParams.get('tab'));
 </script>
 
 {#if loading}
@@ -145,21 +189,44 @@
       </div>
       <nav class="sidebar-nav">
         {#each navItems as item}
-          <a
-            href={item.path}
-            class="nav-item"
-            class:active={currentPath === item.path || (item.path !== '/admin' && currentPath.startsWith(item.path))}
-          >
-            <span class="nav-icon">
-              <svelte:component this={item.icon} size={20} />
-            </span>
-            {#if sidebarOpen}
-              <span class="nav-copy">
-                <span class="nav-label">{item.label}</span>
-                <span class="nav-description">{item.description}</span>
+          {@const itemActive = isNavItemActive(item, currentPath, currentStoriesTab)}
+          <div class="nav-item-group" class:has-children={Boolean(item.children?.length)}>
+            <a
+              href={item.path}
+              class="nav-item"
+              class:active={itemActive}
+            >
+              <span class="nav-icon">
+                <svelte:component this={item.icon} size={20} />
               </span>
+              {#if sidebarOpen}
+                <span class="nav-copy">
+                  <span class="nav-label">{item.label}</span>
+                  <span class="nav-description">{item.description}</span>
+                </span>
+              {/if}
+            </a>
+
+            {#if sidebarOpen && item.children?.length}
+              <div class="subnav-list">
+                {#each item.children as child}
+                  <a
+                    href={child.href}
+                    class="subnav-item"
+                    class:active={child.match(currentPath, currentStoriesTab)}
+                  >
+                    <span class="subnav-bullet"></span>
+                    <span class="subnav-copy">
+                      <span class="subnav-label">{child.label}</span>
+                      {#if child.description}
+                        <span class="subnav-description">{child.description}</span>
+                      {/if}
+                    </span>
+                  </a>
+                {/each}
+              </div>
             {/if}
-          </a>
+          </div>
         {/each}
       </nav>
       <div class="sidebar-footer">
@@ -204,7 +271,7 @@
 
   /* Sidebar */
   .sidebar {
-    width: 260px;
+    width: 290px;
     background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
     color: white;
     display: flex;
@@ -249,6 +316,12 @@
     flex: 1;
     padding: 1rem 0;
     overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .nav-item-group {
+    display: flex;
+    flex-direction: column;
   }
 
   .nav-item {
@@ -298,6 +371,64 @@
     color: rgba(255, 255, 255, 0.68);
   }
 
+  .subnav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.2rem 0 0.5rem 3.2rem;
+  }
+
+  .subnav-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    padding: 0.5rem 0.85rem 0.5rem 0;
+    color: rgba(255, 255, 255, 0.76);
+    text-decoration: none;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  .subnav-item:hover {
+    color: #ffffff;
+    transform: translateX(2px);
+  }
+
+  .subnav-item.active {
+    color: #ffffff;
+  }
+
+  .subnav-bullet {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.35);
+    margin-top: 0.45rem;
+    flex-shrink: 0;
+  }
+
+  .subnav-item.active .subnav-bullet {
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15);
+  }
+
+  .subnav-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .subnav-label {
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .subnav-description {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.58);
+    line-height: 1.25;
+  }
+
   .sidebar-footer {
     padding: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -324,7 +455,7 @@
   /* Main content */
   .main-content {
     flex: 1;
-    margin-left: 260px;
+    margin-left: 290px;
     display: flex;
     flex-direction: column;
     transition: margin-left 0.3s ease;

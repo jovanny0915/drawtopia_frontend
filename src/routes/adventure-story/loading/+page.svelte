@@ -11,8 +11,8 @@
     import { updateGift } from '../../../lib/database/gifts';
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
-    import { buildStoryGenerationPrompt, getAllyNameForStoryWorld } from '../../../lib/promptBuilder';
     import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription, generateStoryPageAudioUrls } from '../../../lib/storyGenerationHelpers';
+    import { getAdventureStoryTemplatePages } from '../../../lib/adventureStoryTextTemplates';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
     import promptImageData from '../../../lib/prompt_image.json';
@@ -245,23 +245,6 @@
         return adventureMap[adventure.toLowerCase()] || 'Treasure Hunt';
     }
 
-    function getWorldDisplayName(world: string | undefined): string | null {
-        if (!world) return null;
-        const worldMap: { [key: string]: string } = {
-            'forest': 'Enchanted Forest',
-            'enchanted-forest': 'Enchanted Forest',
-            'enchanted_forest': 'Enchanted Forest',
-            'space': 'Outer Space',
-            'outer-space': 'Outer Space',
-            'outer_space': 'Outer Space',
-            'outerspace': 'Outer Space',
-            'underwater': 'Underwater Kingdom',
-            'underwater-kingdom': 'Underwater Kingdom',
-            'underwater_kingdom': 'Underwater Kingdom'
-        };
-        return worldMap[world.toLowerCase()] || null;
-    }
-
     function getThemeDisplayName(themeKey: string | undefined): string | null {
         if (!themeKey) return null;
         const themeMap: { [key: string]: string } = {
@@ -281,24 +264,6 @@
             patienceEndurance: 'Patience & Endurance'
         };
         return themeMap[themeKey] || themeMap[themeKey.toLowerCase()] || null;
-    }
-
-    function getDefaultAllyType(world: string | undefined): string {
-        if (!world) return 'friendly guide';
-        const normalized = world.toLowerCase();
-        const allyTypeMap: { [key: string]: string } = {
-            forest: 'wise firefly',
-            'enchanted-forest': 'wise firefly',
-            enchanted_forest: 'wise firefly',
-            space: 'star otter',
-            'outer-space': 'star otter',
-            outer_space: 'star otter',
-            outerspace: 'star otter',
-            underwater: 'glowfin dolphin',
-            'underwater-kingdom': 'glowfin dolphin',
-            underwater_kingdom: 'glowfin dolphin'
-        };
-        return allyTypeMap[normalized] || 'friendly guide';
     }
 
     function showToastrError(message: string) {
@@ -1241,7 +1206,6 @@
             const storyWorld = mapStoryWorld((browser ? sessionStorage.getItem('selectedWorld') : null) || storyState.storyWorld) || 'enchanted-forest';
             const adventureType = mapAdventureType((browser ? sessionStorage.getItem('selectedAdventure') : null) || storyState.adventureType) || 'Treasure Hunt';
             const storyTitle = (browser ? sessionStorage.getItem('selectedTitle') : null) || storyState.storyTitle || 'The Great Adventure';
-            const occasionTheme = browser ? (sessionStorage.getItem('occasionTheme') || 'general') : 'general';
             const storyTheme = browser ? (sessionStorage.getItem('storyTheme') || 'kindnessEmpathy') : 'kindnessEmpathy';
 
             let ageGroup = '7-10';
@@ -1273,61 +1237,24 @@
             const rawThemeName = sessionStorage.getItem("storyTheme") || storyTheme;
             const rawWorldName = sessionStorage.getItem("selectedWorld") || storyWorld;
             const themeName = getThemeDisplayName(rawThemeName) || rawThemeName;
-            const worldName = getWorldDisplayName(rawWorldName) || rawWorldName;
-            if (!themeName || !worldName || !ageGroup) {
-                showToastrError('Missing required variables for story prompt generation.');
+            if (!themeName || !ageGroup) {
+                showToastrError('Missing required variables for story text generation.');
                 if (browser) sessionStorage.setItem('storyGenerationError', 'true');
                 return;
             }
 
-            const allyName = getAllyNameForStoryWorld(rawWorldName);
-            const allyType = (browser ? sessionStorage.getItem('allyType') : null) || getDefaultAllyType(rawWorldName);
-            const storyTextPrompt = buildStoryGenerationPrompt({
-                ageGroup: ageGroup as '3-6' | '7-10' | '11-12',
-                placeholderValues: {
-                    CHARACTER_NAME: characterName,
-                    WORLD_NAME: worldName,
-                    ALLY_NAME: allyName,
-                    ALLY_TYPE: allyType,
-                    SPECIAL_ABILITY: specialAbility,
-                    LEARNING_THEME: themeName
-                }
-            });
-
-            let readingLevel = ageGroup === '3-6' ? 'early_reader' : ageGroup === '11-12' ? 'independent_reader' : 'developing_reader';
-
-            // ——— Step 1: Generate story text (story prompt builder + /story/generate-text) ———
+            // ——— Step 1: Resolve story text from fixed adventure templates ———
             if (isCancelled) return;
             storyTextProgress = 5;
-            console.log('Step 1: Generating story text...');
+            console.log('Step 1: Resolving story text from fixed templates...');
 
-            const textResponse = await fetch(`${backendBaseUrl}/story/generate-text`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    character_name: characterName,
-                    character_type: mapCharacterType(characterType),
-                    special_ability: specialAbility,
-                    age_group: ageGroup,
-                    story_world: storyWorld,
-                    adventure_type: adventureType,
-                    occasion_theme: occasionTheme,
-                    reading_level: readingLevel,
-                    story_title: storyTitle,
-                    story_theme: storyTheme,
-                    story_text_prompt: storyTextPrompt
-                })
+            const resultPages = getAdventureStoryTemplatePages({
+                storyWorld: rawWorldName,
+                ageGroup,
+                learningTheme: themeName,
+                characterName,
+                specialAbility
             });
-
-            if (!textResponse.ok) {
-                throw new Error(`Failed to generate story text: ${textResponse.status} ${textResponse.statusText}`);
-            }
-
-            const textResult = await textResponse.json();
-            const resultPages = textResult.pages || [];
-            if (resultPages.length === 0) {
-                throw new Error('No story pages generated');
-            }
 
             const storyPagesTextOnly: Array<{ pageNumber: number; text: string }> = resultPages.slice(0, 5).map((p: any, index: number) => ({
                 pageNumber: index + 1,

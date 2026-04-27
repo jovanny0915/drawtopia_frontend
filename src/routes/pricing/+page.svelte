@@ -11,9 +11,13 @@
     import lightgroup from "../../assets/Light-Group.svg";
     import { supabase } from "../../lib/supabase";
     import { user } from "../../lib/stores/auth";
+    import { env } from "../../lib/env";
 
     // API base URL for the backend
-    const API_BASE_URL = "https://image-edit-five.vercel.app";
+    const API_BASE_URL = (env.API_BASE_URL || env.PUBLIC_BACKEND_URL || "https://image-edit-five.vercel.app")
+        .replace(/\/api\/?$/, '')
+        .replace(/\/$/, '');
+    const CHECKOUT_PROVIDER = (env.CHECKOUT_PROVIDER || 'stripe').toLowerCase();
 
     const goToDashboard = () => {
         goto('/dashboard');
@@ -71,21 +75,37 @@
                 successUrl += `&sceneIndex=${sceneIndex}`;
             }
 
-            // Call the backend to create a Stripe checkout session
-            const response = await fetch(`${API_BASE_URL}/api/stripe/create-onetime-checkout`, {
+            const useShopifyCheckout = CHECKOUT_PROVIDER === 'shopify' && purchaseType === 'single_story';
+            if (useShopifyCheckout && !purchaseStoryId) {
+                throw new Error('A generated story is required before Shopify checkout');
+            }
+
+            // Call the backend to create the configured checkout session/cart.
+            const response = await fetch(
+                `${API_BASE_URL}${useShopifyCheckout ? '/api/shopify/create-cart' : '/api/stripe/create-onetime-checkout'}`,
+                {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    purchase_type: purchaseType,
-                    story_id: purchaseStoryId, // Include story ID if available
-                    user_email: userEmail,
-                    user_id: userId,
-                    success_url: successUrl,
-                    cancel_url: `${window.location.origin}/pricing`
-                })
-            });
+                body: JSON.stringify(useShopifyCheckout
+                    ? {
+                        purchase_type: purchaseType,
+                        story_id: purchaseStoryId,
+                        user_email: userEmail,
+                        user_id: userId,
+                        story_theme: browser ? sessionStorage.getItem('storyTheme') : undefined
+                    }
+                    : {
+                        purchase_type: purchaseType,
+                        story_id: purchaseStoryId, // Include story ID if available
+                        user_email: userEmail,
+                        user_id: userId,
+                        success_url: successUrl,
+                        cancel_url: `${window.location.origin}/pricing`
+                    })
+                }
+            );
             
             if (!response.ok) {
                 const errorData = await response.json();
@@ -95,7 +115,7 @@
             const data = await response.json();
             
             if (data.success && data.checkout_url) {
-                // Redirect to Stripe Checkout
+                // Redirect to the configured checkout provider.
                 window.location.href = data.checkout_url;
             } else {
                 throw new Error(data.message || 'Failed to get checkout URL');

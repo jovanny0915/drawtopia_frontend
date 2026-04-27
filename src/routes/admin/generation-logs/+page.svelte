@@ -26,6 +26,8 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    padding: 0rem 1rem;
+    margin: 0 0.5rem;
   }
 
   .page-header {
