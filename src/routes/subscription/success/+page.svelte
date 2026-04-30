@@ -11,15 +11,15 @@
         goto('/dashboard');
     };
 
-    const BACKEND_URL = 'https://image-edit-five.vercel.app'; // http://localhost:8000
+    const BACKEND_URL = 'https://image-edit-five.vercel.app';
 
     let sessionId: string | null = null;
     let isVerifying = true;
     let verificationSuccess = false;
     let errorMessage = "";
-    let savedStoryId: string | null = null; // Story ID from URL or sessionStorage
-    let savedSceneIndex: string | null = null; // Scene index from URL
-    let emailSent = false; // Track if emails have been sent
+    let savedStoryId: string | null = null;
+    let savedSceneIndex: string | null = null;
+    let emailSent = false;
     const TEMP_UNLOCK_KEY_PREFIX = 'preview_temp_unlock_';
 
     function markTemporaryStoryUnlock(storyId: string) {
@@ -35,9 +35,8 @@
         }
     }
 
-    // Helper function to send payment confirmation emails
     async function sendPaymentEmails(sessionData: any) {
-        if (emailSent) return; // Prevent duplicate sends
+        if (emailSent) return;
         
         try {
             const customerEmail = sessionData.customer_email || $user?.email;
@@ -51,7 +50,6 @@
                 return;
             }
 
-            // Send payment success email (for subscriptions)
             if (sessionData.mode === 'subscription' && sessionData.plan_type) {
                 const paymentResult = await sendPaymentSuccessEmail(
                     customerEmail,
@@ -68,7 +66,6 @@
                 }
             }
 
-            // Send receipt email
             const receiptResult = await sendReceiptEmail(
                 customerEmail,
                 customerName,
@@ -82,7 +79,7 @@
                     amount: sessionData.amount ? parseFloat(sessionData.amount.replace('$', '')) : 0
                 }],
                 sessionData.amount ? parseFloat(sessionData.amount.replace('$', '')) : 0,
-                0, // tax
+                0,
                 sessionData.amount ? parseFloat(sessionData.amount.replace('$', '')) : 0,
                 new Date().toISOString()
             );
@@ -96,18 +93,15 @@
             emailSent = true;
         } catch (error) {
             console.error('Error sending payment emails:', error);
-            // Don't block the user if email sending fails
         }
     }
 
     onMount(async () => {
         if (browser) {
-            // Get session_id from URL
             sessionId = $page.url.searchParams.get('session_id');
             
             if (sessionId) {
                 try {
-                    // Fetch session details from backend
                     const response = await fetch(`${BACKEND_URL}/api/stripe/session/${sessionId}`);
                     
                     if (response.ok) {
@@ -116,7 +110,6 @@
                         if (sessionData.success && sessionData.payment_status === 'paid') {
                             verificationSuccess = true;
                             
-                            // Send payment confirmation emails
                             await sendPaymentEmails(sessionData);
                         } else {
                             errorMessage = "Payment not completed";
@@ -132,7 +125,6 @@
                 errorMessage = "No session found";
             }
             
-            // Get story ID and scene index from URL parameters (passed through Stripe redirect)
             const urlStoryId = $page.url.searchParams.get('storyId');
             const urlSceneIndex = $page.url.searchParams.get('sceneIndex');
             
@@ -140,7 +132,6 @@
                 savedStoryId = urlStoryId;
                 console.log(`[subscription/success] Found story ID from URL: ${savedStoryId}`);
                 
-                // If scene index is in URL, restore it to sessionStorage
                 if (urlSceneIndex) {
                     savedSceneIndex = urlSceneIndex;
                     try {
@@ -150,7 +141,6 @@
                         console.error('[subscription/success] Error restoring scene index to sessionStorage:', error);
                     }
                 } else {
-                    // Fallback: Check sessionStorage if URL doesn't have scene index
                     try {
                         const storedIndex = sessionStorage.getItem(`preview_scene_index_${savedStoryId}`);
                         if (storedIndex) {
@@ -162,18 +152,16 @@
                     }
                 }
             } else {
-                // Fallback: Check sessionStorage if URL doesn't have story ID
                 try {
                     for (let i = 0; i < sessionStorage.length; i++) {
                         const key = sessionStorage.key(i);
                         if (key && key.startsWith('preview_scene_index_')) {
-                            // Extract storyId from key (format: preview_scene_index_${storyId})
                             const extractedStoryId = key.replace('preview_scene_index_', '');
                             if (extractedStoryId) {
                                 savedStoryId = extractedStoryId;
                                 savedSceneIndex = sessionStorage.getItem(key);
                                 console.log(`[subscription/success] Found saved scene index for story: ${savedStoryId}, index: ${savedSceneIndex}`);
-                                break; // Use the first one found
+                                break;
                             }
                         }
                     }
@@ -186,7 +174,6 @@
                 markTemporaryStoryUnlock(savedStoryId);
             }
 
-            // If user came from story-preview to buy credits, return there (sessionStorage preserved)
             const returnUrl = sessionStorage.getItem('postPaymentReturnUrl');
             if (returnUrl && verificationSuccess) {
                 sessionStorage.removeItem('postPaymentReturnUrl');
@@ -210,7 +197,6 @@
             const sceneParam = savedSceneIndex ? `&sceneIndex=${savedSceneIndex}` : '';
             goto(`/preview/default?storyId=${savedStoryId}${sceneParam}`);
         } else {
-            // Fallback to dashboard if no story ID found
             goto('/dashboard');
         }
     }

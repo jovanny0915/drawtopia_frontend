@@ -1,7 +1,3 @@
-/**
- * Format a date as MM/DD/YYYY.
- * Use this for all user-facing date displays across the app.
- */
 export function formatDate(value: string | Date | null | undefined): string {
   if (value == null) return "";
   try {
@@ -17,9 +13,6 @@ export function formatDate(value: string | Date | null | undefined): string {
   }
 }
 
-/**
- * Format a date with time as MM/DD/YYYY, HH:MM.
- */
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (value == null) return "";
   try {

@@ -9,17 +9,14 @@
 
   const dispatch = createEventDispatcher();
 
-  // Internal state for characters and loading
   let characters: any[] = [];
   let loading: boolean = false;
   let error: string = "";
   let charactersFetched: boolean = false;
 
-  // Filter states
   let selectedFilter = "all";
   let searchQuery = "";
 
-  // Filter options
   const filterOptions = [
     { value: "all", label: "All" },
     { value: "person", label: "Person" },
@@ -27,21 +24,17 @@
     { value: "magical", label: "Magical" }
   ];
 
-  // Filtered characters based on search and filter
   $: filteredCharacters = characters.filter((character) => {
-    // Filter by search query
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const matchesSearch = !normalizedQuery || 
       (character.character_name?.toLowerCase().includes(normalizedQuery) ?? false);
 
-    // Filter by character type
     const matchesFilter = selectedFilter === "all" || 
       character.character_type === selectedFilter;
 
     return matchesSearch && matchesFilter;
   });
 
-  // Fetch characters from API and calculate books count
   const fetchCharacters = async (userId: string) => {
     if (!userId || loading) return;
     
@@ -50,7 +43,6 @@
     error = "";
     
     try {
-      // Fetch characters from API
       const result = await getAllCharacters(userId);
       if (!result.success || !result.data) {
         error = result.error || "Failed to fetch characters";
@@ -70,7 +62,6 @@
     }
   };
 
-  // Fetch characters when component mounts
   onMount(() => {
     const unsubscribe = user.subscribe(($user) => {
       if ($user?.id && !charactersFetched) {
@@ -84,14 +75,12 @@
     };
   });
 
-  // Reactive statement to handle user changes
   $: if ($user?.id && !charactersFetched) {
     console.log('[MobileDashboardCharactersComponent] User available, fetching characters:', $user.id);
     fetchCharacters($user.id);
     charactersFetched = true;
   }
 
-  // Handle character preview from CharacterCard
   function handleCharacterPreview(event: CustomEvent) {
     dispatch("characterPreview", event.detail);
   }

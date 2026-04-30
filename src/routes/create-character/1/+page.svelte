@@ -50,14 +50,17 @@
   let showErrorNotification = false;
   let errorNotificationMessage = "";
 
-  // Free tier: use upload_cnt from users table (reset to 10 on new day at login)
   let isFreePlan = true;
   let uploadCnt = 10;
   let loadingLimitCheck = false;
-  let isEditingExistingCharacter = false; // true when session has characterId (edit flow)
+  let isEditingExistingCharacter = false;
   $: dailyLimitReached = isFreePlan && !isEditingExistingCharacter && uploadCnt <= 0;
 
-  // Form state
+  type CharacterGender = "male" | "female" | "non_binary";
+
+  const isCharacterGender = (value: string | null): value is CharacterGender =>
+    value === "male" || value === "female" || value === "non_binary";
+
   let selectedChildProfileId = "";
   let childProfiles: Array<{
     value: string;
@@ -69,12 +72,12 @@
   let childProfilesError = "";
   let lastLoadedChildProfilesForUserId: string | null = null;
   let characterName = "";
+  let selectedCharacterGender: CharacterGender | "" = "";
   let selectedCharacterType = "person";
   let selectedSpecialAbility = "";
   let customSpecialAbility = "";
   let selectedCharacterStyle = "3d";
 
-  // Special ability options
   const specialAbilityOptions = [
     { value: "healing-powers", label: "Healing Powers" },
     { value: "flying", label: "Flying" },
@@ -85,12 +88,10 @@
     { value: "shape-shifting", label: "Shape-Shifting" },
   ];
 
-  // Reactive statement to keep local state in sync with store
   $: if ($storyCreation.selectedChildProfileName) {
     selectedChildProfileName = $storyCreation.selectedChildProfileName;
   }
 
-  // Load child profiles for the current user (used from onMount and reactive block)
   async function loadChildProfilesForUser(userId: string) {
     loadingChildProfiles = true;
     childProfilesError = "";
@@ -104,7 +105,6 @@
           age: profile.age_group,
         }));
         lastLoadedChildProfilesForUserId = userId;
-        // Get child profile ID from sessionStorage (set from dashboard or gift flow)
         const childProfileId = browser ? sessionStorage.getItem("selectedChildProfileId") : null;
         if (childProfileId && childProfiles.length > 0) {
           const selectedChild = childProfiles.find((c) => c.value === childProfileId);
@@ -129,12 +129,10 @@
     }
   }
 
-  // Reactive: when current user becomes available (or changes), fetch child profiles
   $: if (browser && $user?.id && !loadingChildProfiles && lastLoadedChildProfilesForUserId !== $user.id) {
     loadChildProfilesForUser($user.id);
   }
 
-  // Load free tier limit (subscription status + upload_cnt from users table)
   async function loadFreeTierLimit(userId: string) {
     loadingLimitCheck = true;
     try {
@@ -158,20 +156,20 @@
     }
   }
 
-  // Check for selected child profile and fetch child profiles
   onMount(async () => {
     if (browser) {
-      // Get child profile ID from sessionStorage (set from dashboard)
       const childProfileId = sessionStorage.getItem("selectedChildProfileId");
 
-      // Editing existing character? (has characterId in session - no daily limit)
       isEditingExistingCharacter = !!(sessionStorage.getItem("characterId"));
 
-      // Fetch child profiles and free tier limit when user is available
+      const existingCharacterGender = sessionStorage.getItem("characterGender");
+      if (isCharacterGender(existingCharacterGender)) {
+        selectedCharacterGender = existingCharacterGender;
+      }
+
       if ($user?.id) {
         await loadChildProfilesForUser($user.id);
         await loadFreeTierLimit($user.id);
-        // If we already had a selectedChildProfileId from session but loadChildProfilesForUser didn't find it (e.g. different list), re-apply from session
         if (childProfileId && childProfiles.length > 0 && !selectedChildProfileId) {
           const selectedChild = childProfiles.find((c) => c.value === childProfileId);
           if (selectedChild) {
@@ -184,42 +182,39 @@
         }
       }
 
-      // Check if we're in prefill mode (coming from "Use in New Book")
       const prefillMode = sessionStorage.getItem('prefill_character_mode');
       if (prefillMode === 'true') {
-        // Pre-fill character image
         const prefillImage = sessionStorage.getItem('prefill_character_image');
         if (prefillImage) {
           uploadedImageUrl = prefillImage;
           storyCreation.setOriginalImageUrl(prefillImage);
         }
 
-        // Pre-fill character name
         const prefillName = sessionStorage.getItem('prefill_character_name');
         if (prefillName) {
           characterName = prefillName;
         }
 
-        // Pre-fill character type
+        const prefillGender = sessionStorage.getItem('prefill_character_gender');
+        if (isCharacterGender(prefillGender)) {
+          selectedCharacterGender = prefillGender;
+        }
+
         const prefillType = sessionStorage.getItem('prefill_character_type');
         if (prefillType) {
           selectedCharacterType = prefillType;
         }
 
-        // Pre-fill special ability
         const prefillAbility = sessionStorage.getItem('prefill_special_ability');
         if (prefillAbility) {
-          // Check if it's one of the predefined options (check both value and label)
           const matchingOption = specialAbilityOptions.find(
             opt => opt.value === prefillAbility || 
                    opt.label.toLowerCase() === prefillAbility.toLowerCase()
           );
           
           if (matchingOption) {
-            // It's a predefined option
             selectedSpecialAbility = matchingOption.value;
           } else {
-            // It's a custom ability
             customSpecialAbility = prefillAbility;
           }
           
@@ -230,13 +225,11 @@
           });
         }
 
-        // Pre-fill character style
         const prefillStyle = sessionStorage.getItem('prefill_character_style');
         if (prefillStyle) {
           selectedCharacterStyle = prefillStyle;
         }
 
-        // Pre-fill child profile ID if available
         const prefillChildProfileId = sessionStorage.getItem('prefill_child_profile_id');
         if (prefillChildProfileId && childProfiles.length > 0) {
           const selectedChild = childProfiles.find(
@@ -249,10 +242,10 @@
           }
         }
 
-        // Clear prefill flags from sessionStorage
         sessionStorage.removeItem('prefill_character_mode');
         sessionStorage.removeItem('prefill_character_image');
         sessionStorage.removeItem('prefill_character_name');
+        sessionStorage.removeItem('prefill_character_gender');
         sessionStorage.removeItem('prefill_character_type');
         sessionStorage.removeItem('prefill_special_ability');
         sessionStorage.removeItem('prefill_character_style');
@@ -261,7 +254,6 @@
     }
   });
 
-  // Handle file selection from input
   const handleFileSelect = (event: Event) => {
     const target = event.target as HTMLInputElement;
     const files = target.files;
@@ -270,7 +262,6 @@
     }
   };
 
-  // Handle drag events
   const handleDragOver = (event: DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -281,7 +272,6 @@
     event.preventDefault();
     event.stopPropagation();
 
-    // Only set isDragOver to false if we're leaving the drop zone itself
     const dropZone = event.currentTarget as HTMLElement;
     const relatedTarget = event.relatedTarget as Node;
 
@@ -313,41 +303,34 @@
     }
   };
 
-  // Helper function to show error notification
   const showError = (message: string) => {
     showErrorNotification = true;
     errorNotificationMessage = message;
     uploadError = "";
     showUploadNotification = false;
     
-    // Auto-hide notification after 7 seconds
     setTimeout(() => {
       showErrorNotification = false;
     }, 5000);
   };
 
-  // Process and upload image file
   const processImageFile = async (file: File) => {
-    // Clear previous notifications
     showErrorNotification = false;
     showUploadNotification = false;
     uploadError = "";
 
-    // Free tier: block if daily limit reached
     if (dailyLimitReached) {
       showError("The free tier can upload 10 characters a day.");
       return;
     }
 
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!file || !allowedTypes.includes(file.type)) {
       showError("Unsupported file type. Please upload a PNG, JPG, GIF, or WebP file.");
       return;
     }
 
-    // Validate file size (10MB max)
-    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       showError("File is too large. Please upload an image under 10MB");
       return;
@@ -365,15 +348,12 @@
       if (result.success && result.url) {
         uploadedImageUrl = result.url;
 
-        // Update the story creation store with the image URL
         storyCreation.setOriginalImageUrl(result.url);
 
-        // Store image URL in sessionStorage for next step
         if (browser) {
           sessionStorage.setItem("characterImageUrl", result.url);
         }
 
-        // Decrement upload_cnt in users table (free tier daily limit)
         if ($user?.id) {
           const decResult = await decrementUserUploadCount($user.id);
           if (decResult.success) {
@@ -381,11 +361,9 @@
           }
         }
 
-        // Show success badge on upload component (persists while image is shown)
         showUploadNotification = true;
         showErrorNotification = false;
       } else {
-        // Handle upload failure
         showError("Something went wrong while uploading. Please try again.");
       }
     } catch (error) {
@@ -396,12 +374,9 @@
     }
   };
 
-  // Enhance uploaded photo with AI (placeholder — add feature logic later)
   const handleEnhanceWithAI = () => {
-    // TODO: implement AI enhancement
   };
 
-  // Click handler for upload area
   const handleUploadClick = () => {
     if (dailyLimitReached) {
       showError("The free tier can upload 10 characters a day.");
@@ -412,17 +387,18 @@
     }
   };
 
-  // Handle character type selection
   const selectCharacterType = (type: string) => {
     selectedCharacterType = type;
   };
 
-  // Handle character style selection
+  const selectCharacterGender = (gender: CharacterGender) => {
+    selectedCharacterGender = gender;
+  };
+
   const selectCharacterStyle = (style: string) => {
     selectedCharacterStyle = style;
   };
 
-  // Handle child profile selection
   const persistSelectedChild = (childId: string, childName: string, childAge?: string) => {
     storyCreation.setSelectedChild(childId, childName);
     sessionStorage.setItem('selectedChildProfileId', childId);
@@ -447,36 +423,30 @@
     }
   };
 
-  // Validation: Check if all required fields are filled
   $: isFormValid =
     !!uploadedImageUrl &&
     !!selectedChildProfileId &&
     !!characterName.trim() &&
+    !!selectedCharacterGender &&
     (!!selectedSpecialAbility || !!customSpecialAbility.trim()) &&
     !!selectedCharacterStyle;
 
-  // Handle back button click
   const handleBackToStep = () => {
     if (browser) {
-      // Clear selected child profile from sessionStorage
       sessionStorage.removeItem("selectedChildProfileId");
       sessionStorage.removeItem("selectedChildProfileName");
       sessionStorage.removeItem("selectedChildAge");
     }
     
-    // Navigate back to dashboard
     goto("/dashboard");
   };
 
-  // Handle continue to next step
   const handleContinue = async () => {
-    // Free tier: block if daily limit reached (when creating new character)
     if (dailyLimitReached) {
       showError("The free tier can upload 10 characters a day.");
       return;
     }
 
-    // Validate required fields
     if (!uploadedImageUrl) {
       uploadError = "Please upload a character image";
       return;
@@ -487,8 +457,12 @@
       return;
     }
 
+    if (!selectedCharacterGender) {
+      uploadError = "Please select a character gender";
+      return;
+    }
+
     try {
-      // Get current user
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) {
         console.error('No authenticated user found');
@@ -496,34 +470,30 @@
         return;
       }
 
-      // Prepare special ability value
       const specialAbilityValue = customSpecialAbility || selectedSpecialAbility;
 
-      // Update story creation store with character details
       storyCreation.setCharacterDetails({
         characterName,
+        characterGender: selectedCharacterGender,
         characterType: selectedCharacterType as any,
         specialAbility: specialAbilityValue,
       });
 
-      // Store style selection in the store
       storyCreation.setCharacterStyle(
         selectedCharacterStyle as "3d" | "cartoon" | "anime",
       );
 
-      // Save character information to sessionStorage for use in next steps
       if (browser) {
         sessionStorage.setItem('characterName', characterName);
+        sessionStorage.setItem('characterGender', selectedCharacterGender);
         sessionStorage.setItem('selectedCharacterType', selectedCharacterType);
         sessionStorage.setItem('specialAbility', specialAbilityValue);
         sessionStorage.setItem('selectedStyle', selectedCharacterStyle);
       }
 
-      // Check if character ID exists in sessionStorage
       const existingCharacterId = browser ? sessionStorage.getItem('characterId') : null;
       let characterId = existingCharacterId ? parseInt(existingCharacterId) : null;
 
-      // Prepare character data
       const characterData = {
         user_id: currentUser.id,
         child_profile_id: selectedChildProfileId ? parseInt(selectedChildProfileId) : null,
@@ -532,16 +502,13 @@
         special_ability: specialAbilityValue || undefined,
         character_style: selectedCharacterStyle as '3d' | 'cartoon' | 'anime',
         original_image_url: uploadedImageUrl,
-        enhanced_images: '' // Will be updated later in step 2
+        enhanced_images: ''
       };
 
-      // Check if character exists and update or create accordingly
       if (characterId) {
-        // Verify character exists in database
         const existingCharacter = await getCharacterById(characterId);
         
         if (existingCharacter.success && existingCharacter.data) {
-          // Character exists - update it
           console.log('Updating existing character:', characterId, characterData);
           const result = await updateCharacter(characterId, characterData);
           
@@ -549,42 +516,34 @@
             console.log('Character updated successfully:', result.data);
           } else {
             console.error('Failed to update character:', result.error);
-            // Continue anyway - character saving is not blocking
           }
         } else {
-          // Character ID exists but not found in DB - create new
           console.log('Character ID not found in database, creating new character:', characterData);
           const result = await createCharacter(characterData);
           
           if (result.success) {
             console.log('Character created successfully:', result.data);
-            // Store the new character ID
             if (result.data?.id && browser) {
               sessionStorage.setItem('characterId', result.data.id.toString());
             }
           } else {
             console.error('Failed to create character:', result.error);
-            // Continue anyway - character saving is not blocking
           }
         }
       } else {
-        // No character ID - create new character
         console.log('Creating new character:', characterData);
         const result = await createCharacter(characterData);
         
         if (result.success) {
           console.log('Character created successfully:', result.data);
-          // Store character ID for later use
           if (result.data?.id && browser) {
             sessionStorage.setItem('characterId', result.data.id.toString());
           }
         } else {
           console.error('Failed to create character:', result.error);
-          // Continue anyway - character saving is not blocking
         }
       }
 
-      // Navigate to step 2
       goto("/create-character/2");
     } catch (error) {
       console.error('Error in handleContinue:', error);
@@ -622,7 +581,6 @@
     </div>
     <MobileStepProgressBar currentStep={1} />
     <ProgressBar currentStep={1} />
-    <!-- <ProgressBar currentStep={1} /> -->
     <div class="frame-1410104027">
       <div class="star-container">
         <StarEmoticon />
@@ -642,9 +600,7 @@
       </div>
     </div>
     <div class="frame-1410104031">
-      <!-- Left Column: Upload Character and Helper Tips (stacked vertically) -->
       <div class="left-column-container">
-        <!-- Upload Character Card -->
         <div class="frame-10">
           <div class="frame-1410103935">
             {#if showErrorNotification}
@@ -782,7 +738,6 @@
             </button>
           </div>
         </div>
-        <!-- Helper Tips Card -->
         <div class="frame-1410104032">
           <div class="heading_01">
             <div class="helper-tips">
@@ -827,9 +782,7 @@
           </div>
         </div>
       </div>
-      <!-- Right Column: All option/form selecting boxes -->
       <div class="frame-1410104032-right">
-        <!-- List of Children Card -->
         <div class="right-column-container">
           <div class="list-of-children">
             <span class="listofchildren_span">List of Children</span>
@@ -858,7 +811,6 @@
           {/if}
         </div>
 
-        <!-- Information Character Card -->
         <div class="heading_01">
           <div class="information-character">
             <span class="informationcharacter_span">Information Character</span>
@@ -888,13 +840,56 @@
           </div>
           <div class="heading_02">
             <div class="form_01" style="width: 100%;">
+              <div class="whats-your-characters-gender">
+                <span class="whatsyourcharactersgender_span"
+                  >What's your character's gender?</span
+                >
+              </div>
+              <div class="gender-radio-group" role="radiogroup" aria-label="Character gender">
+                <label class="gender-radio-option {selectedCharacterGender === 'male' ? 'selected' : ''}">
+                  <input
+                    type="radio"
+                    name="characterGender"
+                    value="male"
+                    bind:group={selectedCharacterGender}
+                    on:change={() => selectCharacterGender("male")}
+                  />
+                  <span class="gender-radio-control"></span>
+                  <span class="gender-radio-label">Male</span>
+                </label>
+                <label class="gender-radio-option {selectedCharacterGender === 'female' ? 'selected' : ''}">
+                  <input
+                    type="radio"
+                    name="characterGender"
+                    value="female"
+                    bind:group={selectedCharacterGender}
+                    on:change={() => selectCharacterGender("female")}
+                  />
+                  <span class="gender-radio-control"></span>
+                  <span class="gender-radio-label">Female</span>
+                </label>
+                <label class="gender-radio-option {selectedCharacterGender === 'non_binary' ? 'selected' : ''}">
+                  <input
+                    type="radio"
+                    name="characterGender"
+                    value="non_binary"
+                    bind:group={selectedCharacterGender}
+                    on:change={() => selectCharacterGender("non_binary")}
+                  />
+                  <span class="gender-radio-control"></span>
+                  <span class="gender-radio-label">Non-binary</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="heading_02">
+            <div class="form_01" style="width: 100%;">
               <div class="what-type-of-character-is-this">
                 <span class="whattypeofcharacteristhis_span"
                   >What type of character is this?</span
                 >
               </div>
               <div class="frame-1410103942">
-                <!-- Person Character Type -->
                 <button
                   class="character-option {selectedCharacterType === 'person'
                     ? 'selected'
@@ -922,7 +917,6 @@
                   </div>
                 </button>
 
-                <!-- Animal Character Type -->
                 <button
                   class="character-option {selectedCharacterType === 'animal'
                     ? 'selected'
@@ -952,7 +946,6 @@
                   </div>
                 </button>
 
-                <!-- Magical Character Type -->
                 <button
                   class="character-option {selectedCharacterType === 'magical'
                     ? 'selected'
@@ -987,7 +980,6 @@
             </div>
           </div>
 
-          <!-- Special Ability Card -->
           <div class="heading_02">
             <div class="frame-1410104039" style="width: 100%;">
               <div class="what-special-ability-does-your-character-have">
@@ -1027,7 +1019,6 @@
             </div>
           </div>
 
-          <!-- Select Character Style Card -->
           <div class="heading_02">
             <div class="select-character-style">
               <span class="selectcharacterstyle_span"
@@ -1120,11 +1111,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -1177,7 +1163,6 @@
     top: 50%;
     transform: translateY(-50%);
     border-top: 12px solid transparent;
-    /* border-bottom: 12px solid transparent; */
     border-right: 18px solid #d9eaff;
   }
 
@@ -1793,7 +1778,6 @@
     display: inline-flex;
   }
 
-  /* Left column container - Upload Character and Helper Tips stacked vertically */
   .left-column-container {
     flex: 1 1 0;
     flex-direction: column;
@@ -1886,54 +1870,8 @@
     }
   }
 
-  /* .continuetostyleselection_span {
-    color: white;
-    font-size: 18px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 25.2px;
-    word-wrap: break-word;
-  } */
 
-  /* .continue-to-next-step {
-    text-align: center;
-  }
 
-  .button-fill {
-    width: 300px;
-    height: 100%;
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 16px;
-    padding-bottom: 16px;
-    background: #438bff;
-    border-radius: 20px;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    display: inline-flex;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .button-fill:hover {
-    background: #3a7ae4;
-    transform: translateY(-1px);
-  }
-
-  .button-fill:disabled {
-    background: #cccccc;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .button-fill:disabled:hover {
-    background: #cccccc;
-    transform: none;
-  } */
-
-  /* Upload area styles */
   .image {
     cursor: pointer;
     transition: all 0.3s ease;
@@ -1955,7 +1893,6 @@
     cursor: not-allowed;
   }
 
-  /* Upload progress styles */
   .upload-progress {
     display: flex;
     flex-direction: column;
@@ -2018,7 +1955,6 @@
     transition: width 0.3s ease;
   }
 
-  /* Upload success styles */
   .upload-success {
     display: flex;
     flex-direction: column;
@@ -2028,9 +1964,6 @@
   }
 
   .uploaded-image {
-    /* max-width: 200px;
-    max-height: 150px;*/
-    /* object-fit: contain; */
     object-fit: cover;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -2051,7 +1984,6 @@
     font-weight: 600;
   }
 
-  /* Upload error styles */
   .upload-error {
     position: absolute;
     bottom: 8px;
@@ -2071,7 +2003,6 @@
     font-weight: 500;
     text-align: center;
   }
-  /* Right column styles */
   .frame-1410104032-right {
     flex: 1 1 0;
     flex-direction: column;
@@ -2081,7 +2012,6 @@
     display: inline-flex;
   }
 
-  /* List of Children styles */
   .listofchildren_span {
     color: #121212;
     font-size: 20px;
@@ -2146,7 +2076,6 @@
     text-decoration: underline;
   }
 
-  /* Information Character styles */
   .informationcharacter_span {
     color: #121212;
     font-size: 24px;
@@ -2186,7 +2115,86 @@
     align-self: stretch;
   }
 
-  /* Character type selection styles */
+  .whatsyourcharactersgender_span {
+    color: #121212;
+    font-size: 16px;
+    font-family: Quicksand;
+    font-weight: 500;
+    line-height: 22.4px;
+    word-wrap: break-word;
+  }
+
+  .whats-your-characters-gender {
+    align-self: stretch;
+  }
+
+  .gender-radio-group {
+    align-self: stretch;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .gender-radio-option {
+    flex: 1 1 140px;
+    padding: 12px;
+    border-radius: 12px;
+    outline: 1px #ededed solid;
+    outline-offset: -1px;
+    background: white;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .gender-radio-option:hover {
+    background: #f8fafb;
+    outline-color: #438bff;
+  }
+
+  .gender-radio-option.selected {
+    outline: 1px #438bff solid;
+    background: #eef6ff;
+  }
+
+  .gender-radio-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .gender-radio-control {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #438bff;
+    border-radius: 999px;
+    background: white;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .gender-radio-option.selected .gender-radio-control::after {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #438bff;
+    position: absolute;
+    left: 4px;
+    top: 4px;
+  }
+
+  .gender-radio-label {
+    color: #121212;
+    font-size: 16px;
+    font-family: Quicksand;
+    font-weight: 600;
+    line-height: 22.4px;
+    word-wrap: break-word;
+  }
+
   .whattypeofcharacteristhis_span {
     color: #121212;
     font-size: 16px;
@@ -2300,7 +2308,6 @@
     overflow: hidden;
   }
 
-  /* Special Ability styles */
   .whatspecialabilitydoesyourcharacterhave_span {
     color: #121212;
     font-size: 16px;
@@ -2370,7 +2377,6 @@
     align-self: stretch;
   }
 
-  /* Character Style Selection styles */
   .selectcharacterstyle_span {
     color: #121212;
     font-size: 20px;
@@ -2423,7 +2429,6 @@
 
   .style-image {
     width: 100%;
-    /* height: 120px; */
     object-fit: cover;
     border-radius: 8px;
   }
@@ -2455,7 +2460,6 @@
     word-wrap: break-word;
   }
 
-  /* Continue button styles */
   .continuetoenhancementpreview_span {
     color: white;
     font-size: 18px;
@@ -2575,7 +2579,6 @@
     display: flex;
   }
 
-  /* Success badge on upload component */
   @keyframes badgeFadeIn {
     from {
       opacity: 0;
@@ -2600,7 +2603,6 @@
     animation: badgeFadeIn 0.3s ease-out;
   }
 
-  /* Upload error badge on upload component */
   .warning-icon {
     width: 18px;
     height: 18px;

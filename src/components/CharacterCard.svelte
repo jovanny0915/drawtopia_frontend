@@ -11,16 +11,14 @@
   import { browser } from "$app/environment";
 
   export let item: any;
-  $: booksCount = item.stories.length || 0; // Number of books using this character
+  $: booksCount = item.stories.length || 0;
 
   const dispatch = createEventDispatcher();
 
-  // Get character name
   const getCharacterName = () => {
     return item.character_name || "Unnamed Character";
   };
 
-  // Get character type icon
   const getCharacterTypeIcon = () => {
     if (item.character_type === "person") {
       return PersonSimple;
@@ -29,10 +27,9 @@
     } else if (item.character_type === "magical") {
       return monster;
     }
-    return PersonSimple; // default
+    return PersonSimple;
   };
 
-  // Get character type text
   const getCharacterTypeText = () => {
     if (item.character_type === "person") {
       return "Person";
@@ -41,17 +38,14 @@
     } else if (item.character_type === "magical") {
       return "Magical Creature";
     }
-    return "Person"; // default
+    return "Person";
   };
 
-  // Get special ability text
   const getSpecialAbility = () => {
     return item.special_ability || "No special ability";
   };
 
-  // Get image source
   const getImageSrc = () => {
-    // Handle both array and string formats for enhanced_images
     if (typeof item.enhanced_images === 'string' && item.enhanced_images) {
       return item.enhanced_images;
     } else if (item.original_image_url) {
@@ -60,7 +54,6 @@
     return "https://placehold.co/329x310";
   };
 
-  // Format books count text
   const getBooksCountText = () => {
     if (booksCount === 0) {
       return "Not used in any books";
@@ -71,79 +64,60 @@
     }
   };
 
-  // Handle "Use in New Book" button click
   function handleUseInNewBook() {
     if (browser) {
-      // Get the character image URLs (handle both array and string formats)
       let characterImageUrl = '';
       let enhancedImageUrl = '';
       
-      // Get original image URL
       if (item.original_image_url) {
         characterImageUrl = item.original_image_url;
       }
       
-      // Get enhanced image URL (prefer enhanced over original)
       if (Array.isArray(item.enhanced_images) && item.enhanced_images.length > 0) {
         enhancedImageUrl = item.enhanced_images[0];
       } else if (typeof item.enhanced_images === 'string' && item.enhanced_images) {
         enhancedImageUrl = item.enhanced_images;
       }
       
-      // Use enhanced image if available, otherwise use original
       const selectedImageUrl = enhancedImageUrl || characterImageUrl;
       
-      // Map character_type: "magical_creature" -> "magical"
       let characterType = item.character_type || 'person';
       if (characterType === 'magical_creature') {
         characterType = 'magical';
       }
       
-      // Store all character information to sessionStorage
-      // Child profile information
       if (item.child_profile_id) {
         sessionStorage.setItem('selectedChildProfileId', item.child_profile_id.toString());
       }
       
-      // Use character name as child profile name if not available elsewhere
-      // This matches the pattern seen in the example where both are the same
       const childProfileName = item.character_name || '';
       sessionStorage.setItem('selectedChildProfileName', childProfileName);
       sessionStorage.setItem('selectedChildName', childProfileName);
       
-      // Character image information
       sessionStorage.setItem('characterImageUrl', characterImageUrl);
       
-      // Character basic information
       sessionStorage.setItem('characterName', item.character_name || '');
       sessionStorage.setItem('selectedCharacterType', characterType);
       sessionStorage.setItem('specialAbility', item.special_ability || '');
       sessionStorage.setItem('selectedStyle', item.character_style || '3d');
       
-      // Character ID
       if (item.id) {
         sessionStorage.setItem('characterId', item.id.toString());
       }
       
-      // Enhancement information (default to "normal" as seen in the example)
       sessionStorage.setItem('selectedEnhancement', 'normal');
       
-      // Enhanced image (use enhanced if available, otherwise use original)
       sessionStorage.setItem('selectedCharacterEnhancedImage', selectedImageUrl);
       sessionStorage.setItem('selectedImage_step4', selectedImageUrl);
     }
     
-    // Navigate to create character step 3 (book adventure style selection)
     goto('/create-character/3');
   }
 
-  // Handle "View Books" button click
   function handleViewBooks() {
-    // TODO: Implement navigation to view books using this character
     console.log("View books:", item);
   }
 
-  // Handle "Preview" button click
   function handlePreview() {
     dispatch("preview", item);
   }

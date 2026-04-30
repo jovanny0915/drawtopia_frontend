@@ -36,9 +36,8 @@
   let libraryView: "all" | "characters" | "children" = "all";
   let sidebarOpen = false;
   let activeMenu: "home" | "story-library" | "characters" | "child-profiles" | "gift-tracking" = "home";
-  let storyCredits: number | null = null; // Story credits from user's credit column
+  let storyCredits: number | null = null;
   
-  // State for character preview
   let showCharacterPreview = false;
   let selectedCharacter: any = null;
   let characterBooks: any[] = [];
@@ -55,10 +54,7 @@
 
   function handleMenuClick(menu: "home" | "story-library" | "characters" | "child-profiles" | "gift-tracking") {
     activeMenu = menu;
-    // Close sidebar when menu item is selected
     sidebarOpen = false;
-    // You can add navigation logic here if needed
-    // Example: goto(`/${menu}`);
   }
 
   let childProfiles: any[] = [];
@@ -73,16 +69,14 @@
   let storiesError = "";
   let giftsError = "";
 
-  // Reading statistics
   let adventureStoriesCount: number = 0;
   let searchStoriesCount: number = 0;
-  let adventureReadingTime: number = 0; // Total reading time in seconds
-  let searchReadingTime: number = 0; // Total reading time in seconds
+  let adventureReadingTime: number = 0;
+  let searchReadingTime: number = 0;
   let audioListenedCount: number = 0;
   let averageStars: number = 0;
   let averageHints: number = 0;
 
-  // Calculate reading statistics whenever rawStories changes
   $: {
     const adventureStories = rawStories.filter(story => {
       const storyType = (story.story_type || "story").toLowerCase();
@@ -94,11 +88,9 @@
       return storyType === "search";
     });
     
-    // Count stories
     adventureStoriesCount = adventureStories.length;
     searchStoriesCount = searchStories.length;
     
-    // Calculate total reading times
     adventureReadingTime = adventureStories.reduce((total, story) => {
       if (story.reading_state && typeof story.reading_state === 'object') {
         const readingTime = story.reading_state.reading_time || 0;
@@ -115,7 +107,6 @@
       return total;
     }, 0);
     
-    // Count adventure stories where audio has been listened
     audioListenedCount = adventureStories.filter(story => {
       if (story.reading_state && typeof story.reading_state === 'object') {
         return story.reading_state.audio_listened === true;
@@ -123,7 +114,6 @@
       return false;
     }).length;
     
-    // Calculate average stars for interactive search stories
     const searchStoriesWithStars = searchStories.filter(story => 
       story.reading_state && 
       typeof story.reading_state === 'object' && 
@@ -139,7 +129,6 @@
       averageStars = 0;
     }
     
-    // Calculate average hints for interactive search stories
     const searchStoriesWithHints = searchStories.filter(story => 
       story.reading_state && 
       typeof story.reading_state === 'object' && 
@@ -156,19 +145,16 @@
     }
   }
 
-  // Filter states for dashboard dropdowns
   let selectedFormat: string = "all";
   let selectedChild: string = "all";
   let selectedStatus: string = "all";
 
-  // Format options
   $: formatOptions = [
     { value: "all", label: "All Formats" },
     { value: "story_adventure", label: "Story Adventure Mode" },
     { value: "interactive_search", label: "Interactive Search Mode" },
   ];
 
-  // Children options - dynamically generated from childProfiles
   $: childrenOptions = [
     { value: "all", label: "All Children" },
     ...childProfiles.map((child) => ({
@@ -177,7 +163,6 @@
     })),
   ];
 
-  // Status options
   $: statusOptions = [
     { value: "all", label: "All Status" },
     { value: "completed", label: "Completed" },
@@ -186,11 +171,8 @@
     { value: "failed", label: "Failed" },
   ];
 
-  // Filtered stories based on selected filters (matching HomeLibraryView logic)
   $: filteredStories = stories.filter((story) => {
-    // Filter by story type (format)
     if (selectedFormat !== "all") {
-      // Default to "story" if story_type is not set (as per createStory default)
       const storyType = (story.story_type || "story").toLowerCase();
       if (selectedFormat === "story_adventure" && storyType !== "story") {
         return false;
@@ -200,7 +182,6 @@
       }
     }
 
-    // Filter by child
     if (selectedChild !== "all") {
       const childId = story.child_profile_id?.toString() || story.child_profile_id;
       const selectedChildId = selectedChild.toString();
@@ -209,7 +190,6 @@
       }
     }
 
-    // Filter by status
     if (selectedStatus !== "all") {
       const storyStatus = (story.status || "").toLowerCase();
       if (storyStatus !== selectedStatus.toLowerCase()) {
@@ -344,17 +324,14 @@
     }
   };
 
-  // Helper to convert age range to a single age for display
   const getAgeFromRange = (ageRange: string): number => {
     if (!ageRange) return 7;
-    // Extract middle age from range like "3-6" -> 4 or "7-10" -> 8
     const match = ageRange.match(/(\d+)-(\d+)/);
     if (match) {
       const min = parseInt(match[1]);
       const max = parseInt(match[2]);
       return Math.floor((min + max) / 2);
     }
-    // Handle single ages like "11-12" -> 11
     return parseInt(ageRange.split("-")[0]) || 7;
   };
 
@@ -393,7 +370,6 @@
     }
   };
 
-  // Fetch user credits from users table
   const fetchUserCredits = async (userId: string) => {
     try {
       const { getUserProfile } = await import("../lib/auth");
@@ -401,13 +377,12 @@
       if (result.success && result.profile) {
         const profile = Array.isArray(result.profile) ? result.profile[0] : result.profile;
         if (profile?.credit !== undefined && profile?.credit !== null) {
-          // Parse credit as number if it's a string
           const creditValue = typeof profile.credit === 'string' 
             ? parseInt(profile.credit, 10) 
             : profile.credit;
           storyCredits = isNaN(creditValue) ? 0 : creditValue;
         } else {
-          storyCredits = 0; // Default to 0 if no credit is set
+          storyCredits = 0;
         }
       }
     } catch (error) {
@@ -430,12 +405,10 @@
     return occasionMap[adventureType] || occasionMap[storyWorld] || "Adventure";
   };
 
-  // Handle character preview
   const handleCharacterPreview = (event: CustomEvent) => {
     const character = event.detail;
     selectedCharacter = character;
     
-    // Find all books featuring this character
     const characterName = character.character_name?.toLowerCase();
     if (characterName && rawStories) {
       characterBooks = rawStories.filter((story: any) => 
@@ -448,25 +421,20 @@
     showCharacterPreview = true;
   };
 
-  // Handle back from character preview
   const handleBackFromPreview = () => {
     showCharacterPreview = false;
     selectedCharacter = null;
     characterBooks = [];
   };
 
-  // Handle book click from preview
   const handleBookClick = (event: CustomEvent) => {
     const book = event.detail;
-    // TODO: Navigate to book view or handle book click
     console.log("Book clicked:", book);
   };
 
-  // Handle delete character
   const handleDeleteCharacter = async (event: CustomEvent) => {
     const character = event.detail;
     
-    // Confirm deletion
     if (!confirm(`Are you sure you want to delete "${character.character_name}"? This action cannot be undone.`)) {
       return;
     }
@@ -485,7 +453,6 @@
       if (result.success) {
         console.log('Character deleted successfully:', result.data);
         
-        // Refresh character data
         await fetchCharacters(userId);
         await fetchStories(userId);
       } else {
@@ -498,24 +465,19 @@
     }
   };
 
-  // Handle view stories from child profile
   const handleViewStoriesFromChild = (event: CustomEvent) => {
     const { childId, childName } = event.detail;
-    // Switch to story library and filter by the selected child
     activeMenu = "story-library";
     selectedChild = childId;
     console.log(`Viewing stories for child: ${childName} (ID: ${childId})`);
   };
 
-  // Gift tracking event handlers
   const handleAddChildren = () => {
-    // Navigate to add children page or open modal
     goto("/create-child-profile");
   };
 
   const handleResendLink = (event: CustomEvent) => {
     const { giftId } = event.detail;
-    // TODO: Implement resend gift link functionality
     console.log(`Resending link for gift: ${giftId}`);
   };
 
@@ -549,7 +511,6 @@
 
   const handleSendThankYou = (event: CustomEvent) => {
     const { giftId } = event.detail;
-    // TODO: Implement send thank you functionality
     console.log(`Sending thank you for gift: ${giftId}`);
   };
 
@@ -675,7 +636,6 @@
     />
   {/if}
 
-  <!-- Mobile Slide Sidebar -->
   {#if sidebarOpen}
     <div 
       class="sidebar-overlay" 
@@ -689,7 +649,6 @@
       class="mobile-sidebar-container"
       transition:fly={{ x: -280, duration: 300 }}
     >
-      <!-- Integrated Mobile Sidebar Content -->
       <div class="frame-2147227656">
         <div class="content">
           <div class="sidebargrouping-label">
@@ -859,13 +818,11 @@
     display: inline-flex;
   }
 
-  /* Loading, Error, and Empty States */
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
 
-  /* Mobile Sidebar Styles */
   .sidebar-overlay {
     position: fixed;
     top: 0;
@@ -912,7 +869,6 @@
     opacity: 0.5;
   }
 
-  /* Integrated Mobile Sidebar Styles */
   .menu_span {
     color: var(--Gray-gray-400, #90A1B9);
     font-size: 12px;

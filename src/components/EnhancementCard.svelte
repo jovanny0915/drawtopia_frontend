@@ -18,39 +18,31 @@
   export let selectedStyle: string = "";
 
   let containerRef: HTMLDivElement;
-  let sliderPosition = 50; // Percentage from left
+  let sliderPosition = 50;
   let isDragging = false;
   let generatedEnhancementImage: string = "";
   let isGeneratingEnhancement = false;
   let lastProcessedStyle = "";
   let lastProcessedImageUrl = "";
 
-  // Before image: Baseline image uploaded on step 1
-  // After image: Enhanced image generated with enhancement level and prompts
   $: currentBeforeImage = originalImageUrl;
   $: currentAfterImage = generatedEnhancementImage;
 
-  // Use original uploaded image as source for enhancement generation
   $: sourceImageForEnhancement = originalImageUrl || beforeImage;
 
-  // Generate enhancement image when component mounts or when sourceImageForEnhancement/selectedStyle changes
   $: if (sourceImageForEnhancement && selectedStyle) {
     const styleChanged = lastProcessedStyle && lastProcessedStyle !== selectedStyle;
     const imageChanged = lastProcessedImageUrl && lastProcessedImageUrl !== sourceImageForEnhancement;
     
     if (styleChanged || imageChanged || !generatedEnhancementImage) {
-      // Clear the old image if style or source image changed
       if (styleChanged || imageChanged) {
         generatedEnhancementImage = "";
-        // Clear cached images for this enhancement level
         if (typeof window !== 'undefined') {
           if (styleChanged) {
-            // Clear all enhancement images for the old style
             sessionStorage.removeItem(`enhancementImage_${lastProcessedStyle}_minimal`);
             sessionStorage.removeItem(`enhancementImage_${lastProcessedStyle}_normal`);
             sessionStorage.removeItem(`enhancementImage_${lastProcessedStyle}_high`);
           }
-          // Clear the specific cached image
           sessionStorage.removeItem(`enhancementImage_${selectedStyle}_${enhancementId}`);
         }
       }
@@ -60,7 +52,6 @@
     }
   }
 
-  // Load cached enhancement image or generate new one
   const loadOrGenerateEnhancementImage = async () => {
     if (typeof window !== 'undefined') {
       const cachedImage = sessionStorage.getItem(`enhancementImage_${selectedStyle}_${enhancementId}`);
@@ -113,7 +104,6 @@
   });
 
   function handleClick(event: Event) {
-    // Only handle card selection if not clicking on the slider area
     if (!isDragging) {
       onSelect(enhancementId);
     }
@@ -137,8 +127,6 @@
     isDragging = true;
   };
 
-  // Generate enhancement image based on the enhancement level
-  // Uses the base character image (with special ability) as the source
   const generateEnhancementImage = async () => {
     if (!sourceImageForEnhancement || isGeneratingEnhancement) return;
     
@@ -185,7 +173,6 @@
   
   <div class="card-content">
     <div class="frame-16" bind:this={containerRef}>
-      <!-- Before Image (Full background) - Baseline image uploaded on step 1 -->
       <div class="before-image">
         {#if currentAfterImage}
           <img src={currentAfterImage} alt="After - Enhanced" />
@@ -196,7 +183,6 @@
         {/if}
       </div>
       
-      <!-- After Image (Clipped on top, revealed from left) - Enhanced image with enhancement level -->
       <div 
         class="after-image" 
         style="clip-path: inset(0 {100 - sliderPosition}% 0 0);"
@@ -209,20 +195,17 @@
         {:else if currentBeforeImage}
           <img src={currentBeforeImage} alt="Before - Baseline" />
         {:else}
-          <!-- Placeholder when enhancement image is not yet available -->
           <div class="placeholder-overlay">
             <div class="placeholder-text">Enhancement preview will appear here</div>
           </div>
         {/if}
       </div>
       
-      <!-- Slider Line -->
       <div 
         class="rectangle-33" 
         style="left: {sliderPosition}%"
       ></div>
       
-      <!-- Draggable Slider Handle -->
       <div 
         class="frame-1410103721"
         style="left: {sliderPosition}%"
@@ -238,7 +221,6 @@
         <img src={arrowUpDown} alt="Drag to compare" />
       </div>
       
-      <!-- Labels -->
       <div class="frame-1410103722">
         <div class="before"><span class="before_span">Before</span></div>
       </div>

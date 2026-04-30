@@ -26,21 +26,18 @@
   let selectedAdventure = "";
   let selectedAdventureImageUrl = "";
 
-  // Style name mapping
   const styleNames = {
     "3d": "3D Realistic",
     "cartoon": "Cartoon",
     "anime": "Anime"
   };
 
-  // World name mapping
   const worldNames = {
     forest: "Enchanted Forest",
     outspace: "Outer Space", 
     underwater: "Underwater Kingdom"
   };
 
-  // Adventure name mapping
   const adventureNames = {
     treasure: "Treasure Hunt",
     helping: "Helping a Friend"
@@ -50,7 +47,6 @@
     isMobile = window.innerWidth < 800;
   }
 
-  // Retrieve character data from sessionStorage on component mount
   onMount(() => {
     if (browser) {
       const storedCharacterName = sessionStorage.getItem('characterName');
@@ -75,12 +71,10 @@
         selectedAdventure = storedSelectedAdventure;
       }
       
-      // Load the selected adventure image from step 6
       const step6SelectedImage = getSelectedImageUrl('6');
       if (step6SelectedImage) {
         selectedAdventureImageUrl = step6SelectedImage;
       } else if (selectedWorld && selectedAdventure) {
-        // Fallback: try to get the adventure image from sessionStorage
         const adventureImageKey = `adventureImage_${selectedWorld}_${selectedAdventure}`;
         const storedAdventureImage = sessionStorage.getItem(adventureImageKey);
         if (storedAdventureImage) {
@@ -90,11 +84,9 @@
     }
   });
 
-  // Handle complete story creation button click
   const handleCompleteStoryCreation = async () => {
     try {
 
-      // Get current story state
       let currentState;
       const unsubscribe = storyCreation.subscribe(state => {
         console.log(state);
@@ -103,7 +95,6 @@
       unsubscribe();
       if (currentState) {
 
-        // Create story in database
         const storyData = {
           ...storyCreation.toStoryObject(currentState),
           user_id: $user?.id
@@ -114,10 +105,8 @@
         if (result.success) {
           console.log('Story created successfully:', result.data);
           
-          // Clear the story creation data after successful creation
           storyCreation.clear();
           
-          // Navigate to dashboard or success page
           goto('/dashboard');
         } else {
 
@@ -318,11 +307,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>

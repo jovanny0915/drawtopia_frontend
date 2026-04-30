@@ -20,7 +20,6 @@
   const STEP7_UNTITLED_COVER_IMAGE_KEY = "step7UntitledCoverImage";
   const CUSTOM_TITLE_OPTION = "Custom Title";
 
-  /** Matches theme ids saved in session on create-character/5 (+ selectedStoryThemeName) */
   const STORY_THEME_ID_TO_LABEL: Record<string, string> = {
     kindnessEmpathy: "Kindness & Empathy",
     bedtimeRoutineSleepHygiene: "Bedtime Routine",
@@ -140,7 +139,6 @@
       let worldAndStyleMatch = templateWorld === mappedWorld && templateStyle === mappedStyle;
 
       if (!templateResult.success || !matchedTemplate?.cover_image || !worldAndStyleMatch) {
-        // Fallback for environments where style-specific templates are not fully populated.
         templateResult = await getRandomTemplateByStoryWorld(mappedWorld, undefined, selectedFormat);
         matchedTemplate = templateResult.data;
         templateWorld = matchedTemplate?.story_world?.trim().toLowerCase();
@@ -309,7 +307,6 @@
       sessionStorage.setItem('storyTitle', effectiveTitle);
     }
 
-    // Apply selected title to the cover only when user continues.
     if (effectiveTitle) {
       await applySelectedTitleToCover(effectiveTitle);
     }
@@ -322,7 +319,7 @@
 
     storyCreation.setStoryPresentation(effectiveTitle, "Classic Storybook", coverImageUrlForFlow);
 
-    let dedicationPath = "/create-character/dedication/creation-link"; // Default to creation-link
+    let dedicationPath = "/create-character/dedication/creation-link";
 
     if (browser) {
       const giftMode = sessionStorage.getItem("gift_mode");
@@ -387,13 +384,11 @@
       </div>
     </div>
     {#if isGeneratingTitles}
-      <!-- Show only loading spinner while generating titles -->
       <div class="initial-loading-container">
         <img src={spinner} alt="Loading" class="spinner" />
         <div class="generating-text">Generating story titles...</div>
       </div>
     {:else}
-      <!-- Show main content after titles are generated -->
       <div class="frame-1410104031">
         <div class="frame-8">
           <div class="frame-1410104034">
@@ -614,11 +609,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -671,7 +661,6 @@
     top: 50%;
     transform: translateY(-50%);
     border-top: 12px solid transparent;
-    /* border-bottom: 12px solid transparent; */
     border-right: 18px solid #d9eaff;
   }
 

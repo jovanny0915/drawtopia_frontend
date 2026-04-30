@@ -73,7 +73,6 @@
     word-wrap: break-word;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 768px) {
     .primary_btn {
       padding-left: 20px;

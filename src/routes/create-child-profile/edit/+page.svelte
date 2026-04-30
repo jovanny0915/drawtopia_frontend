@@ -13,20 +13,17 @@
   import { addNotification } from "../../../lib/stores/notification";
   import { uploadAvatar } from "../../../lib/storage";
 
-  // Get child ID from URL params
   let childId: string = "";
   let childName: string = "";
   let childProfile: ChildProfile | null = null;
   let selectedAgeGroup = "";
   let showPhotoGuideModal = false;
 
-  // Form data - separate variables for editing
   let firstName = "";
   let ageGroup = "";
   let relationship = "";
   let avatarUrl = "";
 
-  // Image upload related variables
   let fileInput: HTMLInputElement;
   let selectedImage: File | null = null;
   let imagePreviewUrl: string | null = null;
@@ -34,7 +31,6 @@
   let uploadError = "";
   let uploadProgress = 0;
 
-  // Options for AdvancedSelect components
   const ageGroupOptions = [
     { value: "0-2", label: "👶 Ages 0-2 (tiny - Explorers)" },
     { value: "3-5", label: "👧 Ages 3-5 (Imagination Builders)" },
@@ -51,32 +47,25 @@
     { value: "Other", label: "Other" }
   ];
 
-  // Reactive statements for auth state (following main page pattern)
   $: currentUser = $user;
   $: loading = $authLoading;
   $: authenticated = $isAuthenticated;
   $: userId = currentUser?.id;
   
-  // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
 
-  // Check authentication on mount (client-side only)
   onMount(() => {
-    // Only run on client side
     if (browser) {
-      // Get parameters from URL
       const urlParams = $page.url.searchParams;
       childId = urlParams.get('id') || '';
       childName = urlParams.get('name') || '';
 
-      // Add a small delay to ensure auth state is fully loaded
       setTimeout(() => {
         if (safeToRedirect && !authenticated) {
           goto('/login');
           return;
         }
 
-        // Load child profile data
         if (childId && userId) {
           loadChildProfile(userId, parseInt(childId));
         } else if (safeToRedirect) {
@@ -90,7 +79,6 @@
     }
   });
 
-  // Reactive redirect when auth state changes (client-side only)
   $: if (safeToRedirect && !authenticated) {
     goto('/login');
   }
@@ -100,12 +88,10 @@
       const result = await getChildProfiles(userId);
       
       if (result.success && result.data) {
-        // Find the specific child profile
         const profile = result.data.find((p: ChildProfile) => p.id === profileId);
         
         if (profile) {
           childProfile = profile;
-          // Initialize form data with profile values
           firstName = profile.first_name;
           ageGroup = profile.age_group;
           relationship = profile.relationship;
@@ -141,7 +127,6 @@
 
   const handleAvatarUploaded = (newAvatarUrl: string) => {
     console.log("Avatar uploaded successfully:", newAvatarUrl);
-    // Update the form avatar URL
     avatarUrl = newAvatarUrl;
   };
 
@@ -162,14 +147,12 @@
     selectedImage = file;
     uploadError = "";
 
-    // Create preview URL
     const reader = new FileReader();
     reader.onload = (e) => {
       imagePreviewUrl = e.target?.result as string;
     };
     reader.readAsDataURL(file);
 
-    // Upload to Supabase
     if (!userId) {
       uploadError = "User not authenticated. Please log in to upload images.";
       addNotification({
@@ -226,7 +209,6 @@
   };
 
   const handleUpdateChild = async () => {
-    // Validation
     if (!firstName.trim()) {
       addNotification({
         type: 'error',
@@ -259,11 +241,9 @@
       return;
     }
 
-    // Show loading state
     uploading = true;
 
     try {
-      // Update child profile in database
       const result = await updateChildProfile(
         childProfile.id,
         {
@@ -281,7 +261,6 @@
           message: `${firstName}'s profile has been updated successfully!`
         });
         
-        // Navigate back to dashboard
         goto('/dashboard');
       } else {
         addNotification({
@@ -313,7 +292,6 @@
     if (browser && window.history.length > 1) {
       window.history.back();
     } else {
-      // Fallback to dashboard if no history
       goto('/dashboard');
     }
   };
@@ -387,7 +365,6 @@
                         Upload a photo of {firstName || 'Child'}
                       </span>
                     </div>
-                    <!-- Hidden file input -->
                     <input
                       type="file"
                       accept="image/png, image/jpeg, image/jpg, image/webp"
@@ -542,11 +519,6 @@
         </div>
         <div class="rectangle-34"></div>
         <div class="frame-1410103820">
-          <!--
-          <div class="privacy-policy">
-            <span class="privacypolicy_span">Privacy Policy</span>
-          </div>
-          -->
           <div class="terms-of-service">
             <span class="termsofservice_span">Terms of Service</span>
           </div>
@@ -838,7 +810,6 @@
     display: inline-flex;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .profile-creation-default {
       padding-left: 16px;
@@ -995,7 +966,6 @@
     }
   }
 
-  /* Extra small mobile devices */
   @media (max-width: 480px) {
     .profile-creation-default {
       padding-left: 12px;
@@ -1144,7 +1114,6 @@
     100% { transform: rotate(360deg); }
   }
 
-  /* Edit form specific styles */
   .edit-form-container {
     width: 100%;
   }

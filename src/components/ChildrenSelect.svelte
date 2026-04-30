@@ -20,7 +20,6 @@
 	function selectItem(value: string) {
 		selectedOption = value;
 		open = false;
-		// Create a lightweight change-like object compatible with handlers expecting e.target.value
 		const synthetic = ({ target: { value } } as unknown) as Event;
 		onChange && onChange(synthetic);
 	}

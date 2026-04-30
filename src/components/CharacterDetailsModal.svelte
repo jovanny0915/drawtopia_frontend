@@ -20,17 +20,14 @@
 
   export let character: any;
 
-  // Reactive books array that updates when character changes
   $: books = character?.stories || [];
 
   const dispatch = createEventDispatcher();
 
-  // Get character name
   const getCharacterName = () => {
     return character?.character_name || "Unnamed Character";
   };
 
-  // Get character type icon
   const getCharacterTypeIcon = () => {
     if (character?.character_type === "person") {
       return PersonSimple;
@@ -42,7 +39,6 @@
     return PersonSimple;
   };
 
-  // Get character type text
   const getCharacterTypeText = () => {
     if (character?.character_type === "person") {
       return "Person";
@@ -54,12 +50,10 @@
     return "Person";
   };
 
-  // Get special ability text
   const getSpecialAbility = () => {
     return character?.special_ability || "No special ability";
   };
 
-  // Get character style text
   const getCharacterStyle = () => {
     if (character?.character_style === "cartoon") {
       return "Cartoon";
@@ -71,19 +65,16 @@
     return "Cartoon";
   };
 
-  // Get image source
   const getImageSrc = () => {
     return character?.enhanced_images || character?.original_image_url || "https://placehold.co/125x127";
   };
 
   const formatDateOrUnknown = (d: string | undefined) => formatDate(d) || "Unknown";
 
-  // Get created date
   const getCreatedDate = () => {
     return formatDateOrUnknown(character?.created_at);
   };
 
-  // Get last used date (most recent book creation date)
   const getLastUsedDate = () => {
     if (books.length === 0) return "Never";
     const dates = books
@@ -93,107 +84,80 @@
     return dates.length > 0 ? formatDateOrUnknown(dates[0]) : "Never";
   };
 
-  // Get books count
   const getBooksCount = () => {
     return books.length;
   };
 
-  // Get story mode text
   const getStoryMode = (book: any) => {
-    // Determine if it's story_adventure or interactive_search based on available data
-    // For now, we'll default to "Story Mode" since the stories table doesn't store format type
-    // TODO: Add format_type field to stories table to distinguish between story_adventure and interactive_search
     return "Story Mode";
   };
 
-  // Handle close
   function handleClose() {
     dispatch("close");
   }
 
-  // Handle use in new book
   function handleUseInNewBook() {
     if (browser) {
-      // Get the character image URLs (handle both array and string formats)
       let characterImageUrl = '';
       let enhancedImageUrl = '';
       
-      // Get original image URL
       if (character.original_image_url) {
         characterImageUrl = character.original_image_url;
       }
       
-      // Get enhanced image URL (prefer enhanced over original)
       if (Array.isArray(character.enhanced_images) && character.enhanced_images.length > 0) {
         enhancedImageUrl = character.enhanced_images[0];
       } else if (typeof character.enhanced_images === 'string' && character.enhanced_images) {
         enhancedImageUrl = character.enhanced_images;
       }
       
-      // Use enhanced image if available, otherwise use original
       const selectedImageUrl = enhancedImageUrl || characterImageUrl;
       
-      // Map character_type: "magical_creature" -> "magical"
       let characterType = character.character_type || 'person';
       if (characterType === 'magical_creature') {
         characterType = 'magical';
       }
       
-      // Store all character information to sessionStorage
-      // Child profile information
       if (character.child_profile_id) {
         sessionStorage.setItem('selectedChildProfileId', character.child_profile_id.toString());
       }
       
-      // Use character name as child profile name if not available elsewhere
-      // This matches the pattern seen in the example where both are the same
       const childProfileName = character.character_name || '';
       sessionStorage.setItem('selectedChildProfileName', childProfileName);
       sessionStorage.setItem('selectedChildName', childProfileName);
       
-      // Character image information
       sessionStorage.setItem('characterImageUrl', characterImageUrl);
       
-      // Character basic information
       sessionStorage.setItem('characterName', character.character_name || '');
       sessionStorage.setItem('selectedCharacterType', characterType);
       sessionStorage.setItem('specialAbility', character.special_ability || '');
       sessionStorage.setItem('selectedStyle', character.character_style || '3d');
       
-      // Character ID
       if (character.id) {
         sessionStorage.setItem('characterId', character.id.toString());
       }
       
-      // Enhancement information (default to "normal" as seen in the example)
       sessionStorage.setItem('selectedEnhancement', 'normal');
       
-      // Enhanced image (use enhanced if available, otherwise use original)
       sessionStorage.setItem('selectedCharacterEnhancedImage', selectedImageUrl);
       sessionStorage.setItem('selectedImage_step4', selectedImageUrl);
     }
     
-    // Navigate to create character step 3 (book adventure style selection)
     goto('/create-character/3');
   }
 
-  // Handle edit character
   function handleEditCharacter() {
     if (character?.id) {
-      // Navigate to edit page with character ID as query parameter
       goto(`/create-character/edit?characterId=${character.id}`);
     } else {
-      // Fallback: dispatch event if no ID available
       dispatch("editCharacter", character);
     }
   }
 
-  // Handle delete character
   function handleDeleteCharacter() {
     dispatch("deleteCharacter", character);
   }
 
-  // Handle book click
   function handleBookClick(book: any) {
     dispatch("bookClick", book);
   }

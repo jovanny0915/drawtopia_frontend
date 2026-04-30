@@ -2,10 +2,10 @@
   export interface BookOption {
     id: string;
     title: string;
-    unlockTitle?: string; // Display name when unlocking (e.g., "The Starry Night Journey")
+    unlockTitle?: string;
     coverImageUrl: string;
-    pagesAvailable?: number; // e.g., 2 (pages 1-2)
-    pagesLocked?: number; // e.g., 3
+    pagesAvailable?: number;
+    pagesLocked?: number;
   }
 </script>
 
@@ -19,8 +19,8 @@
   import { getAllStoriesForParent } from "../lib/database/stories";
 
   export let books: BookOption[] = [];
-  export let userId: string | null = null; // User ID to fetch all un-purchased books
-  export let currentBookId: string | null = null; // ID of the book currently being read
+  export let userId: string | null = null;
+  export let currentBookId: string | null = null;
   export let creditsAvailable: number = 1;
   export let creditsTotal: number = 1;
 
@@ -30,7 +30,6 @@
   let isLoadingBooks = false;
   let fetchError = "";
 
-  // Fetch all un-purchased books when modal opens and userId is available
   async function fetchUnpurchasedBooks() {
     if (!userId || !userId.trim()) return;
     isLoadingBooks = true;
@@ -64,8 +63,6 @@
     if (userId) fetchUnpurchasedBooks();
   });
 
-  // Use fetched un-purchased books when available, otherwise fall back to prop
-  // Ensure current book from parent is in the list (in case fetch missed it)
   $: displayBooks = (() => {
     const list = fetchedBooks.length > 0 ? fetchedBooks : books;
     if (currentBookId && list.length > 0) {
@@ -83,7 +80,6 @@
   $: currentBook =
     booksWithCurrent.find((b) => b.id === effectiveCurrentId) ?? booksWithCurrent[0] ?? books[0];
 
-  // Selected book for unlock (user selection, falls back to current book)
   let selectedBookId = "";
   $: defaultSelection = effectiveCurrentId ?? booksWithCurrent[0]?.id ?? "";
   $: effectiveSelectedId = selectedBookId || defaultSelection;
@@ -139,7 +135,6 @@
 
       <div class="section-divider"></div>
 
-      <!-- Currently Reading -->
       {#if currentBook}
         <p class="section-label">You're currently reading</p>
         <div class="current-book-card">
@@ -162,7 +157,6 @@
 
       <div class="section-divider"></div>
 
-      <!-- Select a different book -->
       <p class="section-label">Or select a different book to unlock:</p>
       {#if isLoadingBooks}
         <div class="books-loading">Loading your books...</div>
@@ -185,7 +179,6 @@
       </div>
       {/if}
 
-      <!-- Footer -->
       <div class="modal-footer">
         <div class="unlock-info">
           <span class="unlock-label">Unlock: {getDisplayTitle(selectedBook)}</span>

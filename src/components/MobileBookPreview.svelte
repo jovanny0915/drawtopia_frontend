@@ -20,29 +20,23 @@
   let books: any[] = characterData?.stories || [];
 
   onMount(() => {
-    // console.log("characterData====================================>", characterData);
   });
 
   const dispatch = createEventDispatcher();
 
-  // Get book title
   const getBookTitle = (book: any) => {
     return book?.story_title || book?.title || "Untitled Story";
   };
 
-  // Get book image
   const getBookImage = (book: any) => {
     return book?.story_cover || book?.enhanced_images || "https://placehold.co/361x250";
   };
 
-  // Get character avatar
   const getCharacterAvatar = () => {
     return characterData?.enhanced_images || characterData?.original_image_url || "https://placehold.co/80x80";
   };
 
-  // Get story mode (Story Mode or Search Mode)
   const getStoryMode = (book: any) => {
-    // Check if it's a search mode book
     if (book?.status === "generating" || book?.book_type === "search" || book?.mode === "search") {
       return "Search Mode";
     }
@@ -58,17 +52,14 @@
     return dates[0];
   };
 
-  // Handle book click
   function handleBookClick(book: any) {
     dispatch("bookClick", book);
   }
 
-  // Handle back button click
   function handleBack() {
     dispatch("back");
   }
 
-  // Handle action buttons
   function handleUseInNewBook() {
     dispatch("useInNewBook", characterData);
   }
@@ -95,7 +86,6 @@
 </script>
 
 <div class="sidebar">
-  <!-- Back Button -->
   <div class="arrow">
     <div class="button" on:click={handleBack} role="button" tabindex="0" on:keydown={(e) => (e.key === "Enter" || e.key === " ") && handleBack()}>
       <div class="arrowleft">
@@ -107,7 +97,6 @@
 
   <div class="rectangle-42"></div>
 
-  <!-- Character Details Section -->
   <div class="frame-2147227593">
     <div class="frame-1410103944">
       <div><span class="characterdetails_span">Character Details</span></div>
@@ -171,7 +160,6 @@
     </div>
   </div>
 
-  <!-- Books Section -->
   <div class="frame-2147227595">
     <div class="frame-1410103944_01">
       <div><span class="booksfeaturingluna_span">Books featuring {characterName || "Character"}</span></div>
@@ -206,7 +194,6 @@
     </div>
   </div>
 
-  <!-- Action Buttons -->
   <div class="frame-1410103860">
     <div class="frame-2147227580">
       <div class="button_01" on:click={handleUseInNewBook} role="button" tabindex="0" on:keydown={(e) => (e.key === "Enter" || e.key === " ") && handleUseInNewBook()}>
@@ -275,7 +262,6 @@
     object-fit: contain;
   }
 
-  /* Text spans */
   .back_span {
     color: black;
     font-size: 16px;
@@ -411,7 +397,6 @@
     word-wrap: break-word;
   }
 
-  /* Layout elements */
   .back {
     text-align: center;
   }
@@ -428,7 +413,6 @@
     text-align: center;
   }
 
-  /* Dividers */
   .rectangle-42 {
     align-self: stretch;
     height: 1px;
@@ -459,7 +443,6 @@
     background: #EDEDED;
   }
 
-  /* Images */
   .frame-2147227588 {
     width: 80px;
     height: 80px;
@@ -479,7 +462,6 @@
     width: 100%;
   }
 
-  /* Special effects */
   .ellipse-1415 {
     width: 248px;
     height: 114px;
@@ -490,7 +472,6 @@
     border-radius: 9999px;
   }
 
-  /* Icon containers */
   .arrowleft {
     width: 20px;
     height: 20px;
@@ -587,7 +568,6 @@
     overflow: hidden;
   }
 
-  /* Buttons */
   .button {
     padding-left: 24px;
     padding-right: 24px;
@@ -677,7 +657,6 @@
     background: #ffe4ea;
   }
 
-  /* Icon groups */
   .icons {
     justify-content: flex-start;
     align-items: center;
@@ -730,7 +709,6 @@
     display: flex;
   }
 
-  /* Frame containers */
   .frame-1410103944 {
     align-self: stretch;
     justify-content: flex-start;
@@ -857,7 +835,6 @@
     opacity: 0.7;
   }
 
-  /* Layout sections */
   .arrow {
     align-self: stretch;
     padding-left: 20px;

@@ -17,34 +17,25 @@
   let dropdownElement: HTMLDivElement;
   let searchQuery = "";
 
-  // Get flag URL for a country code
   const getFlagUrl = (iso2: string): string | null => {
     if (!iso2 || !hasFlag(iso2)) return null;
-    // Use CDN for flag icons - this is the official CDN for country-flag-icons
-    // Alternative: You can copy flags to public folder and use: `/flags/3x2/${iso2}.svg`
     return `https://purecatamphetamine.github.io/country-flag-icons/3x2/${iso2}.svg`;
   };
 
-  // Get country name from normalized countries (English only, no language suffix)
   const getCountryName = (iso2: string): string => {
     const country = normalizedCountries.find((c) => c.iso2 === iso2);
     if (!country?.name) return iso2;
-    // Remove any language suffix in parentheses or brackets (e.g., "Country (English)" -> "Country")
     return country.name.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*\[[^\]]*\]\s*$/, '').trim();
   };
 
-  // Get selected country details
   $: selectedCountryData = selectedCountry
     ? normalizedCountries.find((c) => c.iso2 === selectedCountry)
     : null;
 
-  // Helper function to get English-only country name
   const getEnglishCountryName = (name: string): string => {
-    // Remove any language suffix in parentheses or brackets (e.g., "Country (English)" -> "Country")
     return name.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*\[[^\]]*\]\s*$/, '').trim();
   };
 
-  // Filter countries that have flags and apply search filter
   $: filteredCountries = normalizedCountries.filter((country) => {
     if (!hasFlag(country.iso2)) return false;
     if (!searchQuery.trim()) return true;
@@ -57,7 +48,6 @@
     );
   });
 
-  // Close dropdown when clicking outside
   const handleClickOutside = (event: MouseEvent) => {
     if (dropdownElement && !dropdownElement.contains(event.target as Node)) {
       showDropdown = false;

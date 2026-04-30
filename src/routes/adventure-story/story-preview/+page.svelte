@@ -39,7 +39,6 @@
         }
     }
 
-    /** Save current story as draft via backend API (before any other action). Returns story uid or null. */
     async function saveStoryDraft(): Promise<string | null> {
         const currentUser = $user;
         if (!currentUser?.id) return null;
@@ -158,7 +157,6 @@
         isMobile = window.innerWidth < 800;
     }
 
-    // Helper functions for display names
     function getCharacterTypeDisplayName(type: string): string {
         if (!type) return "[Type]";
         const typeMap: { [key: string]: string } = {
@@ -181,7 +179,6 @@
         return worldMap[world.toLowerCase()] || world;
     }
 
-    /** Learning themes (adventure story flow) — keys match sessionStorage `storyTheme`. */
     function getThemeDisplayName(themeKey: string | undefined | null): string {
         if (!themeKey) return "";
         const themeMap: { [key: string]: string } = {
@@ -223,8 +220,6 @@
         return styleMap[style.toLowerCase()] || style;
     }
 
-    // Initialize store on mount (restore from sessionStorage on refresh or return from payment)
-    // If URL has storyId (e.g. from dashboard "Edit Book"), load that story from Supabase and hydrate store
     onMount(async () => {
         if (browser) {
             const editStoryId = $page.url.searchParams.get("storyId");
@@ -264,10 +259,8 @@
         if (e.target === e.currentTarget) closeCreditErrorModal();
     }
 
-    // Reactive store subscription
     $: storyState = $storyCreation;
 
-    // SessionStorage fallbacks so images persist on refresh (store may be empty before init)
     $: storyCover = storyState?.storyCover
         || (browser && (sessionStorage.getItem('storyCover') || sessionStorage.getItem('selectedImage_step6')))
         || "https://placehold.co/287x431";
@@ -275,7 +268,6 @@
         || (browser && (sessionStorage.getItem('characterImageUrl') || sessionStorage.getItem('selectedCharacterEnhancedImage')))
         || "https://placehold.co/91x90";
 
-    // Computed values for display
     $: storyTitle = storyState?.storyTitle || (browser && sessionStorage.getItem('storyTitle')) || "[Storybook Title]";
     $: characterName = storyState?.characterName || (browser && sessionStorage.getItem('characterName')) || "[Character Name]";
     $: characterType = storyState?.characterType || (browser && sessionStorage.getItem('selectedCharacterType')) || "";
@@ -290,7 +282,6 @@
     $: worldDisplay = getWorldDisplayName(storyWorld);
     $: styleDisplay = getStyleDisplayName(characterStyle);
 
-    // Adventure story = show audio version; interactive search story = hide it
     $: isAdventureStory = (storyState?.selectedFormat || (browser && sessionStorage.getItem('selectedFormat')) || 'story') === 'story';
 
     $: storyThemeKey =
@@ -305,7 +296,6 @@
 </script>
 
 <div class="story-preview-summary-default">
-    <!-- Credit Error Notification Toast (premium, 0 credits) -->
     {#if showCreditErrorNotification}
         <div class="credit-error-toast">
             <div class="credit-error-toast-content">
@@ -319,7 +309,6 @@
         </div>
     {/if}
 
-    <!-- Credit Error Modal (free plan, 0 credits) -->
     {#if showCreditErrorModal}
         <div
             class="credit-error-modal-overlay"
@@ -717,7 +706,6 @@
 </div>
 
 <style>
-    /* Credit Error Toast Notification - from right with animation */
     .credit-error-toast {
         position: fixed;
         top: 24px;
@@ -761,7 +749,6 @@
     }
 
     .warning-icon {
-        /* White SVG → #DF1C41 red */
         filter: brightness(0) invert(27%) sepia(98%) saturate(2476%) hue-rotate(330deg) brightness(87%) contrast(91%);
     }
 
@@ -783,7 +770,6 @@
         word-wrap: break-word;
     }
 
-    /* Credit Error Modal (free plan, 0 credits) */
     .credit-error-modal-overlay {
         position: fixed;
         inset: 0;
@@ -1073,7 +1059,6 @@
     }
 
     .help-a-friend {
-        /* width: 150px; */
     }
 
     .format_span {
@@ -2139,7 +2124,6 @@
         text-align: center;
     }
 
-    /* Mobile Responsive Styles */
     @media (max-width: 768px) {
         .story-preview-summary-default {
             padding-top: 24px;

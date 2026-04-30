@@ -15,7 +15,7 @@
     import { getAdventureStoryTemplatePages } from '../../../lib/adventureStoryTextTemplates';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
-    import promptImageData from '../../../lib/prompt_image.json';
+    import { getPromptImageData, loadRuntimePromptDocuments } from '../../../lib/promptRuntime';
     import drawtopia from "../../../assets/logo.webp";
     import shieldstar from "../../../assets/ShieldStar.svg";
     import arrowleft from "../../../assets/ArrowLeft.svg";
@@ -37,70 +37,55 @@
     let intervalId: number | null = null;
     let hasNavigated = false;
     let storyGenerated = false;
-    let storyTextProgress = 0; // 0-50% for story text
-    let sceneImageProgress = 0; // 0-50% for scene images (50-100% total)
-    let totalSceneImages = 5; // Expected number of scene images
-    let isCancelled = false; // Cancellation flag
-    let previewImage1: string | null = null; // Preview image 1
-    let previewImage2: string | null = null; // Preview image 2
-    let previewImage3: string | null = null; // Preview image 3 (first scene preview)
+    let storyTextProgress = 0;
+    let sceneImageProgress = 0;
+    let totalSceneImages = 5;
+    let isCancelled = false;
+    let previewImage1: string | null = null;
+    let previewImage2: string | null = null;
+    let previewImage3: string | null = null;
 
-    // Blank white image for slots that should show no image yet
     const BLANK_WHITE_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='171' height='218'%3E%3Crect fill='%23ffffff' width='171' height='218'/%3E%3C/svg%3E";
 
-    // Preview slot sources: use only local assets by percentage (no Supabase/S3 links)
-    // <30%: first asset only; <60%: first + second; >=90%: all three
     $: displayImage1 = firstGeneration;
     $: displayImage2 = completionPercent < 30 ? BLANK_WHITE_IMAGE : secondGeneration;
     $: displayImage3 = completionPercent < 60 ? BLANK_WHITE_IMAGE : thirdGeneration;
 
-    // Spinner visibility: <30% slot1, <60% slot2, >60% slot3
     $: showSpinnerSlot1 = completionPercent < 30;
     $: showSpinnerSlot2 = completionPercent >= 30 && completionPercent < 75;
     $: showSpinnerSlot3 = completionPercent > 75;
 
-    // Determine which magical wand GIF to show based on completion percentage
     $: currentMagicalWand = completionPercent < 25 
         ? magicalwand 
         : completionPercent < 50 
         ? magicalwand1 
         : magicalwand2;
 
-    // Keep countdown synchronized with visual progress updates.
     $: timeRemaining = storyGenerated
         ? 0
         : Math.max(1, ESTIMATED_GENERATION_SECONDS - Math.round(completionPercent));
 
-    // Track story type (interactive or story) — only read from sessionStorage in browser (SSR-safe)
     $: storyType = browser ? normalizeSelectedStoryFormat(sessionStorage.getItem('selectedFormat')) : 'story';
 
-    // Navigate to appropriate page when completion reaches 100%
     $: if (completionPercent >= 100 && !hasNavigated && storyGenerated) {
         hasNavigated = true;
-        // Small delay to ensure UI updates before navigation
         setTimeout(() => {
             if (storyType === 'interactive') {
-                // Land on adventure-story first; that page sends interactive stories to /intersearch/1
                 if (browser) {
                     sessionStorage.setItem('postInteractiveGeneration', '1');
                 }
                 goto('/adventure-story');
             } else {
-                // Check if gift_mode is "create" for regular stories
                 const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
                 if (giftMode === 'create') {
-                    // Story ID is already stored in sessionStorage as 'currentStoryId'
-                    // Navigate to gift send link page
                     goto('/gift/sendlink/1');
                 } else {
-                    // Navigate to adventure story final page
                     goto('/adventure-story/final');
                 }
             }
         }, 500);
     }
 
-    // Helper function to map character type enum to descriptive string
     function mapCharacterType(type: string | undefined): string {
         if (!type) return 'person';
         const typeMap: { [key: string]: string } = {
@@ -111,8 +96,6 @@
         return typeMap[type.toLowerCase()] || 'a person';
     }
 
-    // Helper function to map story world enum to prompt builder format
-    // The prompt builder expects: 'enchanted-forest', 'outer-space', or 'underwater-kingdom'
     function mapStoryWorld(world: string | undefined): string {
         if (!world) return 'enchanted-forest';
         const worldMap: { [key: string]: string } = {
@@ -143,7 +126,6 @@
         const normalized = (value || '').toLowerCase().trim();
         if (!normalized) return null;
 
-        // Keep compatibility with existing/legacy DB values.
         if (['interactive', 'search', 'search-and-find', 'search_and_find', 'intersearch'].includes(normalized)) {
             return 'interactive';
         }
@@ -151,7 +133,6 @@
             return 'story';
         }
 
-        // Legacy style labels (3d/anime/cartoon) are not reliable story-type markers.
         return null;
     }
 
@@ -195,7 +176,6 @@
             ? templates.find((template) => template.id === requestedTemplateId)
             : null;
 
-        // First choice: requested template when it exactly matches world + type.
         if (
             requestedTemplate &&
             normalizeTemplateStoryWorld(requestedTemplate.story_world) === targetWorld &&
@@ -204,13 +184,11 @@
             return requestedTemplate;
         }
 
-        // Second choice: any template that matches world + type.
         if (worldAndTypeMatches.length > 0) {
             const randomIndex = Math.floor(Math.random() * worldAndTypeMatches.length);
             return worldAndTypeMatches[randomIndex];
         }
 
-        // Third choice: world-only match (for older templates missing story_style).
         const worldOnlyMatches = templates.filter(
             (template) => normalizeTemplateStoryWorld(template.story_world) === targetWorld
         );
@@ -225,12 +203,9 @@
             return worldOnlyMatches[randomIndex];
         }
 
-        // Final fallback: requested template (if any) or first template.
         return requestedTemplate || templates[0];
     }
 
-    // Helper function to map adventure type enum to prompt builder format
-    // The prompt builder expects: 'Treasure Hunt' or 'Helping a Friend'
     function mapAdventureType(adventure: string | undefined): string {
         if (!adventure) return 'Treasure Hunt';
         const adventureMap: { [key: string]: string } = {
@@ -286,22 +261,16 @@
             .trim();
     }
 
-    // Helper function to normalize age group to backend format
     function normalizeAgeGroup(ageGroup: string | undefined): string {
-        if (!ageGroup) return '7-10'; // Default age group
-        // Backend expects "3-6", "7-10", or "11-12"
-        // Map common variations
+        if (!ageGroup) return '7-10';
         const normalized = ageGroup.trim();
         if (normalized === '3-5' || normalized === '3-6') return '3-6';
         if (normalized === '6-7' || normalized === '7-10' || normalized === '8-10') return '7-10';
         if (normalized === '11-12') return '11-12';
-        // If already in correct format, return as is
         if (['3-6', '7-10', '11-12'].includes(normalized)) return normalized;
-        // Default fallback
         return '7-10';
     }
 
-    // Scene titles for interactive stories
     const sceneTitles: { [key: string]: string[] } = {
         "enchanted-forest": [
             "The Magical Forest",
@@ -323,7 +292,6 @@
         ],
     };
 
-    // Get scene-specific information for prompts
     function getSceneInfo(world: string, sceneIndex: number): {
         sceneDescription: string;
         characterAction: string;
@@ -420,7 +388,6 @@
         return worldScenes[sceneIndex] || worldScenes[0];
     }
 
-    // Cancel generation and navigate back
     function handleCancel() {
         isCancelled = true;
         if (intervalId !== null) {
@@ -430,16 +397,13 @@
         goto('/adventure-story/story-preview');
     }
 
-    // Generate interactive intersearch story
     async function generateIntersearchStory() {
         if (isCancelled) return;
         
         try {
-            // Initialize story creation store
             storyCreation.init();
             const storyState = get(storyCreation);
             
-            // Get character data
             const characterName = storyState.characterName || sessionStorage.getItem('characterName') || 'Character';
             const characterType = storyState.characterType || sessionStorage.getItem('selectedCharacterType') || 'person';
             const specialAbility = storyState.specialAbility || sessionStorage.getItem('specialAbility') || '';
@@ -448,7 +412,6 @@
             
             const selectedDifficulty = browser ? (sessionStorage.getItem('intersearch_difficulty') || 'medium') : 'medium';
             
-            // Get age group
             let ageGroup = '7-10';
             if (selectedDifficulty === 'easy') {
                 ageGroup = '3-6';
@@ -458,14 +421,13 @@
                 ageGroup = '11-12';
             }
             
-            // Get character image URL
             let characterImageUrl: string | null = null;
             if (browser) {
                 characterImageUrl = sessionStorage.getItem('selectedCharacterEnhancedImage') ||
                                    sessionStorage.getItem('characterImageUrl') ||
                                    storyState.originalImageUrl || null;
                 if (characterImageUrl) {
-                    characterImageUrl = characterImageUrl.split('?')[0]; // Clean URL
+                    characterImageUrl = characterImageUrl.split('?')[0];
                 }
             }
             
@@ -473,34 +435,29 @@
                 throw new Error('Character image URL is required for interactive story generation');
             }
             
-            // Set preview images
             if (browser && characterImageUrl) {
                 previewImage1 = characterImageUrl;
                 previewImage2 = characterImageUrl;
             }
             
-            // Update progress: Starting generation (5%)
             storyTextProgress = 5;
             
-            // Map world to prompt builder format
             const rawWorldForTemplate = browser
                 ? (sessionStorage.getItem('intersearch_world') || sessionStorage.getItem('selectedWorld') || 'enchanted-forest')
                 : 'enchanted-forest';
             const storyWorldKey = mapStoryWorld(rawWorldForTemplate);
 
-            // Check if cover already exists (from step 6/7)
             let existingCoverUrl: string | null = null;
             if (browser) {
                 existingCoverUrl = sessionStorage.getItem('selectedImage_step6') || 
                                   storyState.storyCover || 
                                   null;
                 if (existingCoverUrl) {
-                    existingCoverUrl = existingCoverUrl.split('?')[0]; // Clean URL
+                    existingCoverUrl = existingCoverUrl.split('?')[0];
                     console.log('Using existing cover:', existingCoverUrl);
                 }
             }
             
-            // Interactive book template (same selection rules as adventure story, type = interactive)
             const { data: templates } = await getBookTemplates();
             const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
             const bookTemplate = selectMatchingBookTemplate(
@@ -526,7 +483,6 @@
 
             storyTextProgress = 15;
 
-            // Cover: user-selected from flow, else template cover, else character reference (so DB always has cover + scenes)
             const generatedImages: string[] = [];
             if (!existingCoverUrl && bookTemplate.cover_image) {
                 existingCoverUrl = bookTemplate.cover_image.split('?')[0];
@@ -546,11 +502,8 @@
                 console.warn('No cover image available; interactive story may be missing a cover');
             }
 
-            // Main story pages only (8), same pattern as adventure (5): prompt_image.json interactive + /generate-cover-image
             const sceneCount = INTERACTIVE_STORY_PAGE_COUNT;
-            // Product request: for the 8 main story pages, do not AI-generate page 4 — keep the original template image for display + saving.
-            const SKIP_INTERACTIVE_MAIN_STORY_PAGE_INDEX = 3; // 0-based => page 4
-            // Pages 5-8 (indices 4-7): embed character onto template instead of generating new scene
+            const SKIP_INTERACTIVE_MAIN_STORY_PAGE_INDEX = 3;
 
             for (let i = 0; i < sceneCount; i++) {
                 if (isCancelled) return;
@@ -561,7 +514,6 @@
                 const templateSceneImage = bookTemplate.story_page_images[i];
                 const fallbackUrl = templateSceneImage ? templateSceneImage.split('?')[0] : '';
 
-                // Page 4: skip generation and use the untouched template artwork.
                 if (i === SKIP_INTERACTIVE_MAIN_STORY_PAGE_INDEX) {
                     if (fallbackUrl) {
                         generatedImages.push(fallbackUrl);
@@ -570,13 +522,12 @@
                     continue;
                 }
 
-                // Pages 5-8 (indices 4-7): generate character, then embed onto template
                 if (i >= 4 && i <= 7) {
                     try {
-                        // Step 1: Generate character by replacing main character with reference character
                         const mainCharacterImageIndex = i % Math.max(1, bookTemplate.main_character_images?.length || 1);
                         const mainCharacterImage = bookTemplate.main_character_images?.[mainCharacterImageIndex] || characterImageUrl;
-                        const characterReplacementPrompt = "Replace the original main character of the template character image with the reference character of the reference character image. When replacing the character, the exact same pose, the exact same action, the exact same facing direction, the exact same  body orientation, the exact same head angle, the exact same arm and leg positions, the exact same hands, the exact same height, the exact same size and the exact same scale, and the exact same facial expression of the original main character of template character image must be perfectly applied to the replaced character. Strictly transfer the exact same pose, the exact same action and the exact same direction of body, the exact same height, the exact same size and the exact same scale of the original main character onto the replaced character without any changes. Enforce a clean solid pure white background (#FFFFFF) with no gradients, no shadows, no artifacts, no floor, or any other elements. High-quality, sharp details, 500x500 PNG.";
+                        const promptImageData = getPromptImageData();
+                        const characterReplacementPrompt = promptImageData.interactiveCharacterReplacementPrompt;
 
                         let genResult = await generateImageWithTwoTemplates(mainCharacterImage, characterImageUrl, characterReplacementPrompt);
                         if (!(genResult.success && genResult.url)) {
@@ -584,8 +535,6 @@
                         }
 
                         if (genResult.success && genResult.url) {
-                            // Step 2: Embed generated character onto template background using position and scale from prompt_image.json
-                            // Get position and scale from prompt_image.json
                             const storyStyleKey = characterStyle as '3d' | 'cartoon' | 'anime';
                             const storyWorldKey = normalizeTemplateStoryWorld(rawWorldForTemplate);
                             const pagePositionScales = promptImageData.interactiveStoryStyleWorldPagePrompts?.[storyStyleKey]?.[storyWorldKey]?.pagePositionScales as any;
@@ -635,7 +584,6 @@
                     continue;
                 }
 
-                // Pages 1-3: generate new scenes with character replacement
                 const storyPagePrompt = buildStoryPagePrompt(
                     pageNumber,
                     sceneInfo.storyContext,
@@ -679,14 +627,12 @@
             
             if (isCancelled) return;
             
-            // Verify we have at least the cover (if existing) or some scenes
             if (generatedImages.length === 0) {
                 throw new Error('Failed to generate any images');
             }
 
             const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
 
-            // Store template images to sessionStorage (copyright, dedication, last words, admin, back cover)
             if (bookTemplate && browser) {
                 if (bookTemplate.copyright_page_image) sessionStorage.setItem('copyright_image', bookTemplate.copyright_page_image);
                 if (bookTemplate.dedication_page_image) sessionStorage.setItem('dedication_image', bookTemplate.dedication_page_image);
@@ -695,28 +641,23 @@
                 if (bookTemplate.back_cover_image) sessionStorage.setItem('back_cover_image', bookTemplate.back_cover_image);
             }
 
-            // Update progress: All images generated (100%)
             storyTextProgress = 100;
-            sceneImageProgress = 0; // Not used for interactive stories
+            sceneImageProgress = 0;
             
-            // Save to database
             await saveIntersearchStoryToDatabase(generatedImages, storyWorldKey, selectedDifficulty, characterImageUrl, dedicationText, null);
             
             storyGenerated = true;
         } catch (error) {
             console.error('Error generating interactive story:', error);
-            // Set error flag in sessionStorage
             if (browser) {
                 sessionStorage.setItem('storyGenerationError', 'true');
             }
-            // Set progress to 100% to allow navigation even on error
             storyTextProgress = 100;
             sceneImageProgress = 0;
             storyGenerated = true;
         }
     }
 
-    // Save interactive story to database
     async function saveIntersearchStoryToDatabase(
         sceneImages: string[],
         world: string,
@@ -739,7 +680,6 @@
             const characterStyle = storyState.characterStyle || sessionStorage.getItem('selectedStyle') || 'cartoon';
             const storyTitle = storyState.storyTitle || sessionStorage.getItem('storyTitle') || `${characterName}'s Search Adventure`;
             
-            // Map world names to database format
             const worldMap: { [key: string]: 'forest' | 'space' | 'underwater' } = {
                 'enchanted-forest': 'forest',
                 'outer-space': 'space',
@@ -750,7 +690,6 @@
             };
             const dbWorld = worldMap[world] || 'forest';
             
-            // Map character type to database format
             const typeMap: { [key: string]: 'person' | 'animal' | 'magical_creature' } = {
                 'person': 'person',
                 'animal': 'animal',
@@ -759,7 +698,6 @@
             };
             const dbType = typeMap[characterType] || 'person';
             
-            // Prepare story content for search adventure
             const storyContent = {
                 type: 'search_adventure',
                 cover: sceneImages[0]?.split('?')[0] || undefined,
@@ -773,15 +711,12 @@
                 difficulty: difficulty
             };
             
-            // Get character_id from sessionStorage
             const characterIdStr = browser ? sessionStorage.getItem('characterId') : null;
             const characterId = characterIdStr ? parseInt(characterIdStr) : undefined;
-            // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
             const currentStoryIdInter = browser ? sessionStorage.getItem('currentStoryId') : null;
             
-            // Get template images from sessionStorage (stored in generateIntersearchStory)
             const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
             const copyrightImage = browser ? sessionStorage.getItem('copyright_image') : null;
             const templateDedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
@@ -789,7 +724,6 @@
             const lastAdminImage = browser ? sessionStorage.getItem('last_admin_image') : null;
             const backCoverImage = browser ? sessionStorage.getItem('back_cover_image') : null;
             
-            // Prepare story data. Include uid when continued from draft so we update instead of insert.
             const storyData = {
                 ...(currentStoryIdInter ? { uid: currentStoryIdInter } : {}),
                 user_id: $user?.id,
@@ -830,14 +764,12 @@
                 const storyId = (result.data.uid ?? result.data.id ?? currentStoryIdInter)?.toString();
                 if (browser && storyId) {
                     sessionStorage.setItem('currentStoryId', storyId);
-                    // Clear any error flag since story was saved successfully
                     sessionStorage.removeItem('storyGenerationError');
                     storyCreation.update(state => ({
                         ...state,
                         storyId: storyId
                     }));
 
-                    // If gift_mode is 'generation', update the gifts table with the new story_id
                     const giftMode = sessionStorage.getItem('gift_mode');
                     if (giftMode === 'generation') {
                         const giftId = sessionStorage.getItem('gift_id');
@@ -855,7 +787,6 @@
                         }
                     }
 
-                    // Send book completion email after successful story save
                     await sendBookCompletionEmailAfterSave(
                         storyId,
                         storyState,
@@ -863,7 +794,6 @@
                         'interactive_search'
                     );
 
-                    // Deduct 1 credit from current user when story generation completes successfully
                     const accessToken = get(session)?.access_token;
                     if (accessToken) {
                         const API_BASE_URL = (env.API_BASE_URL || '').replace('/api', '') || 'http://localhost:8000';
@@ -893,21 +823,18 @@
                 }
             } else {
                 console.error('Failed to save interactive story:', result.error);
-                // Set error flag if story save fails
                 if (browser) {
                     sessionStorage.setItem('storyGenerationError', 'true');
                 }
             }
         } catch (error) {
             console.error('Error saving interactive story to database:', error);
-            // Set error flag if story save fails
             if (browser) {
                 sessionStorage.setItem('storyGenerationError', 'true');
             }
         }
     }
 
-    // Helper function to send book completion email after successful story save
     async function sendBookCompletionEmailAfterSave(
         storyId: string,
         storyState: any,
@@ -915,18 +842,15 @@
         bookFormat: string = 'story_adventure'
     ) {
         try {
-            // Get user information
             if (!$user?.id || !$user?.email) {
                 console.warn('Cannot send book completion email: User not available');
                 return;
             }
 
-            // Get user name
             const parentName = ($user.first_name && $user.last_name) 
                 ? `${$user.first_name} ${$user.last_name}`.trim()
                 : $user.first_name || $user.last_name || 'there';
 
-            // Get child profile name and age_group (for adventure-story)
             let childName = 'your child';
             let ageGroup: string | undefined;
             if (storyState.selectedChildProfileId && storyState.selectedChildProfileId !== 'undefined') {
@@ -946,19 +870,16 @@
                 }
             }
 
-            // Build preview and download links
             const frontendUrl = browser ? window.location.origin : 'https://drawtopia.com';
             const previewLink = `${frontendUrl}/story/${storyId}`;
             const downloadLink = `${frontendUrl}/api/books/${storyId}/download`;
 
-            // Get character details
             const characterName = storyState.characterName || 'Your Character';
             const characterType = storyState.characterType || 'Character';
             const specialAbility = storyState.specialAbility || 'special powers';
             const storyWorld = storyState.storyWorld;
             const storyTheme = storyState.storyTheme;
 
-            // Send book completion email (variables sent depend on bookFormat: interactive_search vs adventure-story)
             console.log('Sending book completion email...');
             const emailResult = await sendBookCompletionEmail(
                 $user.email,
@@ -980,15 +901,12 @@
                 console.log('✅ Book completion email sent successfully');
             } else {
                 console.error('❌ Failed to send book completion email:', emailResult.error);
-                // Don't throw error - email failure shouldn't block the user
             }
         } catch (error) {
             console.error('Error sending book completion email:', error);
-            // Don't throw error - email failure shouldn't block the user
         }
     }
 
-    // Save story to Supabase database
     async function saveStoryToDatabase(
         storyPages: Array<{ pageNumber: number; text: string; scene?: string }>,
         sceneImages: string[],
@@ -998,7 +916,6 @@
             const storyState = get(storyCreation);
             console.log('storyState', storyState);
             
-            // Validate required data
             if (!storyState.selectedChildProfileId || storyState.selectedChildProfileId === 'undefined') {
                 console.warn('Cannot save story: No child profile selected');
                 return;
@@ -1009,7 +926,6 @@
                 return;
             }
 
-            // Get original image URL from session storage or story state
             let originalImageUrl = storyState.originalImageUrl;
             if (!originalImageUrl && browser) {
                 originalImageUrl = sessionStorage.getItem('characterImageUrl') || 
@@ -1021,8 +937,6 @@
                 return;
             }
 
-            // Format story_content as JSON
-            // Store story pages with their text, associated scene images, and audio URLs
             const storyContent = {
                 pages: storyPages.map((page, index) => ({
                     pageNumber: page.pageNumber || index + 1,
@@ -1031,11 +945,9 @@
                 }))
             };
 
-            // Get character_id from sessionStorage
             const characterIdStr = browser ? sessionStorage.getItem('characterId') : null;
             const characterId = characterIdStr ? parseInt(characterIdStr) : undefined;
 
-            // Get dedication text and image from sessionStorage
             const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
             const dedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
             const bookTemplateId = browser ? sessionStorage.getItem('bookTemplateId') : null;
@@ -1052,11 +964,9 @@
                 backCoverImage: !!backCoverImage
             });
 
-            // Determine purchased: true if story was generated as a gift (gift_mode === 'create' or 'generation'), otherwise false
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
             const currentStoryId = browser ? sessionStorage.getItem('currentStoryId') : null;
-            // Prepare story data (for create or for update payload). Include uid when continued from draft so we update instead of insert.
             const storyData = {
                 ...(currentStoryId ? { uid: currentStoryId } : {}),
                 user_id: $user?.id,
@@ -1103,18 +1013,15 @@
 
             if (result.success && result.data) {
                 console.log('Story saved successfully:', result.data);
-                // Store story ID in session storage and story creation store (use existing uid when we updated)
                 const storyId = (result.data.uid ?? result.data.id ?? currentStoryId)?.toString();
                 if (browser && storyId) {
                     sessionStorage.setItem('currentStoryId', storyId);
-                    // Clear any error flag since story was saved successfully
                     sessionStorage.removeItem('storyGenerationError');
                     storyCreation.update(state => ({
                         ...state,
                         storyId: storyId
                     }));
 
-                    // If gift_mode is 'generation', update the gifts table with the new story_id
                     const giftMode = sessionStorage.getItem('gift_mode');
                     if (giftMode === 'generation') {
                         const giftId = sessionStorage.getItem('gift_id');
@@ -1134,7 +1041,6 @@
                         }
                     }
 
-                    // Send book completion email after successful story save (adventure-story format)
                     await sendBookCompletionEmailAfterSave(
                         storyId,
                         storyState,
@@ -1142,7 +1048,6 @@
                         'adventure-story'
                     );
 
-                    // Deduct 1 credit from current user when story generation completes successfully
                     const accessToken = get(session)?.access_token;
                     if (accessToken) {
                         const API_BASE_URL = (env.API_BASE_URL || '').replace('/api', '') || 'http://localhost:8000';
@@ -1172,14 +1077,12 @@
                 }
             } else {
                 console.error('Failed to save story:', result.error);
-                // Set error flag if story save fails
                 if (browser) {
                     sessionStorage.setItem('storyGenerationError', 'true');
                 }
             }
         } catch (error) {
             console.error('Error saving story to database:', error);
-            // Set error flag if story save fails
             if (browser) {
                 sessionStorage.setItem('storyGenerationError', 'true');
             }
@@ -1198,7 +1101,6 @@
             const backendBaseUrl = (env.API_BASE_URL || env.PUBLIC_BACKEND_URL || '').replace(/\/api\/?$/, '').replace(/\/$/, '') || 'http://localhost:8000';
             const headers = { 'Content-Type': 'application/json' };
 
-            // ——— Gather all data from sessionStorage first (fallback to store) ———
             const characterName = (browser ? sessionStorage.getItem('characterName') : null) || storyState.characterName || '';
             const characterType = (browser ? sessionStorage.getItem('selectedCharacterType') : null) || storyState.characterType || 'person';
             const specialAbility = (browser ? sessionStorage.getItem('specialAbility') : null) || storyState.specialAbility || '';
@@ -1223,7 +1125,6 @@
                         ageGroup = normalizeAgeGroup(childProfile.age_group);
                     }
                 } catch {
-                    // keep default
                 }
             }
 
@@ -1243,7 +1144,6 @@
                 return;
             }
 
-            // ——— Step 1: Resolve story text from fixed adventure templates ———
             if (isCancelled) return;
             storyTextProgress = 5;
             console.log('Step 1: Resolving story text from fixed templates...');
@@ -1270,7 +1170,6 @@
                 });
             }
 
-            // ——— Step 2: Generate story page images 1–5 via /generate-cover-image ———
             if (isCancelled) return;
             sceneImageProgress = 0;
             console.log('Step 2: Generating story page images (1–5) with /generate-cover-image...');
@@ -1293,7 +1192,6 @@
             );
 
             if (browser && bookTemplate?.id && bookTemplate.id !== bookTemplateId) {
-                // Persist the matched template so next steps stay consistent.
                 sessionStorage.setItem('bookTemplateId', bookTemplate.id);
             }
 
@@ -1307,7 +1205,6 @@
                 if (isCancelled) return;
                 const page = storyPagesTextOnly[i];
                 const pageNumber = (page?.pageNumber) || i + 1;
-                // Template = scene image with placeholder character; we replace that character with the user's reference character.
                 const templateSceneImage = bookTemplate.story_page_images[i];
                 const fallbackUrl = templateSceneImage ? templateSceneImage.split('?')[0] : '';
                 if (!page?.text || !templateSceneImage) {
@@ -1331,7 +1228,6 @@
                         characterImageUrl: cleanCharacterImageUrl,
                         storyFormat: selectedFormat
                     });
-                    // Generate story page by replacing reference character into template scene (template first, character second).
                     let result = await generateImageWithTwoTemplates(templateSceneImage, cleanCharacterImageUrl, storyPagePrompt);
                     if (!(result.success && result.url)) {
                         result = await generateImageWithTwoTemplates(templateSceneImage, cleanCharacterImageUrl, storyPagePrompt);
@@ -1376,7 +1272,6 @@
             storyTextProgress = 50;
             sceneImageProgress = 50;
 
-            // ——— Step 3: Narration audio for pages 1–5 (same stripped text as saved story_content) ———
             let audioUrls: (string | null)[] = [];
             if (!isCancelled) {
                 console.log('Step 3: Generating story page audio (/story/generate-audio)...');
@@ -1410,14 +1305,13 @@
     }
 
     onMount(async () => {
-        // Initialize story creation store
+        await loadRuntimePromptDocuments();
+
         if (browser) {
             storyCreation.init();
-            // Check story type from sessionStorage
             storyType = normalizeSelectedStoryFormat(sessionStorage.getItem('selectedFormat'));
         }
 
-        // Progress ticker: increase exactly 1% while generation is running.
         intervalId = window.setInterval(() => {
             if (storyGenerated) {
                 completionPercent = 100;
@@ -1433,7 +1327,6 @@
         }, 1000);
 
         
-        // Initialize preview images from sessionStorage
         if (browser) {
             const characterImage = sessionStorage.getItem('selectedCharacterEnhancedImage') ||
                                   sessionStorage.getItem('characterImageUrl') || null;
@@ -1443,7 +1336,6 @@
             }
         }
 
-        // Set current story status to "generating" in Supabase before starting generation
         const storyGenerationEndpoint = 'https://image-edit-five.vercel.app';
         const currentStoryId = browser ? sessionStorage.getItem('currentStoryId') : null;
         if (currentStoryId) {
@@ -1463,7 +1355,6 @@
             }
         }
         
-        // Generate story immediately when page loads based on story type
         if (storyType === 'interactive') {
             await generateIntersearchStory();
         } else {
@@ -2155,7 +2046,6 @@
         height: 100%;
     }
 
-    /* Mobile Responsive Styles */
     @media (max-width: 768px) {
         .loading-option-3-1 {
             padding-top: 24px;
@@ -2315,7 +2205,6 @@
         }
 
         .frame-2147227510 {
-            /* flex-direction: column; */
             gap: 12px;
         }
 

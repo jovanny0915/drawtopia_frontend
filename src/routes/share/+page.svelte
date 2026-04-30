@@ -35,7 +35,6 @@
   let storyWorld: 'forest' | 'underwater' | 'space' | '' = '';
   let backgroundImage = '';
   
-  // Dedication and copyright data
   let dedicationText = '';
   let dedicationImage = '';
   let copyrightImage = '';
@@ -75,13 +74,11 @@
     return s === 'underwater' || s.includes('underwater');
   })();
 
-  /** Space / outer space stories: no decorative blur on copyright, dedication, special thanks, or last admin spreads. */
   $: isSpaceTheme = (() => {
     const s = String(storyWorld || '').toLowerCase();
     return s.includes('outerspace') || s.includes('space');
   })();
 
-  // Audio playback state
   let audioUrls: (string | null)[] = [];
   let currentAudio: HTMLAudioElement | null = null;
   let isPlaying = false;
@@ -90,7 +87,6 @@
   let audioCurrentTime = 0;
   let shareAudioIndex = -1;
 
-  // Load story data from load() when available, otherwise fetch in onMount
   onMount(async () => {
     if (!browser) return;
     const uid = data?.uid ?? ($page.url.search ? $page.url.search.substring(1) : '');
@@ -119,7 +115,6 @@
     try {
         console.log("Loaded shared story:", story);
         
-        // Set story title and world
         const storyData = Array.isArray(story) ? story[0] : story;
         storyTitle = storyData.story_title || "Untitled Story";
         storyWorld = storyData.story_world || '';
@@ -143,7 +138,6 @@
         }
         copyrightCharacterName = storyData.character_name || 'your character';
         
-        // Background + theme detection: match DB labels (e.g. outerspace, "Underwater Kingdom")
         const worldLc = String(storyWorld).toLowerCase();
         if (worldLc.includes('underwater')) {
           backgroundImage = waterBackground;
@@ -157,7 +151,6 @@
         
         console.log("[share] Story world:", storyWorld, "Background:", backgroundImage);
         
-        // Load audio URLs from database
         if (storyData?.audio_url) {
           if (Array.isArray(storyData.audio_url)) {
             audioUrls = storyData.audio_url;
@@ -171,16 +164,12 @@
           console.log("[share] Loaded audio URLs:", audioUrls.length);
         }
         
-        // Build storyScenes array: [cover, scene1, scene2, ...]
         const loadedScenes: string[] = [];
         
-        // Check if this is a search story type
         const isSearchStory = storyData.story_type === 'search';
         
-        // Load story content/pages and extract scene images
         if (storyData.story_content) {
           try {
-            // Parse story_content if it's a string
             const content = typeof storyData.story_content === 'string' 
               ? JSON.parse(storyData.story_content) 
               : storyData.story_content;
@@ -188,16 +177,13 @@
             console.log('[share] Parsed story content:', content);
             console.log('[share] Story type:', storyData.story_type, 'isSearchStory:', isSearchStory);
             
-            // Handle search story type with specific structure: { cover, scenes: [{ sceneImage, sceneTitle, ... }] }
             if (isSearchStory && content.cover !== undefined && content.scenes && Array.isArray(content.scenes)) {
-              // Add cover first
               const coverUrl = content.cover || storyData.story_cover;
               if (coverUrl) {
                 loadedScenes.push(coverUrl.split("?")[0]);
                 console.log('[share] Added search story cover:', coverUrl);
               }
               
-              // Add scenes from the scenes array
               const scenesFromContent = content.scenes
                 .map((scene: any) => scene.sceneImage || scene.image || scene.imageUrl || scene.image_url)
                 .filter((url: string | undefined): url is string => !!url);
@@ -207,7 +193,6 @@
                 console.log('[share] Loaded search story scenes:', scenesFromContent);
               }
               
-              // For search stories, we can optionally create pages from scene titles
               if (content.scenes && Array.isArray(content.scenes)) {
                 storyPages = content.scenes.map((scene: any, index: number) => ({
                   pageNumber: index + 1,
@@ -215,23 +200,18 @@
                 }));
               }
             } else {
-              // Handle regular story types (existing logic)
-              // First, add the story cover if available
               const coverUrl = storyData.story_cover || content.cover;
               if (coverUrl) {
                 loadedScenes.push(coverUrl.split("?")[0]);
                 console.log('[share] Added story cover:', coverUrl);
               }
               
-              // Handle different content formats
               if (Array.isArray(content)) {
-                // If it's an array of pages
                 storyPages = content.map((page: any, index: number) => ({
                   pageNumber: page.pageNumber || index + 1,
                   text: page.text || page.content || ""
                 }));
                 
-                // Extract scene images from pages
                 const scenesFromPages = content
                   .map((page: any) => page.sceneImage || page.scene || page.imageUrl || page.image_url || page.image)
                   .filter((url: string | undefined): url is string => !!url);
@@ -241,13 +221,11 @@
                   console.log('[share] Loaded scene images from pages:', scenesFromPages);
                 }
               } else if (content.pages && Array.isArray(content.pages)) {
-                // If it has a pages property
                 storyPages = content.pages.map((page: any, index: number) => ({
                   pageNumber: page.pageNumber || index + 1,
                   text: page.text || page.content || ""
                 }));
                 
-                // Extract scene images from pages
                 const scenesFromPages = content.pages
                   .map((page: any) => page.sceneImage || page.scene || page.imageUrl || page.image_url || page.image)
                   .filter((url: string | undefined): url is string => !!url);
@@ -257,11 +235,9 @@
                   console.log('[share] Loaded scene images from content.pages:', scenesFromPages);
                 }
               } else if (typeof content === 'string') {
-                // If it's a single string, create one page
                 storyPages = [{ pageNumber: 1, text: content }];
               }
               
-              // Fallback: use scene_images if available and no scenes loaded yet
               if (loadedScenes.length <= 1 && storyData.scene_images && Array.isArray(storyData.scene_images)) {
                 loadedScenes.push(...storyData.scene_images.map((url: string) => url.split("?")[0]));
                 console.log('[share] Loaded scenes from scene_images fallback:', storyData.scene_images.length);
@@ -277,17 +253,13 @@
           }
         }
         
-        // Check for copyright and dedication images, and insert after cover if they exist
         copyrightImage = storyData.copyright_image ? storyData.copyright_image.split("?")[0] : '';
         dedicationText = storyData.dedication_text || '';
         dedicationImage = storyData.dedication_image ? storyData.dedication_image.split("?")[0] : '';
         
-        // If we have copyright or dedication, add the copyright/dedication page
         if (copyrightImage || dedicationImage || dedicationText) {
           hasDedication = true;
           
-          // Insert copyright/dedication scene after cover (at index 1)
-          // We'll use a special marker for this combined page
           if (loadedScenes.length > 0) {
             loadedScenes.splice(1, 0, 'COPYRIGHT_DEDICATION_PAGE');
             console.log('[share] Added copyright/dedication page after cover');
@@ -353,7 +325,6 @@
     return sceneIndex - (hasDedication ? 2 : 1);
   }
 
-  // Keep audio index in sync with scene and story structure changes.
   $: {
     currentSceneIndex;
     storyScenes;
@@ -380,7 +351,6 @@
     currentStoryPageNumber >= 1 &&
     !!currentPageText?.trim();
 
-  /** Page 1 mirrors /preview/default: overlay anchored to bottom. */
   $: isFirstStoryPage = currentStoryPageNumber === 1;
 
   function toggleAudio() {
@@ -406,14 +376,12 @@
     const audioUrl = audioUrls[audioIndex];
     if (!audioUrl) return;
 
-    // If we're resuming the same audio
     if (currentAudio && currentAudio.src === audioUrl) {
       currentAudio.play();
       isPlaying = true;
       return;
     }
 
-    // Stop current audio and play new one
     if (currentAudio) {
       currentAudio.pause();
       currentAudio = null;
@@ -483,14 +451,12 @@
     goto('/dashboard');
   }
 
-  // Toggle fullscreen mode
   function toggleFullscreen() {
     if (!browser) return;
     
     const elem = document.documentElement;
     
     if (!document.fullscreenElement) {
-      // Enter fullscreen
       if (elem.requestFullscreen) {
         elem.requestFullscreen().then(() => {
           isFullscreen = true;
@@ -500,7 +466,6 @@
         });
       }
     } else {
-      // Exit fullscreen
       if (document.exitFullscreen) {
         document.exitFullscreen().then(() => {
           isFullscreen = false;
@@ -512,7 +477,6 @@
     }
   }
   
-  // Listen for fullscreen changes (user pressing ESC, etc.)
   onMount(() => {
     if (browser) {
       const handleFullscreenChange = () => {
@@ -531,7 +495,6 @@
 <svelte:head>
   <title>{data?.meta?.title ?? storyTitle} - Shared Story</title>
   {#if data?.meta && data?.shareCanonicalUrl}
-    <!-- Open Graph (Facebook / Meta) -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content={data.shareCanonicalUrl} />
     <meta property="og:title" content={data.meta.title} />
@@ -541,7 +504,6 @@
       <meta property="og:image:secure_url" content={data.meta.imageUrl} />
     {/if}
     <meta property="og:site_name" content="Drawtopia" />
-    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={data.meta.title} />
     <meta name="twitter:description" content={data.meta.description} />
@@ -568,7 +530,6 @@
       <button class="btn-primary" on:click={() => goto('/')}>Go to Home</button>
     </div>
   {:else}
-    <!-- Header -->
     <div class="story-header">
       <div class="header-left">
         <button class="btn-back" on:click={handleBackToDashboard}>
@@ -578,12 +539,9 @@
       </div>
     </div>
 
-    <!-- Main Story Viewer -->
     <div class="story-viewer">
-      <!-- Book Container -->
       <div class="book-container">
         {#if currentSceneIndex === 0}
-          <!-- Cover: Single image display -->
           <div class="cover-image-container">
             <div class="cover-image">
               <img
@@ -736,7 +694,6 @@
           </div>
         {/if}
         
-        <!-- Full Screen Preview Button -->
         <div class="fullscreen-button-container">
           <button 
             class="fullscreen-button"
@@ -782,7 +739,6 @@
         </div>
       {/if}
 
-      <!-- Navigation Controls -->
       <div class="navigation-controls">
         <div class="page-indicators">
           {#if storyScenes.length > 0}
@@ -844,7 +800,6 @@
     position: relative;
   }
 
-  /* Add overlay for better readability when using background images */
   .story-preview-container.has-background-image::before {
     content: '';
     position: fixed;
@@ -918,7 +873,6 @@
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
   }
 
-  /* Header */
   .story-header {
     display: flex;
     align-items: center;
@@ -961,7 +915,6 @@
     filter: brightness(0) invert(1);
   }
 
-  /* Story Viewer */
   .story-viewer {
     flex: 1;
     max-width: 980px;
@@ -979,7 +932,6 @@
     width: 100%;
   }
 
-  /* Cover Image Styles */
   .cover-image-container {
     display: flex;
     justify-content: center;
@@ -1036,7 +988,6 @@
     pointer-events: none;
   }
 
-  /* Two-Page Spread Styles */
   .mobile-image-split {
     display: flex;
     flex-direction: row;
@@ -1074,7 +1025,6 @@
     align-items: center;
   }
 
-  /* Base styles for split view images - must be applied to all halves */
   .mobile-image-half .scene-main-image {
     width: 200%;
     max-width: 200%;
@@ -1083,13 +1033,11 @@
     display: block;
   }
 
-  /* Split view image positioning - left half shows left 50% */
   .mobile-image-left .scene-main-image {
     object-position: left center;
     margin-left: 0;
   }
 
-  /* Split view image positioning - right half shows right 50% */
   .mobile-image-right .scene-main-image {
     object-position: right center;
     margin-left: -100%;
@@ -1112,7 +1060,6 @@
     pointer-events: none;
   }
 
-  /* Special pages styles (aligned with /preview/default) */
   .dedication-blank,
   .dedication-page {
     background: transparent;
@@ -1325,7 +1272,6 @@
     margin: 0;
   }
 
-  /* Underwater: thank-you + last-admin spread — navy text on bright scene art */
   .world-underwater-last-spread .last-words-page-title,
   .world-underwater-last-spread .last-admin-page-title {
     color: #0e2c54;
@@ -1342,7 +1288,6 @@
     filter: brightness(0) saturate(100%) invert(12%) sepia(55%) saturate(1200%) hue-rotate(167deg);
   }
 
-  /* Underwater last spread: blur/decoration layer color only (size, blur filter unchanged) */
   .world-underwater-last-spread .center-blur-decoration {
     background: linear-gradient(270deg, #89e4df 0%, rgba(137, 228, 223, 0) 100%);
     transform: matrix(-1, 0, 0, 1, 0, 0);
@@ -1569,7 +1514,6 @@
     color: #ffffff;
   }
 
-  /* Underwater main story text: spec #0E2C54, Quicksand 700 (scaled for share layout) */
   .story-main-text.story-world-underwater {
     color: #0e2c54;
     font-weight: 700;
@@ -1599,7 +1543,6 @@
     color: #ffffff;
   }
 
-  /* Fullscreen Button */
   .fullscreen-button-container {
     display: flex;
     justify-content: center;
@@ -1632,7 +1575,6 @@
     height: 24px;
   }
 
-  /* Navigation Controls */
   .navigation-controls {
     display: flex;
     align-items: center;
@@ -1728,7 +1670,6 @@
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
   }
 
-  /* Audio Controls */
   .audio-controls {
     padding: 20px;
     background: rgba(255, 255, 255, 0.95);
@@ -1826,7 +1767,6 @@
     transition: width 0.1s ease;
   }
 
-  /* Responsive Design */
   @media (max-width: 768px) {
     .story-preview-container {
       padding: 10px;
@@ -1884,7 +1824,6 @@
       width: 100%;
     }
 
-    /* Mobile: Stack pages vertically */
     .mobile-image-split {
       flex-direction: column;
       gap: 20px;
@@ -1955,7 +1894,6 @@
     }
   }
 
-  /* Fullscreen mode adjustments */
   :global(body:fullscreen) .story-preview-container,
   :global(body:-webkit-full-screen) .story-preview-container,
   :global(body:-moz-full-screen) .story-preview-container {

@@ -25,7 +25,6 @@
   }
 
   function handleNext() {
-    // Show the end adventure modal when clicking next pages
     showEndModal = true;
   }
 
@@ -35,24 +34,19 @@
 
   function handleReadAgain() {
     showEndModal = false;
-    // Navigate back to first page or restart the story
     goto('/adventure-story/1');
   }
 
   function handleDownloadPDF() {
-    // Handle PDF download logic here
     console.log('Download PDF clicked');
-    // Add your PDF download logic
   }
 
   function handleCreateNewBook() {
     showEndModal = false;
-    // Navigate to create new book page
     goto('/dashboard');
   }
 
   function handleFullScreen() {
-    // Handle full screen preview
   }
 
   function togglePlay() {

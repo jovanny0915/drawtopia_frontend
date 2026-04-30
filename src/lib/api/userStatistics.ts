@@ -1,15 +1,6 @@
-/**
- * User Statistics API Client
- * 
- * Provides functions to fetch user statistics from the backend API.
- */
 
-// Get API base URL from environment or use default
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-/**
- * Interface for detailed user statistics
- */
 export interface UserStatistics {
   total_users: number;
   new_users: {
@@ -32,9 +23,6 @@ export interface UserStatistics {
   };
 }
 
-/**
- * Interface for summary statistics
- */
 export interface UserStatisticsSummary {
   summary: {
     total_users: number;
@@ -44,13 +32,6 @@ export interface UserStatisticsSummary {
   generated_at: string;
 }
 
-/**
- * Fetch detailed user statistics
- * 
- * @param startDate - Optional ISO format date string to filter from
- * @param endDate - Optional ISO format date string to filter to
- * @returns Promise with user statistics
- */
 export async function fetchUserStatistics(
   startDate?: string,
   endDate?: string
@@ -71,11 +52,6 @@ export async function fetchUserStatistics(
   return response.json();
 }
 
-/**
- * Fetch summary statistics (optimized for quick dashboard display)
- * 
- * @returns Promise with summary statistics
- */
 export async function fetchUserStatisticsSummary(): Promise<UserStatisticsSummary> {
   const url = `${API_BASE_URL}/api/dashboard/user-statistics/summary`;
   
@@ -89,9 +65,6 @@ export async function fetchUserStatisticsSummary(): Promise<UserStatisticsSummar
   return response.json();
 }
 
-/**
- * Helper function to format subscription status for display
- */
 export function formatSubscriptionStatus(status: string): string {
   const statusMap: Record<string, string> = {
     'free': 'Free',
@@ -103,9 +76,6 @@ export function formatSubscriptionStatus(status: string): string {
   return statusMap[status.toLowerCase()] || status;
 }
 
-/**
- * Helper function to format role for display
- */
 export function formatRole(role: string): string {
   const roleMap: Record<string, string> = {
     'adult': 'Adult',

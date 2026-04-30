@@ -11,7 +11,6 @@
   import { onMount } from "svelte";
   import { storyCreation } from "../../../lib/stores/storyCreation";
   
-  // Import icons for format features
   import targetIcon from "../../../assets/Inter-Target.svg";
   import magnifyingIcon from "../../../assets/Inter-Binoculars.svg";
   import personIcon from "../../../assets/Inter-User.svg";
@@ -26,10 +25,10 @@
   import whiteCheck from "../../../assets/WhiteCheck.svg";
 
   let isMobile = false;
-  let selectedFormat = ""; // "interactive" or "story"
+  let selectedFormat = "";
   let characterName = "";
   let showPreviewModal = false;
-  let selectedPreviewCard = ""; // "interactive" or "story" for preview modal
+  let selectedPreviewCard = "";
 
   $: if (browser) {
     isMobile = window.innerWidth < 800;
@@ -38,13 +37,10 @@
   onMount(() => {
     if (browser) {
       let selectedStyle = sessionStorage.getItem("selectedStyle");
-      // Clear enhancement images from sessionStorage
       sessionStorage.removeItem(`enhancementImage_${selectedStyle}_high`);
       sessionStorage.removeItem(`enhancementImage_${selectedStyle}_minimal`);
       sessionStorage.removeItem(`enhancementImage_${selectedStyle}_normal`);
-      // Get character name from sessionStorage
       characterName = sessionStorage.getItem('characterName') || "";
-      // No format selected by default - user must choose
       selectedFormat = "";
     }
   });
@@ -52,7 +48,6 @@
   function selectFormat(formatId: string) {
     selectedFormat = formatId;
     
-    // Save selected format to sessionStorage
     if (browser) {
       sessionStorage.setItem('selectedFormat', formatId);
       storyCreation.setSelectedFormat(formatId as 'interactive' | 'story');
@@ -65,12 +60,9 @@
       return;
     }
     
-    // Navigate to the appropriate next step based on format
     if (selectedFormat === "interactive") {
-      // For Interactive Search Adventure, go to intersearch flow
       goto("/intersearch");
     } else {
-      // For Story Adventure, continue to story world selection
       goto("/create-character/5");
     }
   };
@@ -81,7 +73,6 @@
 
   const handlePreviewBoth = () => {
     showPreviewModal = true;
-    // Initialize selected preview card based on current selected format
     selectedPreviewCard = selectedFormat || "";
   };
 
@@ -101,12 +92,9 @@
       return;
     }
     
-    // Navigate to the appropriate next step based on format
     if (selectedFormat === "interactive") {
-      // For Interactive Search Adventure, go to intersearch flow
       goto("/intersearch");
     } else {
-      // For Story Adventure, continue to story world selection
       goto("/create-character/5");
     }
   };
@@ -247,11 +235,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -259,7 +242,6 @@
   </div>
 </div>
 
-<!-- Preview Formats Modal -->
 {#if showPreviewModal}
   <div
     class="preview-modal-overlay"
@@ -768,7 +750,6 @@
   }
 
   .format-cards-container {
-    /* width: 100%; */
     width: 1240px;
     justify-content: flex-start;
     align-items: center;
@@ -857,7 +838,6 @@
     }
   }
 
-  /* Preview Modal Styles */
   .preview-modal-overlay {
     position: fixed;
     top: 0;

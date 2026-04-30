@@ -36,16 +36,13 @@
   let showPreviewModal = false;
   const maxCharacters = 200;
 
-  // Reactive statements for auth state
   $: currentUser = $user;
   $: loading = $authLoading;
   $: authenticated = $isAuthenticated;
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
 
-  // Update character count
   $: characterCount = giftMessage.length;
 
-  // Check authentication on mount
   onMount(() => {
     if (browser) {
       setTimeout(() => {
@@ -57,7 +54,6 @@
     }
   });
 
-  // Reactive redirect when auth state changes
   $: if (safeToRedirect && !authenticated) {
     goto("/login");
   }
@@ -98,7 +94,6 @@
   };
 
   const handleSend = () => {
-    // Validate required fields
     if (!giftMessage.trim()) {
       alert("Please enter a gift message");
       return;
@@ -108,12 +103,10 @@
       return;
     }
 
-    // Update the store with the message from this page
     giftCreation.setDeliveryDetails({
       specialMsg: giftMessage,
     });
     
-    // Navigate to review page
     goto("/gift/review");
   };
 
@@ -151,7 +144,6 @@
     />
 
     <div class="content-container">
-      <!-- Gift Message Section -->
       <div class="section">
         <div class="section-title">Gift Message</div>
 
@@ -185,7 +177,6 @@
         </div>
       </div>
 
-      <!-- Gift Packaging Section -->
       <div class="section">
         <div class="section-title">Gift Packaging</div>
         <div class="section-content">
@@ -247,7 +238,6 @@
 </div>
 
 {#if showPreviewModal}
-  <!-- Preview Modal -->
   <div
     class="modal-overlay"
     on:click={handleModalBackdropClick}
@@ -839,7 +829,6 @@
     }
   }
 
-  /* Modal Styles */
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -1014,7 +1003,6 @@
   }
 }
 
-/* Status Modal Styles */
 .status-modal-content {
   background: white;
   border-radius: 20px;

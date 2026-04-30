@@ -19,10 +19,8 @@
   const maxChars: number = 200;
   let isMobile = false;
   let childName: string = "";
-  /** Dedication page background: from book template for current story world, or static fallback */
   let dedicationImageUrl: string = std_book_cover;
 
-  /** Map frontend story world to API value (forest, underwater, outerspace). */
   function normalizeStoryWorld(world: string | null): string {
     const w = (world || "").trim().toLowerCase();
     if (w === "underwater") return "underwater";
@@ -30,7 +28,6 @@
     return "forest";
   }
 
-  /** Map frontend format values to backend book_templates.story_format values. */
   function normalizeStoryFormat(format: string | null): "adventure_story" | "interactive_story" {
     const normalized = (format || "").trim().toLowerCase().replace(/[-\s]/g, "_");
     if (normalized === "interactive_story" || normalized === "interactive" || normalized === "search") {
@@ -69,19 +66,16 @@
       if (!url && storyStyle) url = await fetchDedicationUrl(false);
       if (url) dedicationImageUrl = url;
     } catch {
-      // keep std_book_cover
     }
   });
 
   $: if (browser) {
     isMobile = window.innerWidth < 800;
-    // Load child name from sessionStorage
     if (!childName) {
       childName = sessionStorage.getItem("selectedChildName") || "";
     }
   }
 
-  // Computed property to check if continue button should be enabled
   $: canContinue = dedicationMessage && dedicationMessage.trim().length > 0;
 
   function handleDedicationInput(event: Event) {
@@ -90,17 +84,14 @@
     dedicationMessage =
       value.length > maxChars ? value.slice(0, maxChars) : value;
 
-    // Save dedication text to sessionStorage
     if (browser) {
       sessionStorage.setItem("dedication_text", dedicationMessage);
     }
   }
 
   function handleContinueToPreview() {
-    // Only proceed if dedication text is not empty
     if (!canContinue) return;
 
-    // Ensure dedication text is saved before navigating
     if (browser && dedicationMessage) {
       sessionStorage.setItem("dedication_text", dedicationMessage);
     }
@@ -240,7 +231,6 @@
           <div class="dedication-text2">For</div>
           <div class="dedication-text3">{childName || "Add name here"}</div>
           <div class="dedication-text3">{dedicationMessage || "Add message here"}</div>
-          <!-- <img class="book" src={std_book_cover} alt="Book cover" /> -->
         </div>
       </div>
       <div class="frame-9">

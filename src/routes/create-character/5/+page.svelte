@@ -22,14 +22,13 @@
   import { storyCreation } from "../../../lib/stores/storyCreation";
 
   let isMobile = false;
-  let selectedWorld = ""; // Step 1: "forest", "outerspace", or "underwater"
-  let selectedStoryTheme = ""; // Step 2: story theme id (kindnessEmpathy, etc.)
+  let selectedWorld = "";
+  let selectedStoryTheme = "";
   let characterName = "";
   let specialAbility = "";
   let selectedStyle = "";
   let selectedEnhancement = "";
 
-  // Step 2: 5 learning themes with dynamic descriptions
   const storyThemes = [
     { id: "kindnessEmpathy", name: "Kindness & Empathy", description: "[Character Name] will search the [Selected World] for a legendary treasure by helping others along the way.", image: kindnessEmpathyImg },
     { id: "bedtimeRoutineSleepHygiene", name: "Bedtime Routine", description: "As night falls in the [Selected World], [Character Name] will search for a legendary treasure by learning the power of rest.", image: bedtimeRoutineSleepHygieneImg },
@@ -57,14 +56,12 @@
       sessionStorage.setItem('selectedStoryThemeName', theme.name);
     }
   }
-  // Style name mapping
   const styleNames = {
     "3d": "3D Realistic",
     "cartoon": "Cartoon",
     "anime": "Anime"
   };
 
-  // World name mapping
   const worldNames = {
     forest: "Enchanted Forest",
     outspace: "Outer Space", 
@@ -75,7 +72,6 @@
     isMobile = window.innerWidth < 800;
   }
 
-  // Retrieve character data from sessionStorage on component mount
   onMount(() => {
     if (browser) {
       const storedCharacterName = sessionStorage.getItem('characterName');
@@ -93,23 +89,19 @@
       if (storedSelectedWorld) selectedWorld = storedSelectedWorld;
       if (storedStoryTheme) selectedStoryTheme = storedStoryTheme;
       
-      // Don't generate images on page load - they will be generated on page 7
     }
   });
 
   function selectWorld(world: string) {
     selectedWorld = world;
     
-    // Save the selected world to sessionStorage
     if (browser) {
       sessionStorage.setItem('selectedWorld', world);
     }
     
-    // Update story creation store
     storyCreation.setStoryWorld(world as any);
   }
 
-  // Step 1 = story world, Step 2 = story theme (both required)
   $: canContinue = selectedWorld !== "" && selectedStoryTheme !== "";
 
   const handleContinue = async () => {
@@ -316,11 +308,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -890,7 +877,6 @@
     top: 50%;
     transform: translateY(-50%);
     border-top: 12px solid transparent;
-    /* border-bottom: 12px solid transparent; */
     border-right: 18px solid #d9eaff;
   }
 

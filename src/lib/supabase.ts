@@ -1,13 +1,17 @@
-/**
- * Supabase client configuration
- * This module provides the Supabase client for authentication and database operations
- */
 
 import { createClient } from '@supabase/supabase-js';
 
 export const AUTH_STORAGE_KEY = 'sb-auth-token';
 
-/** Custom storage so first_name/last_name from custom users table persist in the same key as the session */
+function getStoredUserId(value: Record<string, unknown> | null): string | null {
+  const user = value?.user;
+  if (user && typeof user === 'object' && 'id' in user) {
+    const id = (user as { id?: unknown }).id;
+    return typeof id === 'string' ? id : null;
+  }
+  return null;
+}
+
 function createAuthStorage(): Storage | undefined {
   if (typeof window === 'undefined') return undefined;
   const base = window.localStorage;
@@ -20,8 +24,12 @@ function createAuthStorage(): Storage | undefined {
           const next = value ? JSON.parse(value) as Record<string, unknown> : null;
           if (current && next && typeof next === 'object') {
             const prev = JSON.parse(current) as Record<string, unknown>;
-            if (prev.first_name !== undefined) next.first_name = prev.first_name;
-            if (prev.last_name !== undefined) next.last_name = prev.last_name;
+            const prevUserId = getStoredUserId(prev);
+            const nextUserId = getStoredUserId(next);
+            if (prevUserId && prevUserId === nextUserId) {
+              if (prev.first_name !== undefined) next.first_name = prev.first_name;
+              if (prev.last_name !== undefined) next.last_name = prev.last_name;
+            }
             value = JSON.stringify(next);
           }
         } catch (_) {}
@@ -35,7 +43,6 @@ function createAuthStorage(): Storage | undefined {
   };
 }
 
-// Create Supabase client
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL, 
   import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -50,7 +57,6 @@ export const supabase = createClient(
   }
 );
 export const supabaseAdmin = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
-// Database types (you can expand these based on your schema)
 export interface UserProfile {
   id: string;
   email?: string;
@@ -70,5 +76,4 @@ export interface AuthError {
   status?: number;
 }
 
-// Export commonly used types from Supabase
 export type { User, Session, AuthError as SupabaseAuthError } from '@supabase/supabase-js';

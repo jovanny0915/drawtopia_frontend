@@ -18,8 +18,8 @@
   } from "../../../../lib/stores/auth";
 
   let giftState: any = {};
-  let giftData: Gift | any = null; // Use any to access gift_type and story_id from Supabase
-  let gifterName = "Grandma"; // Default or get from store/params
+  let giftData: Gift | any = null;
+  let gifterName = "Grandma";
   let recipientName = "";
   let recipientAge = "";
   let occasion = "";
@@ -28,38 +28,30 @@
   let giftType: string | null = null;
   let storyId: string | null = null;
 
-  // Reactive statements for auth state
   $: currentUser = $user;
   $: loading = $authLoading;
   $: authenticated = $isAuthenticated;
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
   
-  // Get giftId from URL query params
   $: giftId = $page.url.searchParams.get('giftId');
 
-  // Load gift data from database if giftId is provided
   onMount(() => {
-    // First try to load from URL parameter (from notification click)
     if (giftId) {
-      const currentGiftId = giftId; // Store in const to satisfy TypeScript
+      const currentGiftId = giftId;
       async function loadGift() {
         loadingGift = true;
         try {
           const result = await getGiftById(currentGiftId);
           if (result.success && result.data) {
             giftData = result.data;
-            // Populate fields from gift data
             recipientName = giftData.child_name || "Emma";
             recipientAge = giftData.age_group ? getAgeFromRange(giftData.age_group) : "7";
             occasion = giftData.occasion || "Birthday";
             giftMessage = giftData.special_msg || "";
             
-            // Extract gift_type and story_id from Supabase data
             giftType = giftData.gift_type || null;
             storyId = giftData.story_id || null;
             
-            // TODO: Fetch sender's name from user profile using giftData.from_user_id
-            // For now, use relationship or default
             gifterName = giftData.relationship || "Someone";
           }
         } catch (err) {
@@ -70,7 +62,6 @@
       }
       loadGift();
     } else {
-      // Fallback to store if no giftId
       const unsubscribe = giftCreation.subscribe((state) => {
         giftState = state;
         recipientName = state.childName || "Emma";
@@ -83,32 +74,26 @@
     }
   });
 
-  // Helper to convert age range to a single age for display
   function getAgeFromRange(ageRange: string): string {
-    // Extract middle age from range like "3-6" -> "4" or "7-10" -> "8"
     const match = ageRange.match(/(\d+)-(\d+)/);
     if (match) {
       const min = parseInt(match[1]);
       const max = parseInt(match[2]);
       return Math.floor((min + max) / 2).toString();
     }
-    // Handle single ages like "11-12" -> "11"
     return ageRange.split("-")[0] || "7";
   }
 
-  // Reactive button text based on gift_type
   $: buttonText = giftType === "story" ? "View The Gift Story" : "Start Creating The Gift";
 
   const handleStartCreating = async () => {
     if (giftType === "story" && storyId) {
-      // Handle story gift: copy story for current user and navigate
       try {
         if (!currentUser?.id) {
           alert("Please log in to view the story");
           return;
         }
 
-        // Get the story from database
         const storyResult = await getStoryById(storyId);
         if (!storyResult.success || !storyResult.data) {
           alert("Story not found");
@@ -118,7 +103,6 @@
         const originalStory = Array.isArray(storyResult.data) ? storyResult.data[0] : storyResult.data;
         const storyType = originalStory.story_type || "story";
 
-        // Handle audio_urls - database stores as audio_url (array)
         let audioUrls: (string | null)[] = [];
         if (originalStory.audio_url) {
           if (Array.isArray(originalStory.audio_url)) {
@@ -132,13 +116,9 @@
           }
         }
 
-        // Copy story for current user
-        // We need to get or use a child_profile_id for the current user
-        // For now, we'll use the original child_profile_id or create a new one
-        // In a real scenario, you might want to create a child profile or use an existing one
         const newStoryData: Story = {
           user_id: currentUser.id,
-          child_profile_id: originalStory.child_profile_id, // Use original or create new
+          child_profile_id: originalStory.child_profile_id,
           character_id: originalStory.character_id,
           character_name: originalStory.character_name,
           character_type: originalStory.character_type,
@@ -159,7 +139,7 @@
           status: originalStory.status || "completed",
           story_type: originalStory.story_type,
           hints: originalStory.hints,
-          gift_id: giftId || undefined // Store the gift_id with the story
+          gift_id: giftId || undefined
         };
 
         const createResult = await createStory(newStoryData);
@@ -170,7 +150,6 @@
 
         const newStoryId = createResult.data.uid || createResult.data.id;
 
-        // Navigate based on story type
         if (storyType === "search") {
           goto(`/intersearch/1?storyId=${newStoryId}`);
         } else {
@@ -181,11 +160,9 @@
         alert("An error occurred while loading the story");
       }
     } else if (giftType === "link") {
-      // Handle link gift: navigate to character creation with gift_mode so story is marked as purchased
       if (browser) sessionStorage.setItem('gift_mode', 'create');
       goto("/create-character/1");
     } else {
-      // Default behavior (fallback)
       if (browser) sessionStorage.setItem('gift_mode', 'create');
       goto("/create-character/1");
     }
@@ -207,7 +184,6 @@
       magical adventure together!
     </p>
 
-    <!-- Gift Card Preview -->
     <div class="card-container">
       <div class="gift-card-container">
         <div class="gift-card-bg">
@@ -218,7 +194,6 @@
         </div>
       </div>
 
-      <!-- Gift Details -->
       <div class="gift-details">
         <div class="details-label">Create a personalized storybook for:</div>
         <div class="recipient-info">
@@ -230,7 +205,6 @@
         </div>
       </div>
 
-      <!-- Call to Action -->
       <button class="start-button" on:click={handleStartCreating}>
         <svg
           class="heart-icon"
@@ -246,7 +220,6 @@
         {buttonText}
       </button>
 
-      <!-- Expiration Notice -->
       <div class="expiration-notice">
         <img src={CalendarBlank} alt="calendar" class="calendar-icon" />
         <span>This gift link expires in 30 days.</span>
@@ -462,7 +435,6 @@
     flex-shrink: 0;
   }
 
-  /* Tablet and small desktop */
   @media (max-width: 900px) {
     .gift-redemption-page {
       padding: 20px 24px 92px;
@@ -474,7 +446,6 @@
     }
   }
 
-  /* Mobile */
   @media (max-width: 768px) {
     .gift-redemption-page {
       padding: 16px 20px 88px;
@@ -563,7 +534,6 @@
     }
   }
 
-  /* Small mobile */
   @media (max-width: 480px) {
     .gift-redemption-page {
       padding: 12px 16px 84px;

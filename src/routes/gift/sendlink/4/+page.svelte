@@ -13,36 +13,28 @@
   let childName = "";
   let specialMessage = "This is a special present for you. I hope you love it!\nLove, Grandma!";
   let deliveryEmail = "drawtopia@example.com";
-  let deliveryOption = "scheduled"; // "surprise" or "scheduled"
+  let deliveryOption = "scheduled";
   let deliveryDate = "";
   let deliveryTime = "";
 
-  // Subscribe to giftCreation store to get child name
   const unsubscribe = giftCreation.subscribe((state) => {
     if (state.childName) {
       childName = state.childName;
-      // Update special message with child's name
       specialMessage = `This is a special present for ${childName}. I hope you love it!\nLove, Grandma!`;
     }
   });
 
-  // Reactive statements for auth state
   $: currentUser = $user;
   $: loading = $authLoading;
   $: authenticated = $isAuthenticated;
   $: userId = currentUser?.id;
   
-  // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
 
-  // Check authentication on mount (client-side only)
   onMount(() => {
-    // Initialize giftCreation store from sessionStorage
     giftCreation.init();
     
-    // Only run on client side
     if (browser) {
-      // Add a small delay to ensure auth state is fully loaded
       setTimeout(() => {
         if (safeToRedirect && !authenticated) {
           goto('/login');
@@ -51,13 +43,10 @@
       }, 100);
     }
     
-    // Cleanup subscription on component destroy
     return unsubscribe;
   });
 
-  // Reactive redirect when auth state changes (client-side only)
   $: if (safeToRedirect && !authenticated) {
-    // Only redirect if we're sure about the auth state
     goto('/login');
   }
 
@@ -76,13 +65,11 @@
   };
 
   const handleContinue = () => {
-    // Validate required fields
     if (!deliveryEmail.trim()) {
       alert("Please enter a delivery email");
       return;
     }
 
-    // Validate scheduled delivery date and time
     if (deliveryOption === 'scheduled') {
       if (!deliveryDate) {
         alert("Please select a delivery date");
@@ -93,7 +80,6 @@
         return;
       }
       
-      // Validate that the scheduled date/time is in the future
       const scheduledDateTime = new Date(`${deliveryDate}T${deliveryTime}`);
       const now = new Date();
       if (scheduledDateTime <= now) {
@@ -102,14 +88,12 @@
       }
     }
 
-    // Combine date and time into ISO string for scheduled delivery
     let deliveryDateTime = undefined;
     if (deliveryOption === 'scheduled' && deliveryDate && deliveryTime) {
       const dateTime = new Date(`${deliveryDate}T${deliveryTime}`);
       deliveryDateTime = dateTime.toISOString();
     }
 
-    // Save delivery details to gift store
     giftCreation.setDeliveryDetails({
       specialMsg: specialMessage,
       deliveryEmail: deliveryEmail.trim(),
@@ -117,12 +101,10 @@
       deliveryTime: deliveryDateTime
     });
 
-    // Navigate to review page
     goto("/gift/review");
   };
 
   const handleBack = () => {
-    // Navigate back to step 2
     goto("/gift/sendlink/3");
   };
 </script>
@@ -133,7 +115,6 @@
     </div>
   </div>
   
-  <!-- Mobile Back Button -->
   <div class="mobile-back-button">
     <div
       class="mobile-back-btn"
@@ -435,11 +416,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -1062,19 +1038,6 @@
     outline-offset: 2px;
   }
 
-  /* Ripple effect */
-  /* .button::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transition: width 0.3s, height 0.3s;
-    transform: translate(-50%, -50%);
-  } */
 
   .button:active::before {
     width: 300px;
@@ -1416,7 +1379,6 @@
     display: flex;
   }
 
-  /* Form input styles */
   .special-message-input {
     width: 100%;
     height: 100%;
@@ -1452,7 +1414,6 @@
     color: #727272;
   }
 
-  /* Delivery option interactive styles */
   .selected, .selected_01 {
     cursor: pointer;
     transition: all 0.3s ease;
@@ -1485,7 +1446,6 @@
     box-shadow: 0 8px 16px rgba(67, 139, 255, 0.2);
   }
 
-  /* Delivery option ripple effect */
   .selected::before, .selected_01::before {
     content: '';
     position: absolute;
@@ -1525,7 +1485,6 @@
     display: inline-flex;
   }
 
-  /* Mobile Back Button Styles */
   .mobile-back-button {
     display: none;
   }
@@ -1561,7 +1520,6 @@
     line-height: 22.4px;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .mobile-back-button {
       display: flex;
@@ -1592,7 +1550,6 @@
       gap: 20px;
     }
 
-    /* GiftStepComponent mobile adjustments */
     :global(.progress-bar) {
       width: 100% !important;
       padding: 12px !important;
@@ -1619,7 +1576,6 @@
       margin-bottom: 8px;
     }
 
-    /* Form sections mobile */
     .frame-10,
     .frame-1410104114 {
       width: 100%;
@@ -1635,7 +1591,6 @@
       gap: 12px;
     }
 
-    /* Input fields mobile */
     .input-placeholder,
     .input-placeholder_01,
     .input-placeholder_02,
@@ -1660,7 +1615,6 @@
       gap: 8px;
     }
 
-    /* Example messages mobile layout */
     .frame-1410104116,
     .frame-1410104117 {
       flex-direction: column;
@@ -1675,7 +1629,6 @@
       width: 100%;
     }
 
-    /* Delivery options mobile */
     .frame-1410104179 {
       flex-direction: column;
       gap: 12px;
@@ -1687,7 +1640,6 @@
       padding: 12px;
     }
 
-    /* Continue section mobile */
     .frame-1410104113_01 {
       width: 100%;
       gap: 16px;
@@ -1702,7 +1654,6 @@
       display: none;
     }
 
-    /* Typography adjustments for mobile */
     .addthefinishingtouches_span {
       font-size: 32px;
       line-height: 44.8px;
@@ -1766,7 +1717,6 @@
       line-height: 19.6px;
     }
 
-    /* Layout adjustments */
     .frame-5 {
       gap: 20px;
     }

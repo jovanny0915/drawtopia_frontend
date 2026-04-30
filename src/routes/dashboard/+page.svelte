@@ -10,7 +10,6 @@
   } from "../../lib/database/stories";
   import { supabase } from "../../lib/supabase";
   import { getGiftsForUser, type Gift } from "../../lib/database/gifts";
-  import caretdown from "../../assets/CaretDown.svg";
   import house from "../../assets/House.svg";
   import baby from "../../assets/Baby.svg";
   import userSquare from "../../assets/UserSquare.svg";
@@ -34,18 +33,14 @@
   import CharacterLibraryView from "../../components/CharacterLibraryView.svelte";
   import { formatDate } from "$lib/dateUtils";
 
-  // Sidebar library switch state
   let libraryView: "all" | "characters" | "children" = "all";
   const setLibraryView = (v: "all" | "characters" | "children") =>
     (libraryView = v);
 
-  // Active menu item state
   let activeMenu: "home" | "story-library" | "characters" | "child-profiles" | "gift-tracking" = "home";
 
-  // Function to handle menu item clicks
   function handleMenuClick(menu: "home" | "story-library" | "characters" | "child-profiles" | "gift-tracking") {
     activeMenu = menu;
-    // You can add navigation logic here if needed
   }
 
   let showMobileMenu = false;
@@ -55,8 +50,8 @@
   };
   let childProfiles: any[] = [];
   let stories: any[] = [];
-  let rawStories: any[] = []; // Store raw story data for character extraction
-  let characters: any[] = []; // Extracted unique characters
+  let rawStories: any[] = [];
+  let characters: any[] = [];
   let gifts: any[] = [];
   let loading = true;
   let loadingStories = true;
@@ -70,40 +65,34 @@
   let selectedCharacter: any = null;
   let characterBooks: any[] = [];
   let subscriptionStatus: string = "Premium Plan";
-  let storyCredits: number | null = null; // Story credits from user's credit column
+  let storyCredits: number | null = null;
   
-  // Story counts and reading times from HomeLibraryView
   let adventureStoriesCount: number = 0;
   let searchStoriesCount: number = 0;
-  let adventureReadingTime: number = 0; // Total reading time in seconds
-  let searchReadingTime: number = 0; // Total reading time in seconds
-  let audioListenedCount: number = 0; // Count of stories with audio listened
-  let averageStars: number = 0; // Average stars across interactive search stories
-  let averageHints: number = 0; // Average hints across interactive search stories
+  let adventureReadingTime: number = 0;
+  let searchReadingTime: number = 0;
+  let audioListenedCount: number = 0;
+  let averageStars: number = 0;
+  let averageHints: number = 0;
   
-  // Responsive detection
   let isMobile = false;
   
-  // Check screen size on mount and window resize
   const checkScreenSize = () => {
     if (browser) {
       isMobile = window.innerWidth <= 800;
     }
   };
 
-  // Filter states for dashboard dropdowns
   let selectedFormat: string = "all";
   let selectedChild: string = "all";
   let selectedStatus: string = "all";
 
-  // Format options
   $: formatOptions = [
     { value: "all", label: "All Formats" },
     { value: "story_adventure", label: "Story Adventure Mode" },
     { value: "interactive_search", label: "Interactive Search Mode" },
   ];
 
-  // Children options - dynamically generated from childProfiles
   $: childrenOptions = [
     { value: "all", label: "All Children" },
     ...childProfiles.map((child) => ({
@@ -112,7 +101,6 @@
     })),
   ];
 
-  // Status options
   $: statusOptions = [
     { value: "all", label: "All Status" },
     { value: "completed", label: "Completed" },
@@ -121,7 +109,6 @@
     { value: "failed", label: "Failed" },
   ];
 
-  // Random story themes for lastStory
   const storyThemes = [
     "Birthday",
     "Bedtime",
@@ -149,7 +136,6 @@
     showMobileMenu = !showMobileMenu;
   };
 
-  // Function to format seconds into "h m s" format
   function formatReadingTime(seconds: number): string {
     if (seconds === 0) return "0 s";
     
@@ -165,22 +151,17 @@
     return parts.join(' ');
   }
 
-  // Function to get a random story theme
   const getRandomStoryTheme = () => {
     return storyThemes[Math.floor(Math.random() * storyThemes.length)];
   };
 
-  // Function to format age group for display
   const formatAgeLabel = (ageGroup: string) => {
-    // Convert age group like "3-5" to "3-5 Years Old"
     return `${ageGroup} Years Old`;
   };
 
-  // Function to format subscription status for display
   const formatSubscriptionStatus = (status: string | null | undefined): string => {
     if (!status) return "Free Plan";
     
-    // Convert status to display format
     const statusMap: { [key: string]: string } = {
       'premium': 'Premium Plan',
       'free': 'Free Plan',
@@ -192,7 +173,6 @@
     return statusMap[normalizedStatus] || status.charAt(0).toUpperCase() + status.slice(1) + ' Plan';
   };
 
-  // Fetch user subscription status and credits
   const fetchSubscriptionStatus = async (userId: string) => {
     try {
       const { getUserProfile } = await import("../../lib/auth");
@@ -205,15 +185,13 @@
           subscriptionStatus = formatSubscriptionStatus(null);
         }
         
-        // Fetch story credits from user's credit column
         if (profile?.credit !== undefined && profile?.credit !== null) {
-          // Parse credit as number if it's a string
           const creditValue = typeof profile.credit === 'string' 
             ? parseInt(profile.credit, 10) 
             : profile.credit;
           storyCredits = isNaN(creditValue) ? 0 : creditValue;
         } else {
-          storyCredits = 0; // Default to 0 if no credit is set
+          storyCredits = 0;
         }
       }
     } catch (error) {
@@ -223,15 +201,12 @@
     }
   };
 
-  // Function to format stories created text
   const formatStoriesCreatedText = (firstName: string, ageGroup: string) => {
     return `${firstName} (Age ${ageGroup})`;
   };
 
-  // Direct query to Supabase stories table (for debugging/verification)
   const fetchStoriesDirectly = async (userId: string) => {
     try {
-      // First get child profiles for this user
       const { data: childProfiles, error: childError } = await supabase
         .from('child_profiles')
         .select('*')
@@ -249,8 +224,6 @@
 
       const childProfileIds = childProfiles.map(cp => cp.id);
       
-      // Direct query to stories table - filter by both child_profile_id and user_id
-      // to ensure we only get stories belonging to this user
       const { data: storiesData, error: storiesError } = await supabase
         .from('stories')
         .select('*')
@@ -271,10 +244,8 @@
     }
   };
 
-  // Fetch stories for the user
   const fetchStories = async (userId: string) => {
     try {
-      // Validate userId
       if (!userId || typeof userId !== 'string' || userId.trim() === '' || userId === 'undefined' || userId === 'null') {
         console.error('[Dashboard] Invalid userId:', userId);
         storiesError = 'Invalid user ID';
@@ -285,18 +256,15 @@
       loadingStories = true;
       storiesError = "";
       
-      // Clear existing data first
       stories = [];
       rawStories = [];
       characters = [];
 
       console.log('[Dashboard] Fetching stories from Supabase for user:', userId);
       
-      // First, try direct query to verify what's in the database
       const directStories = await fetchStoriesDirectly(userId);
       console.log('[Dashboard] Direct query returned:', directStories.length, 'stories');
       
-      // Then use the standard function
       const result = await getAllStoriesForParent(userId);
       
       console.log('[Dashboard] getAllStoriesForParent response:', {
@@ -306,16 +274,13 @@
       });
 
       if (result.success && result.data) {
-        // Ensure we have an array
         const storiesData = Array.isArray(result.data) ? result.data : [];
         
         console.log('[Dashboard] Stories from Supabase:', storiesData.length, 'stories');
         console.log('[Dashboard] Stories data:', storiesData);
         
-        // Store raw story data from Supabase
         rawStories = storiesData;
         
-        // Transform the data to match the StoryLibraryComponent interface
         stories = storiesData
           .map(
             (story: Story & { child_profiles?: any, user_name?: string, uid?: string }, index: number) => ({
@@ -326,7 +291,7 @@
               story_cover: story.story_cover,
               createdDate: formatDate(story.created_at) || "Unknown",
               created_at: story.created_at,
-              durationText: "8 min read", // Default duration - could be calculated based on story content
+              durationText: "8 min read",
               occasion: determineOccasion(
                 story.adventure_type,
                 story.story_world,
@@ -345,11 +310,10 @@
               purchased: story.purchased === true
             }),
           )
-          .filter((story) => story.id); // Ensure all stories have valid ids
+          .filter((story) => story.id);
 
         console.log('[Dashboard] Transformed stories for display:', stories.length, 'stories');
 
-        // Extract unique characters from stories
         extractCharacters(storiesData);
         
         console.log('[Dashboard] Extracted characters:', characters.length, 'characters');
@@ -372,7 +336,6 @@
     }
   };
 
-  // Extract unique characters from stories
   const extractCharacters = (storiesData: any[]) => {
     const characterMap = new Map();
     const characterBookCounts = new Map();
@@ -382,7 +345,6 @@
       if (story.character_name) {
         const key = story.character_name.toLowerCase();
         
-        // Count books for this character
         characterBookCounts.set(key, (characterBookCounts.get(key) || 0) + 1);
         
         if (!characterMap.has(key)) {
@@ -395,22 +357,20 @@
             original_image_url: story.original_image_url || "https://placehold.co/332x225",
             created_at: story.created_at,
             child_profiles: story.child_profiles,
-            booksCount: 0, // Will be set below
+            booksCount: 0,
           });
         }
       }
     });
 
-    // Set book counts for each character
     characters = Array.from(characterMap.values())
       .map((char) => ({
         ...char,
         booksCount: characterBookCounts.get(char.character_name.toLowerCase()) || 0,
       }))
-      .filter((char) => char.id); // Ensure all characters have valid ids
+      .filter((char) => char.id);
   };
 
-  // Fetch gifts for the user
   const fetchGifts = async () => {
     try {
       loadingGifts = true;
@@ -419,7 +379,6 @@
       const result = await getGiftsForUser();
 
       if (result.success && result.data) {
-        // Transform the data to match the GiftTrackingComponent interface
         gifts = result.data.map((gift: Gift) => ({
           id: gift.id,
           childName: gift.child_name,
@@ -446,12 +405,10 @@
     }
   };
 
-  // Helper function to determine occasion based on story properties
   const determineOccasion = (
     adventureType: string,
     storyWorld: string,
   ): string => {
-    // Map adventure types and worlds to occasions
     const occasionMap: { [key: string]: string } = {
       treasure_hunt: "Adventure",
       helping_friend: "Friendship",
@@ -463,12 +420,10 @@
     return occasionMap[adventureType] || occasionMap[storyWorld] || "Adventure";
   };
 
-  // Handle character preview
   const handleCharacterPreview = (event: CustomEvent) => {
     const character = event.detail;
     selectedCharacter = character;
     
-    // Find all books featuring this character
     const characterName = character.character_name?.toLowerCase();
     if (characterName && rawStories) {
       characterBooks = rawStories.filter((story: any) => 
@@ -481,32 +436,27 @@
     showCharacterModal = true;
   };
 
-  // Handle character modal close
   const handleCharacterModalClose = () => {
     showCharacterModal = false;
     selectedCharacter = null;
     characterBooks = [];
   };
 
-  // Handle character modal actions
   const handleUseInNewBook = (event: CustomEvent) => {
     const character = event.detail;
     handleCharacterModalClose();
-    // TODO: Navigate to create new book with this character
     console.log("Use in new book:", character);
   };
 
   const handleEditCharacter = (event: CustomEvent) => {
     const character = event.detail;
     handleCharacterModalClose();
-    // TODO: Navigate to edit character
     console.log("Edit character:", character);
   };
 
   const handleDeleteCharacter = async (event: CustomEvent) => {
     const character = event.detail;
     
-    // Confirm deletion
     if (!confirm(`Are you sure you want to delete "${character.character_name}"? This action cannot be undone.`)) {
       return;
     }
@@ -525,7 +475,6 @@
       if (result.success) {
         console.log('Character deleted successfully:', result.data);
         
-        // Reload the page data to reflect the changes
         if (browser) {
           window.location.reload();
         }
@@ -542,33 +491,25 @@
   const handleBookClick = (event: CustomEvent) => {
     const book = event.detail;
     handleCharacterModalClose();
-    // TODO: Navigate to book view
     console.log("Book clicked:", book);
   };
 
-  // Handle view book button click from BookCard
   
 
-  // Track the last fetched user ID to prevent duplicate fetches
   let lastFetchedUserId: string | null = null;
 
-  // Fetch subscription status and credits when user is available
   $: if (browser && $user && $user.id && $user.id !== lastFetchedUserId) {
     lastFetchedUserId = $user.id;
     fetchSubscriptionStatus($user.id);
   }
 
-  // Fetch profiles, stories, and gifts when component mounts and user is available
   onMount(() => {
-    // Clear sessionStorage on dashboard page load
     if (browser) {
       sessionStorage.clear();
     }
     
-    // Check initial screen size
     checkScreenSize();
     
-    // Fetch subscription status and credits if user is already available
     if ($user && $user.id) {
       fetchSubscriptionStatus($user.id);
     }
@@ -580,34 +521,28 @@
     };
   });
 
-  // Handle Add Children button click
   const handleAddChildren = () => {
     goto("/create-child-profile");
   };
 
-  // Handle New Story button click from child profile component
   const handleNewStory = (event: CustomEvent) => {
     const childName = event.detail.name;
     const childItem = event.detail.item;
 
-    // Find the selected child profile - check both name and first_name fields
     const selectedChild = childProfiles.find(
       (child) => (child.name === childName || child.first_name === childName),
-    ) || childItem; // Fallback to the passed item if not found in childProfiles
+    ) || childItem;
 
     if (selectedChild && browser) {
-      // Store the child profile ID and name for the character creation flow
       const childId = selectedChild.id?.toString() || '';
       const childDisplayName = selectedChild.first_name || selectedChild.name || childName;
       
       sessionStorage.setItem("selectedChildProfileId", childId);
       sessionStorage.setItem("selectedChildProfileName", childDisplayName);
       
-      // Update the story creation store with selected child
       storyCreation.setSelectedChild(childId, childDisplayName);
     }
     
-    // Navigate to create-character/1 page
     goto("/create-character/1");
   };
 
@@ -746,7 +681,6 @@
     </div>
   </div>
 
-  <!-- Mobile Menu Overlay -->
   {#if showMobileMenu}
     <div
       class="mobile-menu-overlay"
@@ -812,22 +746,7 @@
         </div>
 
         <div class="mobile-menu-footer">
-          <div class="mobile-profile-close">
-            <img
-              class="ellipse-7"
-              src="https://placehold.co/40x40"
-              alt="Alex Smith"
-            />
-            <div class="heading">
-              <div class="alex-smith">
-                <span class="alexsmith_span">Alex Smith</span>
-              </div>
-              <div class="premium-plan">
-                <span class="premiumplan_span">Premium Plan</span>
-              </div>
-            </div>
-            <img src={caretdown} alt="caretdown" class="caretdown" />
-          </div>
+          <AccountDropdown />
         </div>
       </div>
     </div>
@@ -881,7 +800,6 @@
         />
       {/if}
         
-      <!-- Reading Stats Component -->
       {#if activeMenu === "home" && libraryView === "all"}
       <div class="reading-stats-container">
         <div class="reading-stats-header-section">
@@ -1021,7 +939,6 @@
 <MobileDashboardComponent />
 {/if}
 
-<!-- Character Details Modal -->
 {#if showCharacterModal && selectedCharacter}
   <div
     class="modal-overlay"
@@ -1086,7 +1003,6 @@
     max-height: min(95vh, 900px);
   }
 
-  /* Ensure modal is centered on all screen sizes */
   @media (max-width: 768px) {
     .modal-overlay {
       padding: 10px;
@@ -1204,40 +1120,6 @@
     align-self: stretch;
   }
 
-  .ellipse-7 {
-    width: 40px;
-    height: 40px;
-    background: #d9d9d9;
-    border-radius: 9999px;
-  }
-
-  .alexsmith_span {
-    color: #121212;
-    font-size: 18px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 25.2px;
-    word-wrap: break-word;
-  }
-
-  .alex-smith {
-    align-self: stretch;
-  }
-
-  .premiumplan_span {
-    color: #727272;
-    font-size: 14px;
-    font-family: Quicksand;
-    font-weight: 600;
-    line-height: 19.6px;
-    word-wrap: break-word;
-  }
-
-  .premium-plan {
-    align-self: stretch;
-  }
-
-
   .sidebargrouping-label {
     align-self: stretch;
     padding-left: 24px;
@@ -1254,15 +1136,6 @@
     justify-content: flex-start;
     align-items: flex-start;
     gap: 4px;
-    display: inline-flex;
-  }
-
-  .heading {
-    width: 119px;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    gap: 2px;
     display: inline-flex;
   }
 
@@ -1352,13 +1225,6 @@
   .parent-menu-dropdown_03.active .gift img {
     opacity: 1;
     filter: brightness(0) invert(1);
-  }
-
-  .caretdown {
-    width: 24px;
-    height: 24px;
-    position: relative;
-    overflow: hidden;
   }
 
   .sidebarheader {
@@ -1675,7 +1541,6 @@
     display: inline-flex;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .parent-dashboard {
       flex-direction: column;
@@ -1732,30 +1597,11 @@
       text-align: center;
     }
 
-    .heading {
-      width: auto;
-    }
-
-    .alexsmith_span {
-      font-size: 16px;
-      line-height: 22.4px;
-    }
-
-    .premiumplan_span {
-      font-size: 12px;
-      line-height: 16.8px;
-    }
-
-    .ellipse-7 {
-      width: 32px;
-      height: 32px;
-    }
     .icon-list {
       cursor: pointer;
     }
   }
 
-  /* Mobile Menu Styles */
   .mobile-menu-overlay {
     position: fixed;
     top: 0;
@@ -1815,22 +1661,6 @@
     background: white;
   }
 
-  .mobile-profile-close {
-    width: 100%;
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    background: #fcfcfc;
-    border-radius: 12px;
-    outline: 1px #dcdcdc solid;
-    outline-offset: -1px;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    display: flex;
-  }
-
   .mobile-menu-label {
     padding-left: 4px;
     display: flex;
@@ -1876,14 +1706,6 @@
     }
   }
 
-  .caretdown {
-    width: 24px;
-    height: 24px;
-    position: relative;
-    overflow: hidden;
-  }
-
-
   .fstorycreditsleft_span {
     color: #438bff;
     font-size: 16px;
@@ -1928,7 +1750,6 @@
     display: inline-flex;
   }
 
-  /* Reading Stats Component Styles */
   .reading-stats-title-text {
     color: black;
     font-size: 24px;
@@ -2022,21 +1843,18 @@
     object-fit: contain;
   }
 
-  /* BookOpen icon should be gray */
   .reading-stats-stat-item .reading-stats-stat-icon img[alt="Book Open"] {
     width: 28px;
     height: 24px;
     filter: brightness(0) saturate(100%) invert(43%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(90%) contrast(89%);
   }
 
-  /* Speaker icon should be gray */
   .reading-stats-stat-item .reading-stats-stat-icon img[alt="Audio"] {
     width: 26px;
     height: 28px;
     filter: brightness(0) saturate(100%) invert(43%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(90%) contrast(89%);
   }
 
-  /* Star icon should be gray */
   .reading-stats-stat-item .reading-stats-stat-icon img[alt="Star"] {
     width: 28px;
     height: 27px;

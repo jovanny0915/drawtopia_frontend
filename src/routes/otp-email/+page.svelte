@@ -8,7 +8,6 @@
   import languageFlag from "../../assets/langbtnicon.svg";
   import logo from "../../assets/logo.webp";
 
-  // OTP related variables
   let otpValues: string[] = ["", "", "", "", "", ""];
   let otpInputs: HTMLInputElement[] = [];
   let email = "";
@@ -17,9 +16,7 @@
   let errors: { [key: string]: string } = {};
   let isResendingOTP = false;
 
-  // Get email from URL params or localStorage
   onMount(() => {
-    // Try to get email from URL params first
     const urlParams = new URLSearchParams(window.location.search);
     const emailParam = urlParams.get("email");
     const modeParam = urlParams.get("mode");
@@ -30,7 +27,6 @@
     if (emailParam) {
       email = emailParam;
     } else {
-      // Fallback to localStorage if available
       const storedEmail = localStorage.getItem("pendingEmailVerification");
       if (storedEmail) {
         email = storedEmail;
@@ -38,38 +34,32 @@
     }
   });
 
-  // Handle OTP input changes
   const handleOTPInput = (index: number, event: Event) => {
     const target = event.target as HTMLInputElement;
     const value = target.value;
 
-    // Only allow single digit
     if (value.length > 1) {
       target.value = value.slice(-1);
     }
 
     otpValues[index] = target.value;
 
-    // Move to next input if current is filled
     if (target.value && index < 5) {
       otpInputs[index + 1]?.focus();
     }
 
-    // Clear errors when user types
     if (errors.otp) {
       errors.otp = "";
     }
   };
 
-  // Handle paste event for automatic OTP filling
   const handleOTPPaste = (index: number, event: ClipboardEvent) => {
     event.preventDefault();
 
     const pastedData = event.clipboardData?.getData("text") || "";
-    const cleanedData = pastedData.replace(/\D/g, ""); // Remove non-digits
+    const cleanedData = pastedData.replace(/\D/g, "");
 
     if (cleanedData.length === 6) {
-      // Fill all 6 inputs with the pasted digits
       for (let i = 0; i < 6; i++) {
         otpValues[i] = cleanedData[i];
         if (otpInputs[i]) {
@@ -77,15 +67,12 @@
         }
       }
 
-      // Focus the last input
       otpInputs[5]?.focus();
 
-      // Clear any existing errors
       if (errors.otp) {
         errors.otp = "";
       }
     } else if (cleanedData.length > 0) {
-      // If partial digits, fill from current position
       const remainingSlots = 6 - index;
       const digitsToFill = Math.min(cleanedData.length, remainingSlots);
 
@@ -98,20 +85,17 @@
         }
       }
 
-      // Focus the next empty input or last filled input
       const nextIndex = Math.min(index + digitsToFill, 5);
       otpInputs[nextIndex]?.focus();
     }
   };
 
-  // Handle backspace in OTP inputs
   const handleOTPKeydown = (index: number, event: KeyboardEvent) => {
     if (event.key === "Backspace" && !otpValues[index] && index > 0) {
       otpInputs[index - 1]?.focus();
     }
   };
 
-  // Validate OTP
   const validateOTP = () => {
     const otpCode = otpValues.join("");
 
@@ -150,20 +134,16 @@
       if (result.success) {
         console.log("Email verification successful");
 
-        // Clear any stored pending verification data
         localStorage.removeItem("pendingEmailVerification");
 
-        // Get redirect path from sessionStorage or default to home
         const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/';
-        sessionStorage.removeItem('redirectAfterLogin'); // Clean up
+        sessionStorage.removeItem('redirectAfterLogin');
 
-        // Show success message
         addNotification({
           type: "success",
           message: "Email verified successfully! Redirecting...",
         });
 
-        // Redirect to intended destination or home page
         goto(redirectPath);
       } else {
         console.error("Email verification failed:", result.error);
@@ -178,12 +158,10 @@
     }
   };
 
-  // Handle back button
   const handleBack = () => {
     goto(mode === "login" ? "/login" : "/signup");
   };
 
-  // Resend OTP function
   const handleResendOTP = async () => {
     if (!email) {
       errors.general = "Email address is required to resend code";
@@ -649,7 +627,6 @@
     }
   }
 
-  /* Back button styles (upgraded) */
   .button {
     width: 100%;
     height: 100%;

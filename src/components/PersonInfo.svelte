@@ -26,7 +26,6 @@
     relationship: "",
   };
 
-  // Form data
   let firstName = "";
   let selectedImage: File | null = null;
   let imagePreviewUrl: string | null = null;
@@ -58,8 +57,6 @@
     event.preventDefault();
     event.stopPropagation();
 
-    // Only set isDragOver to false if we're leaving the drop zone itself
-    // Check if the related target is outside the drop zone
     const dropZone = event.currentTarget as HTMLElement;
     const relatedTarget = event.relatedTarget as Node;
 
@@ -75,9 +72,8 @@
 
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
-      const file = files[0]; // Take only the first file if multiple are dropped
+      const file = files[0];
 
-      // Check if it's an image file
       if (file.type.startsWith("image/")) {
         await processImageFile(file);
       } else {
@@ -97,14 +93,12 @@
     selectedImage = file;
     uploadError = "";
 
-    // Create preview URL
     const reader = new FileReader();
     reader.onload = (e) => {
       imagePreviewUrl = e.target?.result as string;
     };
     reader.readAsDataURL(file);
 
-    // Upload to Supabase
     if (!userId) {
       uploadError = "User not authenticated. Please log in to upload images.";
       return;
@@ -186,7 +180,7 @@
 
   const collectChildData = () => {
     return {
-      id: Date.now(), // Simple ID generation, you might want to use UUID
+      id: Date.now(),
       name: firstName.trim(),
       ageGroup: selectedAgeGroup,
       relationship: selectedRelationship,
@@ -219,7 +213,6 @@
     if (onAddChild) {
       onAddChild(childData);
 
-      // Show success message temporarily
       showSuccessMessage = true;
       setTimeout(() => {
         showSuccessMessage = false;
@@ -245,7 +238,6 @@
     saveError = "";
 
     try {
-      // Convert children data to database format
       const childProfiles: ChildProfile[] = children.map((child) => ({
         first_name: child.name,
         age_group: child.ageGroup,
@@ -256,21 +248,11 @@
 
       console.log("Saving child profiles:", childProfiles);
 
-      // Save to database
       const result = await insertChildProfiles(childProfiles);
 
       if (result.success) {
         console.log("Child profiles saved successfully:", result.data);
-        // sessionStorage.setItem(
-        //   "selectedChildProfileId",
-        //   result.data[0].id.toString(),
-        // );
-        // sessionStorage.setItem(
-        //   "selectedChildProfileName",
-        //   result.data[0].first_name,
-        // );
 
-        // Call the parent callback to proceed to story creation
         if (onContinueToStoryCreation) {
           onContinueToStoryCreation();
         }
@@ -286,20 +268,17 @@
     }
   };
 
-  // Prevent default drag behavior on the entire window
   const preventDefaultDrag = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
   onMount(() => {
-    // Prevent default drag and drop behavior on the entire window
     window.addEventListener("dragover", preventDefaultDrag);
     window.addEventListener("drop", preventDefaultDrag);
   });
 
   onDestroy(() => {
-    // Clean up event listeners
     window.removeEventListener("dragover", preventDefaultDrag);
     window.removeEventListener("drop", preventDefaultDrag);
   });
@@ -333,9 +312,7 @@
                 <div style="width: 500px;">
                   <div class="frame-1410103823">
                       <div class="frame-1410104033">
-                          <!-- <div class="spinner"> -->
                             <img src={spinner} alt="spinner" class="spinner">
-                          <!-- </div> -->
                           <div class="uploading"><span class="uploading_span">Uploading...</span></div>
                       </div>
                       <div class="frame-1410103823_01">
@@ -405,7 +382,6 @@
               </div>
             </div>
           {/if}
-          <!-- Hidden file input -->
           <input
             type="file"
             accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -548,7 +524,6 @@
       {#if errors.relationship}
         <div class="error-message">{errors.relationship}</div>
       {/if}
-      <!-- </div> -->
     </div>
   </div>
 
@@ -1233,7 +1208,6 @@
     word-wrap: break-word;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 768px) {
     .frame-1410103991 {
       gap: 16px;
@@ -1253,7 +1227,6 @@
     }
   }
 
-  /* Extra small mobile devices */
   @media (max-width: 480px) {
     .frame-1410103991 {
       gap: 12px;
@@ -1270,7 +1243,6 @@
     }
   }
 
-  /* Upload progress styles (added) */
   .vector {
     width: 20.25px;
     height: 20.25px;

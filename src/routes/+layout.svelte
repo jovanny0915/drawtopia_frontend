@@ -1,4 +1,3 @@
-<!-- Root layout for all pages -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
@@ -10,7 +9,6 @@
   import NotificationContainer from '../components/NotificationContainer.svelte';
   import '../app.css';
 
-  // Define public routes that don't require authentication
   const publicRoutes = [
     '/login',
     '/signup',
@@ -18,26 +16,21 @@
     '/otp-phone',
     '/share',
     '/consent-send',
-    '/admin', // Admin routes have their own auth check
-    '/admin-test' // Admin test page (requires auth but not admin role)
+    '/admin',
+    '/admin-test'
   ];
 
-  // Check if the current route is public
   function isPublicRoute(pathname: string): boolean {
     return publicRoutes.some(route => {
-      // Exact match or starts with the route (for nested routes)
       return pathname === route || pathname.startsWith(route + '/');
     });
   }
 
-  // Initialize authentication and push notifications on app startup
   onMount(() => {
     const unsubscribe = initAuth();
     const originalAlert = window.alert;
     
-    // Register service worker for push notifications (async, but don't block)
     if (browser) {
-      // Route legacy alert() calls through the toast UI.
       window.alert = (message?: string) => {
         const text = typeof message === 'string' ? message : String(message ?? '');
         addNotification({
@@ -56,31 +49,25 @@
         });
     }
     
-    // Return cleanup function synchronously
     return () => {
       window.alert = originalAlert;
       unsubscribe();
     };
   });
 
-  // Reactive statement to check authentication status
   $: if (browser && !$authLoading) {
     const currentPath = $page.url.pathname;
     
-    // Redirect "/" to "/dashboard"
     if (currentPath === '/') {
       goto('/dashboard');
     }
     
-    // If user is not authenticated and trying to access a protected route
     if (!$isAuthenticated && !isPublicRoute(currentPath)) {
       console.log('User not authenticated, redirecting to login from:', currentPath);
-      // Store the intended destination to redirect after login
       sessionStorage.setItem('redirectAfterLogin', currentPath);
       goto('/login');
     }
     
-    // If user is authenticated and on login/signup page, redirect to dashboard
     if ($isAuthenticated && (currentPath === '/login' || currentPath === '/signup')) {
       console.log('User already authenticated, redirecting to dashboard');
       goto('/dashboard');
@@ -92,14 +79,7 @@
   <slot />
 </main>
 
-<!-- Footer with Privacy Policy link (required for Google OAuth branding verification) -->
-<!--
-<footer class="app-footer">
-  <a href="/privacy">Privacy Policy</a>
-</footer>
--->
 
-<!-- Global notification container -->
 <NotificationContainer />
 
 <style>

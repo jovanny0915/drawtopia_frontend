@@ -11,13 +11,8 @@
     import lightgroup from "../../assets/Light-Group.svg";
     import { supabase } from "../../lib/supabase";
     import { user } from "../../lib/stores/auth";
-    import { env } from "../../lib/env";
 
-    // API base URL for the backend
-    const API_BASE_URL = (env.API_BASE_URL || env.PUBLIC_BACKEND_URL || "https://image-edit-five.vercel.app")
-        .replace(/\/api\/?$/, '')
-        .replace(/\/$/, '');
-    const CHECKOUT_PROVIDER = (env.CHECKOUT_PROVIDER || 'stripe').toLowerCase();
+    const API_BASE_URL = "https://image-edit-five.vercel.app";
 
     const goToDashboard = () => {
         goto('/dashboard');
@@ -29,11 +24,9 @@
     let subscriptionError = "";
     let purchaseError = "";
     
-    // Get story ID and scene index from URL query parameters
     $: purchaseStoryId = $page.url.searchParams.get('storyId');
     $: sceneIndex = $page.url.searchParams.get('sceneIndex');
     
-    // Log when story ID is present
     $: if (purchaseStoryId) {
         console.log('[pricing] Found story ID for purchase:', purchaseStoryId);
         if (sceneIndex) {
@@ -44,7 +37,6 @@
     async function handlePurchase(purchaseType: 'single_story' | 'story_bundle') {
         if (isLoadingSingleStory || isLoadingStoryBundle) return;
         
-        // Set loading state based on purchase type
         if (purchaseType === 'single_story') {
             isLoadingSingleStory = true;
         } else {
@@ -54,7 +46,6 @@
         purchaseError = "";
         
         try {
-            // Get current user info from auth store
             let userEmail = null;
             let userId = null;
             
@@ -66,7 +57,6 @@
             console.log('[handlePurchase] userId:', userId);
             console.log('[handlePurchase] purchaseType:', purchaseType);
 
-            // Build success URL with story ID and scene index to persist through Stripe redirects
             let successUrl = `${window.location.origin}/purchase/success?session_id={CHECKOUT_SESSION_ID}`;
             if (purchaseStoryId) {
                 successUrl += `&storyId=${purchaseStoryId}`;
@@ -75,37 +65,20 @@
                 successUrl += `&sceneIndex=${sceneIndex}`;
             }
 
-            const useShopifyCheckout = CHECKOUT_PROVIDER === 'shopify' && purchaseType === 'single_story';
-            if (useShopifyCheckout && !purchaseStoryId) {
-                throw new Error('A generated story is required before Shopify checkout');
-            }
-
-            // Call the backend to create the configured checkout session/cart.
-            const response = await fetch(
-                `${API_BASE_URL}${useShopifyCheckout ? '/api/shopify/create-cart' : '/api/stripe/create-onetime-checkout'}`,
-                {
+            const response = await fetch(`${API_BASE_URL}/api/stripe/create-onetime-checkout`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(useShopifyCheckout
-                    ? {
-                        purchase_type: purchaseType,
-                        story_id: purchaseStoryId,
-                        user_email: userEmail,
-                        user_id: userId,
-                        story_theme: browser ? sessionStorage.getItem('storyTheme') : undefined
-                    }
-                    : {
-                        purchase_type: purchaseType,
-                        story_id: purchaseStoryId, // Include story ID if available
-                        user_email: userEmail,
-                        user_id: userId,
-                        success_url: successUrl,
-                        cancel_url: `${window.location.origin}/pricing`
-                    })
-                }
-            );
+                body: JSON.stringify({
+                    purchase_type: purchaseType,
+                    story_id: purchaseStoryId,
+                    user_email: userEmail,
+                    user_id: userId,
+                    success_url: successUrl,
+                    cancel_url: `${window.location.origin}/pricing`
+                })
+            });
             
             if (!response.ok) {
                 const errorData = await response.json();
@@ -115,7 +88,6 @@
             const data = await response.json();
             
             if (data.success && data.checkout_url) {
-                // Redirect to the configured checkout provider.
                 window.location.href = data.checkout_url;
             } else {
                 throw new Error(data.message || 'Failed to get checkout URL');
@@ -123,7 +95,6 @@
         } catch (error) {
             console.error('Purchase error:', error);
             purchaseError = error instanceof Error ? error.message : 'An error occurred';
-            // Show error to user
             alert(`Failed to start purchase: ${purchaseError}`);
         } finally {
             if (purchaseType === 'single_story') {
@@ -155,7 +126,6 @@
         subscriptionError = "";
         
         try {
-            // Get current user info from auth store (already synced and refreshed)
             let userEmail = null;
             let userId = null;
             
@@ -166,7 +136,6 @@
             console.log('[handleStartSubscription] userEmail:', userEmail);
             console.log('[handleStartSubscription] userId:', userId);
 
-            // Build success URL with story ID and scene index to persist through Stripe redirects
             let successUrl = `${window.location.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`;
             if (purchaseStoryId) {
                 successUrl += `&storyId=${purchaseStoryId}`;
@@ -175,7 +144,6 @@
                 successUrl += `&sceneIndex=${sceneIndex}`;
             }
 
-            // Call the backend to create a Stripe checkout session
             const response = await fetch(`${API_BASE_URL}/api/stripe/create-subscription-checkout`, {
                 method: 'POST',
                 headers: {
@@ -198,7 +166,6 @@
             const data = await response.json();
             
             if (data.success && data.checkout_url) {
-                // Redirect to Stripe Checkout
                 window.location.href = data.checkout_url;
             } else {
                 throw new Error(data.message || 'Failed to get checkout URL');
@@ -206,7 +173,6 @@
         } catch (error) {
             console.error('Subscription error:', error);
             subscriptionError = error instanceof Error ? error.message : 'An error occurred';
-            // Show error to user
             alert(`Failed to start subscription: ${subscriptionError}`);
         } finally {
             isLoadingSubscription = false;
@@ -220,9 +186,6 @@
             <div class="logo-text-full">
                 <img src={drawtopia} alt="drawtopia" class="drawtopia-logo" role="button" tabindex="0" on:click={goToDashboard} on:keydown={(e) => e.key === 'Enter' && goToDashboard()} />
             </div>
-            <!-- <div class="x">
-                <img src={xicon} alt="" />
-            </div> -->
         </div>
         <div class="stroke"></div>
     </div>

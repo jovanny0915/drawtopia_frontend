@@ -19,16 +19,13 @@
   let isPlaying = false;
 
   function handlePrevious() {
-    // Navigate to previous pages
   }
 
   function handleNext() {
-    // Navigate to next pages
     goto('/adventure-story/2');
   }
 
   function handleFullScreen() {
-    // Handle full screen preview
   }
 
   function togglePlay() {

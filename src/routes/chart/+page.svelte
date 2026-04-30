@@ -58,7 +58,6 @@
   };
 
   const handleBack = () => {
-    // Navigate back in browser history
     if (typeof window !== "undefined") {
       window.history.back();
     }
@@ -69,7 +68,6 @@
   <Navbar>
     <AccountDropdown slot="profile" />
   </Navbar>
-  <!-- Mobile Back Button -->
   <div class="mobile-back-button">
     <div
       class="mobile-back-btn"
@@ -83,7 +81,6 @@
     <span class="back-text">Back</span>
   </div>
 
-  <!-- Mobile Order Summary -->
   <div class="mobile-order-summary">
     <MobileOrderSummary />
   </div>
@@ -443,11 +440,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -1892,12 +1884,10 @@
     background-color: #f0f0f0;
   }
 
-  /* Mobile Back Button Styles */
   .mobile-back-button {
     display: none;
   }
 
-  /* Mobile Order Summary Styles */
   .mobile-order-summary {
     display: none;
   }
@@ -1933,7 +1923,6 @@
     line-height: 22.4px;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .mobile-back-button {
       display: flex;
@@ -1969,8 +1958,6 @@
 
     .frame-1410103911 {
       display: none;
-      /* width: 100%;
-      height: auto; */
     }
 
     .frame-6 {
@@ -2069,7 +2056,6 @@
       line-height: 28px;
     }
 
-    /* General mobile typography optimizations */
     span[class$="_span"] {
       font-size: 16px;
       line-height: 22.4px;
@@ -2086,7 +2072,6 @@
     }
 
     [class*="frame-"] {
-      /* padding: 12px; */
       gap: 12px;
     }
 

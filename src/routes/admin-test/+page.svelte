@@ -1,4 +1,3 @@
-<!-- Admin Test/Setup Page -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user } from '$lib/stores/auth';

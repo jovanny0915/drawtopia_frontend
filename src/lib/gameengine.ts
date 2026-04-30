@@ -1,13 +1,12 @@
-// Lightweight game engine for "find the character" interactions on pages 3-6
 import { addNotification } from './stores/notification';
 
 type Options = {
   container: HTMLElement;
   getStoryUid: () => string | null | undefined;
   getPageNumber?: () => number | null | undefined;
-  isActive: () => boolean; // whether game should respond (pages 3-6)
-  endpoint?: string; // override backend endpoint
-  onHitIndex?: (hitIndex: number) => void; // 1..4; 0 means "not found"
+  isActive: () => boolean;
+  endpoint?: string;
+  onHitIndex?: (hitIndex: number) => void;
 };
 
 let attached = false;
@@ -33,20 +32,17 @@ function showPersistentPointerMarker(img: HTMLImageElement, clientX: number, cli
   const marker = document.createElement('span');
   marker.className = 'game-pointer-marker';
   const imageContainer = (img.parentElement || img) as HTMLElement;
-  // Prefer the full page image wrapper so the marker is shown on the whole story image view.
   const markerHost =
     (img.closest('.mobile-image-split') as HTMLElement | null) ||
     imageContainer;
   const containerRect = markerHost.getBoundingClientRect();
 
-  // Ensure the marker is positioned relative to the image wrapper div.
   const computedPos = window.getComputedStyle(markerHost).position;
   if (!computedPos || computedPos === 'static') {
     markerHost.style.position = 'relative';
   }
 
   marker.style.position = 'absolute';
-  // Position marker in the visible image wrapper (works for split 3rd-6th pages too).
   const rawLeft = clientX - containerRect.left - markerRadiusPx;
   const rawTop = clientY - containerRect.top - markerRadiusPx;
   const maxLeft = Math.max(0, containerRect.width - markerRadiusPx * 2);
@@ -83,19 +79,16 @@ export function attachGameEngine(opts: Options) {
 
   clickHandler = async (ev: PointerEvent) => {
     try {
-      // Ignore clicks that are part of a double-click
       if ((ev as any).detail && (ev as any).detail !== 1) return;
 
       if (!opts.isActive()) return;
 
-      // Ensure target is an Element
       const rawTarget = ev.target;
       let img: HTMLImageElement | null = null;
       if (rawTarget && rawTarget instanceof Element) {
         img = rawTarget.closest('.scene-main-image') as HTMLImageElement | null;
       }
 
-      // If click wasn't directly on an image, try to find image under pointer coordinates
       if (!img) {
         const images = container.querySelectorAll('img.scene-main-image');
         const cx = ev.clientX;
@@ -109,7 +102,6 @@ export function attachGameEngine(opts: Options) {
           }
         }
 
-        // Fallback to first image in container (useful when clicking on container area)
         if (!img && images.length > 0) {
           img = images[0] as HTMLImageElement;
         }
@@ -122,7 +114,6 @@ export function attachGameEngine(opts: Options) {
       const x = (ev.clientX - rect.left) / rect.width;
       const y = (ev.clientY - rect.top) / rect.height;
 
-      // clamp
       const nx = Math.max(0, Math.min(1, x));
       const ny = Math.max(0, Math.min(1, y));
 
@@ -141,7 +132,6 @@ export function attachGameEngine(opts: Options) {
         return;
       }
 
-      // Send to backend
       const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,7 +168,6 @@ export function attachGameEngine(opts: Options) {
         return;
       }
 
-      // Unknown response shape; treat as not found.
       animateAndRemoveMarker(marker);
       addNotification({ type: 'warning', message: 'Not found!' });
     } catch (err) {
@@ -187,7 +176,6 @@ export function attachGameEngine(opts: Options) {
     }
   };
 
-  // Use pointerdown so pressing mouse button anywhere in image area triggers
   container.addEventListener('pointerdown', clickHandler as EventListener, { passive: true });
   attached = true;
 }

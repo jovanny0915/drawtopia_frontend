@@ -1,19 +1,13 @@
-/**
- * Gift Creation Store
- * Manages the gift creation state throughout the gift flow
- */
 
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import type { Gift } from '../database/gifts';
 
 export interface GiftCreationState {
-  // Step 1 data
   childName?: string;
   ageGroup?: string;
   relationship?: string;
   
-  // Step 2 data
   occasion?: string;
   selectedStory?: {
     id: number;
@@ -21,18 +15,15 @@ export interface GiftCreationState {
     description: string;
   };
   
-  // Step 3 data
   specialMsg?: string;
   deliveryEmail?: string;
   deliveryTime?: string;
   deliveryOption?: 'surprise' | 'scheduled';
   
-  // Additional data
   childProfileId?: string;
   giftId?: string;
 }
 
-// Create the store
 const createGiftCreationStore = () => {
   const { subscribe, set, update } = writable<GiftCreationState>({});
 
@@ -41,7 +32,6 @@ const createGiftCreationStore = () => {
     set,
     update,
     
-    // Initialize from sessionStorage
     init: () => {
       if (browser) {
         const childName = sessionStorage.getItem('gift_child_name');
@@ -82,7 +72,6 @@ const createGiftCreationStore = () => {
       }
     },
 
-    // Step 1: Set recipient details
     setRecipientDetails: (details: {
       childName?: string;
       ageGroup?: string;
@@ -98,7 +87,6 @@ const createGiftCreationStore = () => {
       }
     },
 
-    // Step 2: Set occasion and story
     setOccasionAndStory: (details: {
       occasion?: string;
       selectedStory?: {
@@ -116,7 +104,6 @@ const createGiftCreationStore = () => {
       }
     },
 
-    // Step 3: Set delivery details
     setDeliveryDetails: (details: {
       specialMsg?: string;
       deliveryEmail?: string;
@@ -132,7 +119,6 @@ const createGiftCreationStore = () => {
       }
     },
 
-    // Set gift ID after creation
     setGiftId: (id: string) => {
       update(state => ({ ...state, giftId: id }));
       if (browser) {
@@ -140,7 +126,6 @@ const createGiftCreationStore = () => {
       }
     },
 
-    // Clear all data
     clear: () => {
       set({});
       if (browser) {
@@ -158,17 +143,14 @@ const createGiftCreationStore = () => {
       }
     },
 
-    // Convert current state to Gift object for database
     toGiftObject: (state: GiftCreationState): Gift => {
       if (!state.childName || !state.ageGroup || !state.relationship || 
           !state.occasion || !state.deliveryEmail) {
         throw new Error('Missing required gift data');
       }
       
-      // Determine delivery time based on option
       let deliveryTime = state.deliveryTime || '';
       if (state.deliveryOption === 'surprise') {
-        // For surprise/immediate delivery, use current time in ISO format
         deliveryTime = new Date().toISOString();
       }
       
@@ -189,7 +171,6 @@ const createGiftCreationStore = () => {
 
 export const giftCreation = createGiftCreationStore();
 
-// Auto-initialize the store when the module is loaded (handles page refreshes)
 if (browser) {
   giftCreation.init();
 }

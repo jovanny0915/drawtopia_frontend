@@ -26,7 +26,6 @@
   import languageFlag from "../../assets/langbtnicon.svg";
   import logo from "../../assets/logo.webp";
 
-  // Check if user is already authenticated
   onMount(() => {
     const unsubscribe = isAuthenticated.subscribe(authenticated => {
       if (authenticated) {
@@ -40,16 +39,12 @@
     
     return unsubscribe;
   });
-  // Any Country Code Alpha-2 (ISO 3166)
   let selectedCountry: CountryCode | null = "HU";
 
-  // You must use E164 number format. It's guarantee the parsing and storing consistency.
   let value: E164Number | null = "+36301234567";
 
-  // Validity
   let valid = true;
 
-  // Optional - Extended details about the parsed phone number
   let detailedValue: DetailedValue | null = null;
   let email = "";
   let phoneNumber = "";
@@ -61,7 +56,6 @@
   let signupMethod: "phone" | "email" = "email";
   let accountType = "adult";
   let acceptedTerms = false;
-  // let selectedCountry = { name: 'United States', code: '+1', flag: '🇺🇸' };
   let showCountryDropdown = false;
   let selectedOption = "";
   let options = [
@@ -84,17 +78,11 @@
 
   const switchLoginMethod = (method: "phone" | "email") => {
     signupMethod = method;
-    errors = {}; // Clear errors when switching
+    errors = {};
   };
 
-  // const selectAccountType = (method: string) => {
-  //   accountType = method as "adult" | "child";
-  //   errors = {}; // Clear errors when switching
-  // };
 
   const selectCountry = (country: (typeof countries)[0]) => {
-    // selectedCountry = country;
-    // showCountryDropdown = false;
   };
 
   const validateForm = (isGoogle: boolean) => {
@@ -129,28 +117,15 @@
       errors.password = "Password must be at least 6 characters";
     }
 
-    // if (!acceptedTerms) {
-    //   errors.terms = "You must accept the terms and conditions";
-    // }
 
     return Object.keys(errors).length === 0;
   };
 
   const handleGoogleSignUp = async (event: Event) => {
     event.preventDefault();
-    // if (!validateForm(true)) return;
-    // isLoading = true;
-    // errors = {}; // Clear previous errors
 
     try {
-      // Ensure we have all required data before proceeding
-      // if (!firstName.trim() || !lastName.trim()) {
-      //   errors.general = "Please fill in all required fields before signing up with Google.";
-      //   isLoading = false;
-      //   return;
-      // }
 
-      // Store form data temporarily for after OAuth redirect
       sessionStorage.setItem('pendingGoogleSignup', JSON.stringify({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -162,8 +137,6 @@
       console.log("Google signup initiated:", result);
       
       if (result.success) {
-        // OAuth redirect will happen automatically
-        // User registration will be handled by auth state change listener
         console.log("Google OAuth redirect initiated");
       } else {
         errors.general = result.error || "Google signup failed. Please try again.";
@@ -181,7 +154,7 @@
     if (!validateForm(false)) return;
 
     isLoading = true;
-    errors = {}; // Clear previous errors
+    errors = {};
 
     try {
       let result;
@@ -190,7 +163,6 @@
         result = await signUpWithEmail(email, password, firstName, lastName);
         console.log("Signup result:", result);
       } else {
-        // Use the formatted phone number from the TelInput component
         const phoneToUse = value || phoneNumber;
         result = await signUpWithPhone(
           phoneToUse,
@@ -201,25 +173,20 @@
       }
 
       if (result.success) {
-        // Success! User has been created
         console.log("Signup successful:", result.user);
 
-        // Check if email confirmation is required
         if (result.user && !result.session) {
-          // Email verification required
           addNotification({
             type: 'info',
             message: 'Please check your email for a verification code before logging in.'
           });
         } else {
-          // User is automatically signed in
           addNotification({
             type: 'success',
             message: 'Account created successfully! Redirecting to verification page...'
           });
         }
 
-        // Store email or phone for verification
         if (signupMethod === "email") {
           localStorage.setItem("pendingEmailVerification", email);
           goto(`/otp-email?email=${encodeURIComponent(email)}`);
@@ -229,7 +196,6 @@
           goto(`/otp-phone?phone=${encodeURIComponent(phoneToUse)}`);
         }
       } else {
-        // Handle user already exists error
         if (result.error === 'USER_ALREADY_EXISTS') {
           const contactMethod = signupMethod === "email" ? "email address" : "phone number";
           addNotification({
@@ -237,12 +203,10 @@
             message: `An account with this ${contactMethod} already exists. Please login instead.`,
             duration: 7000
           });
-          // Optionally redirect to login page after a delay
           setTimeout(() => {
             goto("/login");
           }, 3000);
         }
-        // Handle signup error with specific rate limiting message
         else if (result.error && (result.error.includes('over_sms_send_rate_limit') || result.error.includes('rate limit'))) {
           errors.general = "Please wait 3 seconds before requesting another SMS code.";
         } else {
@@ -257,10 +221,8 @@
     }
   };
 
-  // Function to get country flag emoji from ISO code
   
 
-  // Close dropdown when clicking outside
   const handleClickOutside = (event: MouseEvent) => {
     const target = event.target as Element;
     if (!target.closest(".country-selector")) {
@@ -372,20 +334,6 @@
             </div>
             
 
-            <!-- <div class="select-wrapper">
-              <label for="accountType">Account Type</label>
-              <PrimarySelect
-                {options}
-                {selectedOption}
-                onChange={(event) => {
-                  const target = event.target as HTMLSelectElement;
-                  selectAccountType(target.value);
-                }}
-              />
-              {#if errors.accountType}
-                <span class="error-text">{errors.accountType}</span>
-              {/if}
-            </div> -->
             
             <div class="text-field">
               <div><span class="phonenumber_01_span">Name</span></div>
@@ -445,13 +393,6 @@
               </div>
             {/if}
 
-            <!-- <div class="text-field">
-              <div><span class="phonenumber_01_span">Password</span></div>
-              <PrimaryInput type="password" bind:value={password} placeholder="Enter your password" errors={errors} disabled={isLoading} />
-              {#if errors.password}
-                <span class="error-text">{errors.password}</span>
-              {/if}
-            </div> -->
           </div>
         </div>
       </div>
@@ -752,16 +693,6 @@
     display: inline-flex;
   }
 
-  /* .email-input {
-    width: 100%;
-    height: 50px;
-    padding-left: 12px;
-    padding-right: 12px;
-    border-radius: 10px;
-    border: 1px solid #bbb;
-    font-size: 16px;
-    outline: none;
-  } */
   .text-field {
     align-self: stretch;
     flex-direction: column;
@@ -830,7 +761,6 @@
     flex-wrap: nowrap;
   }
 
-  /* New interactive styles */
   .button.active {
     background: white !important;
     color: #141414 !important;

@@ -2,24 +2,19 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
 export interface CharacterState {
-  // Basic character information
   characterName: string;
   selectedCharacterType: string;
   specialAbility: string;
   characterImageUrl: string;
   
-  // Style and appearance
   selectedStyle: string;
   
-  // World and adventure
   selectedWorld: string;
   selectedAdventure: string;
   
-  // Story details
   selectedTitle: string;
   selectedCoverDesign: string;
   
-  // Enhancement level
   selectedEnhancement: string;
 }
 
@@ -36,14 +31,12 @@ const defaultCharacterState: CharacterState = {
   selectedEnhancement: 'normal'
 };
 
-// Create the writable store
 function createCharacterStore() {
   const { subscribe, set, update } = writable<CharacterState>(defaultCharacterState);
 
   return {
     subscribe,
     
-    // Initialize store from sessionStorage
     init: () => {
       if (browser) {
         const stored = sessionStorage.getItem('characterState');
@@ -56,7 +49,6 @@ function createCharacterStore() {
             set(defaultCharacterState);
           }
         } else {
-          // Load individual items from sessionStorage for backward compatibility
           const characterName = sessionStorage.getItem('characterName') || '';
           const selectedCharacterType = sessionStorage.getItem('selectedCharacterType') || 'person';
           const specialAbility = sessionStorage.getItem('specialAbility') || '';
@@ -79,17 +71,14 @@ function createCharacterStore() {
           };
 
           set(state);
-          // Save to new format
           sessionStorage.setItem('characterState', JSON.stringify(state));
         }
       }
     },
 
-    // Save entire state to sessionStorage
     save: (state: CharacterState) => {
       if (browser) {
         sessionStorage.setItem('characterState', JSON.stringify(state));
-        // Keep individual items for backward compatibility
         sessionStorage.setItem('characterName', state.characterName);
         sessionStorage.setItem('selectedCharacterType', state.selectedCharacterType);
         sessionStorage.setItem('specialAbility', state.specialAbility);
@@ -102,7 +91,6 @@ function createCharacterStore() {
       set(state);
     },
 
-    // Update specific fields
     updateCharacterInfo: (name: string, type: string, ability: string) => {
       update(state => {
         const newState = { ...state, characterName: name, selectedCharacterType: type, specialAbility: ability };
@@ -191,11 +179,9 @@ function createCharacterStore() {
       });
     },
 
-    // Clear all data
     clear: () => {
       if (browser) {
         sessionStorage.removeItem('characterState');
-        // Clear individual items for backward compatibility
         sessionStorage.removeItem('characterName');
         sessionStorage.removeItem('selectedCharacterType');
         sessionStorage.removeItem('specialAbility');
@@ -208,15 +194,12 @@ function createCharacterStore() {
       set(defaultCharacterState);
     },
 
-    // Reset to default state
     reset: () => set(defaultCharacterState)
   };
 }
 
-// Export the store instance
 export const characterStore = createCharacterStore();
 
-// Helper functions for name mappings
 export const styleNames = {
   "3d": "3D Realistic",
   "cartoon": "Cartoon", 
@@ -240,7 +223,6 @@ export const enhancementNames = {
   high: "High Enhancement"
 } as const;
 
-// Helper function to get display name
 export function getStyleDisplayName(styleId: string): string {
   return styleNames[styleId as keyof typeof styleNames] || styleId;
 }

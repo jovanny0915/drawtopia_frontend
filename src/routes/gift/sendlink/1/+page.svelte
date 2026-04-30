@@ -19,7 +19,6 @@
     import GiftStepComponent from "../../../../components/GiftStepComponent.svelte";
     import AdvancedSelect from "../../../../components/AdvancedSelect.svelte";
 
-    // Age group options
     const ageGroupOptions = [
         { value: "0-2", label: "👶 Ages 0-2 (Reserved)", disabled: true },
         { value: "3-6", label: "👶 Ages 3-6 (Imagination Builders)" },
@@ -27,7 +26,6 @@
         { value: "11-12", label: "🧑 Ages 11-12 (Independent Readers)" },
     ];
 
-    // Occasion options
     const occasionOptions = [
         { value: "birthday", label: "Birthday" },
         { value: "graduation", label: "Graduation" },
@@ -50,23 +48,18 @@
     let scheduleDelivery = false;
     let giftMode = "";
 
-    // Reactive statements for auth state
     $: currentUser = $user;
     $: loading = $authLoading;
     $: authenticated = $isAuthenticated;
     $: safeToRedirect = browser && !loading && currentUser !== undefined;
 
-    // Update character count
     $: characterCount = dedicationMessage.length;
 
-    // Reactive title and subtitle based on gift_mode
     $: pageTitle = giftMode === "create" ? "Send Story Created" : "Send Creation Link";
     $: pageSubtitle = giftMode === "create" ? "Copy and send the story to your recipient" : "Copy and send the link to your recipient";
 
-    // Check authentication on mount (client-side only)
     onMount(() => {
         if (browser) {
-            // Read gift_mode from sessionStorage
             giftMode = sessionStorage.getItem("gift_mode") || "";
             
             setTimeout(() => {
@@ -78,7 +71,6 @@
         }
     });
 
-    // Reactive redirect when auth state changes
     $: if (safeToRedirect && !authenticated) {
         goto("/login");
     }
@@ -101,7 +93,6 @@
     };
 
     const handleContinue = () => {
-        // Validate required fields
         if (!parentEmail.trim()) {
             alert("Please enter parent's email");
             return;
@@ -119,7 +110,6 @@
             return;
         }
 
-        // Validate scheduled delivery date and time
         if (scheduleDelivery) {
             if (!deliveryDate) {
                 alert("Please select a delivery date");
@@ -130,7 +120,6 @@
                 return;
             }
             
-            // Validate that the scheduled date/time is in the future
             const scheduledDateTime = new Date(`${deliveryDate}T${deliveryTime}`);
             const now = new Date();
             if (scheduledDateTime <= now) {
@@ -139,32 +128,28 @@
             }
         }
 
-        // Save data to store
         giftCreation.setRecipientDetails({
             childName,
             ageGroup: selectedAgeGroup,
-            relationship: "parent", // Default for send link flow
+            relationship: "parent",
         });
 
         giftCreation.setOccasionAndStory({
             occasion: selectedOccasion,
         });
 
-        // Combine date and time into ISO string for scheduled delivery
         let deliveryDateTime = undefined;
         if (scheduleDelivery && deliveryDate && deliveryTime) {
             const dateTime = new Date(`${deliveryDate}T${deliveryTime}`);
             deliveryDateTime = dateTime.toISOString();
         }
 
-        // Save delivery details including parent email as delivery email
         giftCreation.setDeliveryDetails({
             deliveryEmail: parentEmail,
             deliveryTime: deliveryDateTime,
             deliveryOption: scheduleDelivery ? 'scheduled' : 'surprise',
         });
 
-        // Navigate to next step
         goto("/gift/sendlink/2");
     };
 

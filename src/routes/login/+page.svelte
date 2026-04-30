@@ -20,7 +20,6 @@
   import languageFlag from "../../assets/langbtnicon.svg";
   import logo from "../../assets/logo.webp";
 
-  // Check if user is already authenticated; support ?method=phone for signup-with-phone link
   onMount(() => {
     if ($page.url.searchParams.get("method") === "phone") {
       loginMethod = "phone";
@@ -39,25 +38,18 @@
     return unsubscribe;
   });
   
-  // Any Country Code Alpha-2 (ISO 3166)
   let selectedCountry: CountryCode | null = "HU";
-  // let isMobile = false;
-  // You must use E164 number format. It's guarantee the parsing and storing consistency.
   let value: E164Number | null = "+36301234567";
-  // Validity
   let valid = true;
 
-  // Optional - Extended details about the parsed phone number
   let detailedValue: DetailedValue | null = null;
   let email = "";
   let phoneNumber = "";
   let isLoading = false;
   let errors: { [key: string]: string } = {};
   let loginMethod: "phone" | "email" = "email";
-  /** Passwordless phone: step 1 = enter phone & send code, step 2 = enter code & verify */
   let phoneStep: "enter_phone" | "enter_code" = "enter_phone";
   let verificationCode = "";
-  // let selectedCountry = { name: 'United States', code: '+1', flag: '🇺🇸' };
   let showCountryDropdown = false;
   const countries = [
     { name: "United States", code: "+1", flag: "🇺🇸" },
@@ -81,8 +73,6 @@
   };
 
   const selectCountry = (country: (typeof countries)[0]) => {
-    // selectedCountry = country;
-    // showCountryDropdown = false;
   };
 
   const validateForm = () => {
@@ -100,7 +90,6 @@
       } else if (!valid) {
         errors.phone = "Please enter a valid phone number";
       }
-      // Password not required for passwordless phone (SMS code)
     }
 
     return Object.keys(errors).length === 0;
@@ -108,19 +97,13 @@
 
   const handleGoogleLogin = async () => {
     isLoading = true;
-    errors = {}; // Clear previous errors
+    errors = {};
 
     try {
-      // For Google OAuth, we need to let the OAuth flow handle user creation/verification
-      // since we don't have the email until after OAuth completion.
-      // The auth store will handle checking if user needs to complete signup.
       const result = await signInWithGoogle();
       
       if (result.success) {
         console.log("Google login initiated, redirecting to Google...");
-        // The redirect will be handled by Supabase OAuth flow
-        // User will be redirected to /dashboard after successful authentication
-        // Note: isLoading will remain true since we're redirecting away
       } else {
         console.error("Google login failed:", result.error);
         errors.general = result.error || "Google login failed. Please try again.";
@@ -213,7 +196,7 @@
     if (!validateForm()) return;
 
     isLoading = true;
-    errors = {}; // Clear previous errors
+    errors = {};
 
     try {
       const userCheck = await checkUserExists(email);
@@ -248,10 +231,8 @@
     }
   };
 
-  // Function to get country flag emoji from ISO code
 
 
-  // Close dropdown when clicking outside
   const handleClickOutside = (event: MouseEvent) => {
     const target = event.target as Element;
     if (!target.closest(".country-selector")) {
@@ -770,7 +751,6 @@
     flex-wrap: nowrap;
   }
 
-  /* New interactive styles */
   .button.active {
     background: white !important;
     color: #141414 !important;

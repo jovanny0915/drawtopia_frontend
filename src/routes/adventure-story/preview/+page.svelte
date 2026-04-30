@@ -8,11 +8,9 @@
     import arrowLeft from "../../../assets/ArrowLeft.svg";
     import { goto } from "$app/navigation";
 
-    // State for title selection
-    let selectedTitle = 0; // 0 = "The Great Addventure", 1 = "The Amazing of Journey", 2 = "Space Adventure", 3 = "Custom Title"
+    let selectedTitle = 0;
 
-    // State for cover design selection
-    let selectedCoverDesign = 0; // 0 = "Classic Storybook", 1 = "Modern Minimalist", 2 = "Adventure Theme"
+    let selectedCoverDesign = 0;
 
     function selectTitle(index: number) {
         selectedTitle = index;

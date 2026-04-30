@@ -10,7 +10,6 @@ function getStoryMeta(story: any): { title: string; description: string; imageUr
 }
 
 export async function load({ url }) {
-  // Share URL format: /share?{uid} (no param name)
   const uid = url.search ? url.search.slice(1).trim() : '';
   const shareCanonicalUrl = uid ? `${url.origin}${url.pathname}?${uid}` : '';
   if (!uid) {

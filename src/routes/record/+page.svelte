@@ -9,17 +9,14 @@
 
   let isMobile = false;
   let showDevicePermissionModal = false;
-  let selectedOption = 'record'; // 'record' or 'preview'
+  let selectedOption = 'record';
 
-  // Reactive button text based on selection
   $: buttonText = selectedOption === 'record' ? 'Choose Record Video' : 'Preview a Story';
 
   function handleChooseRecordVideo() {
     if (selectedOption === 'preview') {
-      // Navigate directly to preview page, no modal needed
       goto('/preview/default');
     } else {
-      // Show modal for record option
       showDevicePermissionModal = true;
     }
   }
@@ -30,13 +27,9 @@
 
   function handleGrantPermissions() {
     closeModal();
-    // Navigate to record/reaction page after permissions granted
     goto('/record/reaction');
   }
 
-  /**
-   * @param {'record' | 'preview'} option
-   */
   function selectOption(option) {
     selectedOption = option;
   }
@@ -160,11 +153,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -481,7 +469,7 @@
     border-left: 1px #d3d3d3 solid;
     border-top: 1px #d3d3d3 solid;
     border-right: 1px #d3d3d3 solid;
-    background-image: url(https://placehold.co/402x280);
+    background-image: url(https:
     transition: border-color 0.2s;
   }
 
@@ -653,7 +641,6 @@
     .modal-content {
       width: 100%;
       height: 72vh;
-      /* max-height: 100dvh; */
       border-radius: 0;
       box-sizing: border-box;
       padding-bottom: env(safe-area-inset-bottom);
@@ -697,14 +684,12 @@
       width: 100%;
       justify-content: center;
     }
-    /* Hide bottom Back button on mobile */
     .frame-1410103870 .button {
       display: none;
     }
     .button_01 {
       width: 100%;
     }
-    /* Make title full-width on mobile */
     .how-would-you-like-to-experience-your-story {
       width: 100%;
     }

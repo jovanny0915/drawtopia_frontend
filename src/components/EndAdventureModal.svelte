@@ -38,14 +38,13 @@
     if (value.length <= maxCharacters) {
       reflectionText = value;
     } else {
-      target.value = reflectionText; // Revert if over limit
+      target.value = reflectionText;
     }
   }
 </script>
 
 <div class="modal-overlay" role="dialog" aria-modal="true" on:click|self={handleClose}>
   <div class="modal-container" on:click|stopPropagation>
-    <!-- Header -->
     <div class="modal-header">
       <img class="modal-logo" src={logo} alt="Drawtopia Logo" />
       <button class="close-btn" on:click={handleClose} aria-label="Close modal">
@@ -53,13 +52,11 @@
       </button>
     </div>
 
-    <!-- Title Section -->
     <div class="modal-title-section">
       <h2 class="modal-title">The End '{storyTitle}'</h2>
       <p class="modal-subtitle">Character completed an amazing adventure!</p>
     </div>
 
-    <!-- Story Details Section -->
     <div class="story-details-section">
       <h3 class="section-heading">Story Details</h3>
       <div class="metrics-container">
@@ -78,7 +75,6 @@
       </div>
     </div>
 
-    <!-- Reflection Section -->
     <div class="reflection-section">
       <h3 class="section-heading">What did you learn from this story?</h3>
       <textarea
@@ -90,7 +86,6 @@
       <div class="character-count">{reflectionText.length}/{maxCharacters} Characters</div>
     </div>
 
-    <!-- Action Buttons -->
     <div class="action-buttons">
       <button class="action-btn read-again-btn" on:click={handleReadAgain}>
         <img src={ArrowsClockwise} alt="Refresh" class="btn-icon" />

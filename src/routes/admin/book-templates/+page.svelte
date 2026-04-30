@@ -1,4 +1,3 @@
-<!-- Admin page - Book Templates Management -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import {
@@ -51,7 +50,6 @@
   let showAddModal = false;
   let selectedStoryFormat: BookTemplateStoryFormat = 'adventure_story';
 
-  // Upload modal state
   let showUploadModal = false;
   let uploadModalType: 'single' | 'multiple' = 'single';
   let currentUploadField: string = '';
@@ -65,7 +63,6 @@
   let uploadInProgress = false;
   let deletingSceneInProgress = false;
 
-  // Positions modal state
   let showPositionModal = false;
   let positionModalTemplateId: string = '';
   let positionModalTemplateName: string = '';
@@ -74,16 +71,13 @@
   let newPositionY: string = '';
   let positionSaving = false;
 
-  // Track pending metadata changes per template
   let pendingChanges: Map<string, {
     story_world?: 'forest' | 'underwater' | 'outerspace' | '';
     story_style?: StoryStyleValue | '';
   }> = new Map();
 
-  // Track saving state per row
   let savingRows: Set<string> = new Set();
 
-  // Form state for adding new template
   let newTemplateName = '';
   let newTemplateStoryWorld: 'forest' | 'underwater' | 'outerspace' | '' = '';
   let newTemplateStoryStyle: StoryStyleValue | '' = '';
@@ -127,7 +121,6 @@
   );
 
   function openAddModal() {
-    // Reset form
     newTemplateName = '';
     newTemplateStoryWorld = '';
     newTemplateStoryStyle = '';
@@ -138,7 +131,6 @@
     showAddModal = false;
   }
 
-  // Open upload modal for single image
   function openSingleImageUploadModal(templateId: string, fieldKey: string, templateName: string) {
     if (savingRows.has(templateId)) return;
 
@@ -156,7 +148,6 @@
     showUploadModal = true;
   }
 
-  // Open upload modal for story pages (multiple images)
   type MultiImageFieldKey = 'story_page_images' | 'main_character_images' | 'character_for_finding';
 
   function openMultipleImageUploadModal(
@@ -184,9 +175,7 @@
     showUploadModal = true;
   }
 
-  // Close upload modal
   function closeUploadModal() {
-    // Revoke all preview URLs
     previewUrls.forEach(url => URL.revokeObjectURL(url));
     
     showUploadModal = false;
@@ -199,31 +188,26 @@
     existingUploadUrls = [];
   }
 
-  // Handle file selection in upload modal
   function handleModalFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
 
     const isReplacingStoryScene = uploadModalType === 'multiple' && targetStoryPageIndex !== null;
 
-    // Clear existing selections for single mode or replace mode
     if (uploadModalType === 'single' || isReplacingStoryScene) {
       previewUrls.forEach(url => URL.revokeObjectURL(url));
       selectedFiles = [];
       previewUrls = [];
     }
 
-    // Add new files
     for (let i = 0; i < input.files.length; i++) {
       const file = input.files[i];
       
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert(`File ${file.name} is not a valid image`);
         continue;
       }
 
-      // For single mode or replace mode, only take the first file
       if ((uploadModalType === 'single' || isReplacingStoryScene) && selectedFiles.length > 0) {
         break;
       }
@@ -232,15 +216,12 @@
       previewUrls.push(URL.createObjectURL(file));
     }
     
-    // Trigger reactivity
     selectedFiles = selectedFiles;
     previewUrls = previewUrls;
     
-    // Clear input
     input.value = '';
   }
 
-  // Handle upload from modal
   async function handleModalUpload() {
     if (selectedFiles.length === 0) {
       alert('Please select at least one image');
@@ -255,10 +236,8 @@
       let updatedTemplate: BookTemplate | undefined;
 
       if (uploadModalType === 'single') {
-        // Upload single image
         const file = selectedFiles[0];
         
-        // Optimize image
         const optimized = await optimizeImage(file, {
           maxWidth: 2048,
           maxHeight: 2048,
@@ -279,7 +258,6 @@
         updatedTemplate = result.data;
         alert('Image uploaded successfully!');
       } else {
-        // Upload multiple images (story pages or main character images)
         const existingImages =
           currentUploadField === 'story_page_images'
             ? template.story_page_images || []
@@ -292,7 +270,6 @@
           const file = selectedFiles[0];
           const pageIndex = targetStoryPageIndex as number;
 
-          // Optimize image
           const optimized = await optimizeImage(file, {
             maxWidth: 2048,
             maxHeight: 2048,
@@ -322,7 +299,6 @@
             const file = selectedFiles[i];
             const pageIndex = existingImages.length + i;
 
-            // Optimize image
             const optimized = await optimizeImage(file, {
               maxWidth: 2048,
               maxHeight: 2048,
@@ -354,15 +330,12 @@
         }
       }
 
-      // Refresh uploaded row immediately for responsive UI.
       if (updatedTemplate) {
         refreshTemplateRow(updatedTemplate);
       }
 
-      // Close modal first, then refresh table from server.
       closeUploadModal();
 
-      // Reload templates to show updated data
       await loadTemplates();
     } catch (err: any) {
       console.error('Upload error:', err);
@@ -402,7 +375,6 @@
       if (!result.success || result.error) {
         alert(`Error deleting template: ${result.error}`);
       } else {
-        // Remove from pending changes if exists
         pendingChanges.delete(id);
         pendingChanges = pendingChanges;
         await loadTemplates();
@@ -413,7 +385,6 @@
     }
   }
 
-  // Handle story world change
   function handleStoryWorldChange(templateId: string, newValue: string) {
     const changes = pendingChanges.get(templateId) || {};
     changes.story_world = newValue as 'forest' | 'underwater' | 'outerspace' | '';
@@ -421,7 +392,6 @@
     pendingChanges = pendingChanges;
   }
 
-  // Handle story style change
   function handleStoryStyleChange(templateId: string, newValue: string) {
     const changes = pendingChanges.get(templateId) || {};
     changes.story_style = newValue as StoryStyleValue | '';
@@ -429,13 +399,11 @@
     pendingChanges = pendingChanges;
   }
 
-  // Save story metadata changes
   async function handleSaveTemplateMetadata(templateId: string) {
     const template = templates.find(t => t.id === templateId);
     if (!template) return;
     if (!hasPendingChanges(templateId)) return;
 
-    // Get display values (either from pending changes or actual values)
     const currentStoryWorld = getDisplayStoryWorld(templateId, template.story_world) as 'forest' | 'underwater' | 'outerspace' | undefined;
     const currentStoryStyle = getDisplayStoryStyle(
       templateId,
@@ -448,8 +416,6 @@
     try {
       const result = await updateTemplate(templateId, {
         story_world: currentStoryWorld,
-        // Send both keys for compatibility: some environments still use
-        // story_style while others already consume story_type.
         story_style: currentStoryStyle,
         story_type: currentStoryStyle,
         story_format: selectedStoryFormat
@@ -459,11 +425,9 @@
         throw new Error(result.error || 'Failed to update template metadata');
       }
 
-      // Clear pending changes
       pendingChanges.delete(templateId);
       pendingChanges = pendingChanges;
 
-      // Reload templates
       await loadTemplates();
 
       alert('Template metadata updated successfully!');
@@ -476,12 +440,10 @@
     }
   }
 
-  // Get display value for story pages
   function getDisplayStoryPages(templateId: string, actualUrls: string[] | undefined): string[] {
     return actualUrls || [];
   }
 
-  // Get story world display value
   function getDisplayStoryWorld(templateId: string, actualWorld: string | undefined): string | undefined {
     const changes = pendingChanges.get(templateId);
     if (changes && 'story_world' in changes) {
@@ -490,7 +452,6 @@
     return actualWorld;
   }
 
-  // Get story style display value
   function getDisplayStoryStyle(templateId: string, actualStyle: string | undefined): string | undefined {
     const changes = pendingChanges.get(templateId);
     if (changes && 'story_style' in changes) {
@@ -537,7 +498,6 @@
     modalFileInput?.click();
   }
 
-  // Open positions modal for a template
   function openPositionModal(templateId: string, templateName: string) {
     if (savingRows.has(templateId)) return;
     const template = templates.find((t) => t.id === templateId);
@@ -579,7 +539,6 @@
     if (!positionModalTemplateId) return;
     if (!confirm('Remove this coordinate?')) return;
     positionModalPositions = positionModalPositions.filter((_, i) => i !== index);
-    // Save immediately
     await savePositions();
   }
 
@@ -591,7 +550,6 @@
       if (!result.success || result.error) {
         throw new Error(result.error || 'Failed to save positions');
       }
-      // Refresh row
       if (result.data) {
         refreshTemplateRow(result.data);
       }
@@ -617,7 +575,6 @@
         return merged;
       }
 
-      // Append mode: keep current scenes visible and show new ones at the end.
       return [...existingUploadUrls, ...previewUrls];
     }
 
@@ -1051,7 +1008,6 @@
   {/if}
 </div>
 
-<!-- Add Template Modal -->
 {#if showAddModal}
   <div class="modal-overlay" on:click={closeAddModal} on:keydown={(e) => e.key === 'Escape' && closeAddModal()} role="button" tabindex="-1">
     <div class="modal-content" on:click|stopPropagation on:keydown|stopPropagation role="dialog" tabindex="-1">
@@ -1110,7 +1066,6 @@
   </div>
 {/if}
 
-<!-- Positions Modal -->
 {#if showPositionModal}
   <div class="modal-overlay" on:click={closePositionModal} on:keydown={(e) => e.key === 'Escape' && closePositionModal()} role="button" tabindex="-1">
     <div class="modal-content" on:click|stopPropagation on:keydown|stopPropagation role="dialog" tabindex="-1">
@@ -1154,7 +1109,6 @@
   </div>
 {/if}
 
-<!-- Upload Image Modal -->
 {#if showUploadModal}
   <div class="modal-overlay" on:click={closeUploadModal} on:keydown={(e) => e.key === 'Escape' && closeUploadModal()} role="button" tabindex="-1">
     <div class="modal-content upload-modal" on:click|stopPropagation on:keydown|stopPropagation role="dialog" tabindex="-1">
@@ -1241,7 +1195,6 @@
           {/if}
         </div>
 
-        <!-- Hidden File Input -->
         <input
           bind:this={modalFileInput}
           type="file"
@@ -1388,7 +1341,6 @@
     color: #6b7280;
   }
 
-  /* Table Styles */
   .table-container {
     background: white;
     border-radius: 0.75rem;
@@ -1618,7 +1570,6 @@
     cursor: not-allowed;
   }
 
-  /* Modal Styles */
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -1763,7 +1714,6 @@
     transform: none;
   }
 
-  /* Upload Modal Styles */
   .upload-modal {
     max-width: 700px;
     background:

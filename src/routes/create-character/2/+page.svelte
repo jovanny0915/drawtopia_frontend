@@ -15,7 +15,7 @@
   import { storyCreation } from "../../../lib/stores/storyCreation";
 
   let isMobile = false;
-  let selectedEnhancement = ""; // Default: no selection - "minimal", "normal", or "high"
+  let selectedEnhancement = "";
   let uploadedImageUrl = "";
   let selectedStyle = "";
   let lastSelectedStyle = "";
@@ -27,7 +27,6 @@
     isMobile = window.innerWidth < 800;
   }
 
-  // Check if all three enhancement images are generated
   const checkAllImagesGenerated = () => {
     if (!browser || !selectedStyle) {
       allImagesGenerated = false;
@@ -43,46 +42,37 @@
     
     allImagesGenerated = allGenerated;
     
-    // Clear interval if all images are generated
     if (allGenerated && imageCheckInterval) {
       clearInterval(imageCheckInterval);
       imageCheckInterval = null;
     }
   };
 
-  // Watch for selected enhancement and store the enhanced image when available
   $: if (browser && selectedEnhancement && selectedStyle) {
     const enhancementKey = `enhancementImage_${selectedStyle}_${selectedEnhancement}`;
     const enhancedImageUrl = sessionStorage.getItem(enhancementKey);
     if (enhancedImageUrl) {
-      // Store the selected character enhanced image to session storage
       const cleanedUrl = enhancedImageUrl.split('?')[0];
       sessionStorage.setItem('selectedCharacterEnhancedImage', cleanedUrl);
       saveSelectedImageUrl('4', cleanedUrl);
       
-      // Clear any existing interval since we found the image
       if (checkInterval) {
         clearInterval(checkInterval);
         checkInterval = null;
       }
       
-      // Check if all images are now generated
       checkAllImagesGenerated();
     }
   }
 
-  // Periodically check if all images are generated when style is available
   $: if (browser && selectedStyle) {
-    // Clear existing interval if it exists
     if (imageCheckInterval) {
       clearInterval(imageCheckInterval);
       imageCheckInterval = null;
     }
     
-    // Initial check
     checkAllImagesGenerated();
     
-    // Set up periodic check every 500ms only if not all images are generated yet
     if (!allImagesGenerated) {
       imageCheckInterval = setInterval(() => {
         checkAllImagesGenerated();
@@ -92,31 +82,24 @@
 
   onMount(() => {
     if (browser) {
-      // Get the uploaded image URL and selected style from previous steps
       uploadedImageUrl = sessionStorage.getItem('characterImageUrl') || "";
       selectedStyle = sessionStorage.getItem('selectedStyle') || "cartoon";
       lastSelectedStyle = selectedStyle;
       
-      // Get character details from sessionStorage 
       const characterType = sessionStorage.getItem('selectedCharacterType') || "";
       const specialAbility = sessionStorage.getItem('specialAbility') || "";
-      const description = ""; // Description field doesn't exist yet, but keeping for future use
+      const description = "";
       
-      // Clear enhancement cache
       ['minimal', 'normal', 'high'].forEach(enhancement => {
         ['3d', 'cartoon', 'anime'].forEach(style => {
           sessionStorage.removeItem(`enhancementImage_${style}_${enhancement}`);
         });
       });
       
-      // No longer generating base character image with special ability
-      // Using original uploaded image directly
       
-      // Initial check for all images
       checkAllImagesGenerated();
     }
     
-    // Cleanup interval on unmount
     return () => {
       if (imageCheckInterval) {
         clearInterval(imageCheckInterval);
@@ -130,22 +113,17 @@
   });
 
 
-  // Watch for style changes - no longer generating base character image
   $: if (browser && selectedStyle && lastSelectedStyle && selectedStyle !== lastSelectedStyle) {
     lastSelectedStyle = selectedStyle;
-    // Reset allImagesGenerated when style changes since new images need to be generated
     allImagesGenerated = false;
-    // Clear existing check interval
     if (imageCheckInterval) {
       clearInterval(imageCheckInterval);
       imageCheckInterval = null;
     }
-    // Start checking again for new style
     checkAllImagesGenerated();
   }
 
   function selectEnhancement(enhancement: string) {
-    // Clear any existing interval before selecting a new enhancement
     if (checkInterval) {
       clearInterval(checkInterval);
       checkInterval = null;
@@ -153,21 +131,16 @@
     
     selectedEnhancement = enhancement;
     
-    // Save selected enhancement to sessionStorage
     if (browser) {
       sessionStorage.setItem('selectedEnhancement', enhancement);
       
-      // Save the selected enhanced image URL if available
       const enhancementKey = `enhancementImage_${selectedStyle}_${enhancement}`;
       const enhancedImageUrl = sessionStorage.getItem(enhancementKey);
       if (enhancedImageUrl) {
-        // Store the selected character enhanced image to session storage
         const cleanedUrl = enhancedImageUrl.split('?')[0];
         sessionStorage.setItem('selectedCharacterEnhancedImage', cleanedUrl);
         saveSelectedImageUrl('4', cleanedUrl);
       } else {
-        // If image is not yet generated, set up a watcher to store it when it becomes available
-        // Check periodically for the image (in case it's still generating)
         checkInterval = setInterval(() => {
           const imageUrl = sessionStorage.getItem(enhancementKey);
           if (imageUrl) {
@@ -181,7 +154,6 @@
           }
         }, 500);
         
-        // Clear interval after 30 seconds to avoid infinite checking
         setTimeout(() => {
           if (checkInterval) {
             clearInterval(checkInterval);
@@ -192,12 +164,10 @@
     }
   }
 
-  // Handle continue to next step - collect all enhanced images
   const handleContinue = () => {
     if (!browser) return;
     
     try {
-      // Get the selected enhanced image URL
       let selectedEnhancedImage = '';
       if (selectedEnhancement && selectedStyle) {
         const enhancementKey = `enhancementImage_${selectedStyle}_${selectedEnhancement}`;
@@ -207,7 +177,6 @@
         }
       }
 
-      // Collect all enhanced images for the selected style
       const enhancedImages: string[] = [];
       const enhancements = ['minimal', 'normal', 'high'];
       
@@ -215,15 +184,12 @@
         const enhancementKey = `enhancementImage_${selectedStyle}_${enhancement}`;
         const enhancedImageUrl = sessionStorage.getItem(enhancementKey);
         if (enhancedImageUrl) {
-          // Clean the URL (remove query parameters)
           enhancedImages.push(enhancedImageUrl.split('?')[0]);
         }
       });
       
-      // Save enhanced images to story creation store
       storyCreation.setEnhancedImages(enhancedImages);
 
-      // If generation failed for some or all levels, still use original upload as character ref
       const originalFallback = (sessionStorage.getItem("characterImageUrl") || uploadedImageUrl || "")
         .split("?")[0];
       const characterRef = selectedEnhancedImage || originalFallback;
@@ -234,11 +200,9 @@
 
       console.log("Enhanced images collected:", enhancedImages);
 
-      // Navigate to next step
       goto("/create-character/3");
     } catch (error) {
       console.error('Error in handleContinue:', error);
-      // Continue anyway
       goto("/create-character/3");
     }
   };
@@ -382,11 +346,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -439,7 +398,6 @@
     top: 50%;
     transform: translateY(-50%);
     border-top: 12px solid transparent;
-    /* border-bottom: 12px solid transparent; */
     border-right: 18px solid #d9eaff;
   }
 

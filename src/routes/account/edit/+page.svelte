@@ -15,16 +15,14 @@
     import AccountDropdown from "../../../components/AccountDropdown.svelte";
     import { formatDate } from "$lib/dateUtils";
 
-    // User data state
-    let userName = "Alex Smith";
-    let userEmail = "drawtopia@gmail.com";
+    let userName = "Account";
+    let userEmail = "";
     let userLanguage = "English";
     let userAvatarUrl = "https://placehold.co/40x40";
     let userProfilePicture = "https://placehold.co/120x120";
     let subscriptionPlan = "Free Plan";
     let lastFetchedUserId: string | null = null;
     
-    // Form state
     let firstName = "";
     let lastName = "";
     let email = "";
@@ -34,7 +32,6 @@
     let uploadProgress = 0;
     let fileInput: HTMLInputElement | null = null;
     
-    // Subscription state
     let subscriptionStatus = "free";
     let planType = "";
     let currentPeriodEnd: Date | null = null;
@@ -43,21 +40,24 @@
     let showCancelConfirmModal = false;
     let stripeSubscriptionId: string | null = null;
     
-    // API Base URL
     const API_BASE_URL = "https://image-edit-five.vercel.app";
 
-    // Get name and email from auth session (stored in localStorage by Supabase)
     function getAuthInfo() {
         if (!browser) return;
         
         const authState = get(auth);
         if (authState.user) {
-            // Get email from auth user
             userEmail = authState.user.email || "";
             email = authState.user.email || "";
-            
-            // Get name from user_metadata or construct from metadata
-            if (authState.user.user_metadata?.full_name) {
+
+            const profileFirstName = authState.first_name || "";
+            const profileLastName = authState.last_name || "";
+            const profileName = [profileFirstName, profileLastName].filter(Boolean).join(" ").trim();
+            if (profileName) {
+                firstName = profileFirstName;
+                lastName = profileLastName;
+                userName = profileName;
+            } else if (authState.user.user_metadata?.full_name) {
                 userName = authState.user.user_metadata.full_name;
                 const nameParts = authState.user.user_metadata.full_name.split(' ');
                 if (nameParts.length > 0) {
@@ -76,15 +76,13 @@
                 lastName = authState.user.user_metadata.last_name || '';
                 userName = `${firstName} ${lastName}`.trim();
             } else {
-                // Fallback to email username if no name available
-                userName = authState.user.email?.split('@')[0] || "Alex Smith";
+                userName = authState.user.email?.split('@')[0] || "Account";
                 firstName = userName;
                 lastName = "";
             }
         }
     }
 
-    // Fetch user data from users table (avatar_url, subscription_status, etc.)
     async function fetchUserData() {
         if (!browser) return;
 
@@ -99,14 +97,16 @@
                         : result.profile;
                     
                     if (profile) {
-                        // Set first and last name from users table if available
                         if (profile.first_name) {
                             firstName = profile.first_name;
                         }
                         if (profile.last_name) {
                             lastName = profile.last_name;
                         }
-                        if (profile.full_name) {
+                        const profileName = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
+                        if (profileName) {
+                            userName = profileName;
+                        } else if (profile.full_name) {
                             userName = profile.full_name;
                             const nameParts = profile.full_name.split(' ');
                             if (nameParts.length > 0 && !profile.first_name) {
@@ -115,7 +115,6 @@
                             }
                         }
 
-                        // Get avatar URL from users table or user metadata
                         if (authState.user.user_metadata?.avatar_url) {
                             userAvatarUrl = authState.user.user_metadata.avatar_url;
                             userProfilePicture = authState.user.user_metadata.avatar_url;
@@ -129,7 +128,6 @@
                     }
                 }
                 
-                // Fetch subscription details
                 await fetchSubscriptionDetails(authState.user.id);
             } catch (error) {
                 console.error("Error fetching user profile:", error);
@@ -137,17 +135,14 @@
         }
     }
     
-    // Fetch subscription details from subscriptions table and users table
     async function fetchSubscriptionDetails(userId: string) {
         try {
-            // First, get the user's subscription_status from users table
             const { data: userData, error: userError } = await supabase
                 .from("users")
                 .select("subscription_status, subscription_expires")
                 .eq("id", userId)
                 .single();
             
-            // Then, check if there's an active subscription in subscriptions table
             const { data: subscriptionData, error: subscriptionError } = await supabase
                 .from("subscriptions")
                 .select("*")
@@ -155,16 +150,11 @@
                 .eq("status", "active")
                 .single();
             
-            // Logic: 
-            // - If subscriptions.status = 'active' AND users.subscription_status = 'premium' → Premium Plan
-            // - If subscriptions.status = 'cancelled' but still within period → Premium Plan (Cancelled)
-            // - Otherwise → Free Plan
             const hasActiveSubscription = subscriptionData && !subscriptionError;
             const userIsPremium = userData?.subscription_status === "premium";
             const isCancelled = userData?.subscription_status === "cancelled" || subscriptionData?.status === "cancelled" || subscriptionData?.status === "canceled";
             
             if (hasActiveSubscription && (userIsPremium || isCancelled)) {
-                // Premium Plan or Cancelled but still active
                 isSubscriptionActive = true;
                 subscriptionStatus = isCancelled ? "cancelled" : "premium";
                 subscriptionPlan = isCancelled ? "Premium Plan (Cancelled)" : "Premium Plan";
@@ -173,11 +163,9 @@
                 if (subscriptionData.current_period_end) {
                     currentPeriodEnd = new Date(subscriptionData.current_period_end);
                 } else if (userData?.subscription_expires) {
-                    // Fallback to subscription_expires from users table
                     currentPeriodEnd = new Date(userData.subscription_expires);
                 }
             } else {
-                // Free Plan - subscription not active
                 isSubscriptionActive = false;
                 subscriptionStatus = "free";
                 subscriptionPlan = "Free Plan";
@@ -187,14 +175,12 @@
             }
         } catch (error) {
             console.error("Error fetching subscription details:", error);
-            // Default to Free Plan on error
             isSubscriptionActive = false;
             subscriptionStatus = "free";
             subscriptionPlan = "Free Plan";
         }
     }
     
-    // Format subscription status for display
     function formatSubscriptionStatus(status: string | null | undefined): string {
         if (!status) return "Free Plan";
         
@@ -212,17 +198,14 @@
         return statusMap[normalizedStatus] || status.charAt(0).toUpperCase() + status.slice(1) + ' Plan';
     }
     
-    // Show cancel confirmation modal
     function showCancelConfirmation() {
         showCancelConfirmModal = true;
     }
     
-    // Close cancel confirmation modal
     function closeCancelConfirmation() {
         showCancelConfirmModal = false;
     }
     
-    // Handle subscription cancellation
     async function handleCancelSubscription() {
         if (isCancelling) return;
         isCancelling = true;
@@ -254,31 +237,24 @@
                 throw new Error(data.detail || data.message || 'Failed to cancel subscription');
             }
             
-            // Update local state - subscription is cancelled but access continues until period end
             subscriptionStatus = "cancelled";
-            // Keep isSubscriptionActive true if there's still access until period end
-            // This allows user to see their remaining access time
             if (data.access_until) {
-                // Parse the access_until date if provided
                 try {
                     const accessDate = new Date(data.access_until);
                     if (accessDate > new Date()) {
                         currentPeriodEnd = accessDate;
-                        isSubscriptionActive = true; // Still active until period end
+                        isSubscriptionActive = true;
                     }
                 } catch (e) {
-                    // If date parsing fails, keep currentPeriodEnd as is
                 }
             }
             
-            // Close modal and show success message
             showCancelConfirmModal = false;
             const message = data.message || data.access_until 
                 ? `Your subscription has been cancelled successfully. You'll retain access until ${data.access_until || 'the end of your current billing period'}.`
                 : "Your subscription has been cancelled successfully. You'll retain access until the end of your current billing period.";
             alert(message);
             
-            // Refresh subscription data to get updated status
             await getAuthInfo();
             
         } catch (error) {
@@ -289,7 +265,6 @@
         }
     }
 
-    // Reactive statement to update user data when auth state changes
     $: if (browser && $auth.user && !$auth.loading) {
         getAuthInfo();
         if ($auth.user.id !== lastFetchedUserId) {
@@ -300,10 +275,8 @@
     onMount(() => {
         if (!browser) return;
         
-        // Get auth info from session (stored in localStorage by Supabase)
         getAuthInfo();
         
-        // Fetch user data from users table (avatar_url, subscription_status, etc.)
         if ($auth.user && !$auth.loading) {
             fetchUserData();
         }
@@ -324,7 +297,6 @@
                 return;
             }
 
-            // Update user profile in database
             const { error } = await supabase
                 .from('users')
                 .update({
@@ -339,7 +311,6 @@
                 console.error("Error updating profile:", error);
                 alert("Failed to save changes. Please try again.");
             } else {
-                // Navigate back to account page
                 goto("/account");
             }
         } catch (error) {
@@ -355,7 +326,6 @@
     }
 
     function handleEditProfilePicture() {
-        // Trigger the hidden file input to open file picker
         if (fileInput) {
             fileInput.click();
         }
@@ -365,7 +335,6 @@
         const target = event.target as HTMLInputElement;
         if (!target || !target.files || target.files.length === 0) return;
         const file = target.files[0];
-        // Basic client-side validation
         if (!file) return;
 
         const authState = get(auth);
@@ -385,11 +354,9 @@
             }
 
             if (result.url) {
-                // Update UI
                 userAvatarUrl = result.url;
                 userProfilePicture = result.url;
 
-                // Update users table avatar_url
                 if (userId) {
                     const { error } = await supabase
                         .from('users')
@@ -399,11 +366,9 @@
                         console.error('Failed to update users table avatar_url:', error);
                     }
 
-                    // Attempt to update auth user metadata so other parts of the app pick it up
                     try {
                         await supabase.auth.updateUser({ data: { avatar_url: result.url } });
                     } catch (err) {
-                        // Non-fatal
                         console.warn('Could not update auth user metadata:', err);
                     }
                 }
@@ -415,7 +380,6 @@
         } finally {
             isUploading = false;
             uploadProgress = 0;
-            // Reset file input so same file can be selected again if needed
             if (fileInput) {
                 fileInput.value = '';
             }
@@ -455,7 +419,6 @@
                 <div class="profile"><span class="profile_span">Profile Settings</span></div>
             </div>
             
-            <!-- Profile Picture Section -->
             <div class="frame-1410103917">
                 <div class="frame-1410103916_01">
                     <div class="frame-1410103915_01">
@@ -472,7 +435,6 @@
                         <button class="camera-button" title="Change profile picture" on:click={handleEditProfilePicture}>
                             <img src={camera} alt="camera" class="camera-icon" />
                         </button>
-                        <!-- Hidden file input triggered by camera button -->
                         <input
                             type="file"
                             accept="image/*"
@@ -490,7 +452,6 @@
             
             <div class="rectangle-39"></div>
             
-            <!-- Name Section -->
             <div class="form">
                 <div class="frame-1410103918">
                     <div class="form-label-wrapper">
@@ -526,7 +487,6 @@
             
             <div class="rectangle-38"></div>
             
-            <!-- Email Section -->
             <div class="form_01">
                 <div class="frame-1410103918_01">
                     <div class="form-label-wrapper">
@@ -563,7 +523,6 @@
             
             <div class="rectangle-37"></div>
             
-            <!-- Language Section -->
             <div class="form_02">
                 <div class="frame-1410103918_02">
                     <div class="form-label-wrapper">
@@ -593,7 +552,6 @@
             
             <div class="rectangle-subscription"></div>
             
-            <!-- Subscription Management Section -->
             <div class="form_subscription">
                 <div class="frame-subscription">
                     <div class="form-label-wrapper">
@@ -652,7 +610,6 @@
                 </div>
             </div>
             
-            <!-- Action Buttons -->
             <div class="action-buttons">
                 <button class="cancel-button" on:click={handleCancel} disabled={isSaving}>
                     <span>Cancel</span>
@@ -665,7 +622,6 @@
     </div>
 </div>
 
-<!-- Cancel Subscription Confirmation Modal -->
 {#if showCancelConfirmModal}
     <div class="modal-overlay" on:click={closeCancelConfirmation} on:keydown={(e) => e.key === 'Escape' && closeCancelConfirmation()} role="button" tabindex="0">
         <div class="modal-content" on:click|stopPropagation on:keydown|stopPropagation role="dialog" aria-modal="true" aria-labelledby="cancel-modal-title" tabindex="-1">
@@ -991,7 +947,6 @@
     display: inline-flex;
 }
 
-/* Subscription Section Styles */
 .rectangle-subscription {
     align-self: stretch;
     height: 1px;
@@ -1173,7 +1128,6 @@
     box-shadow: 0px 6px 16px rgba(67, 139, 255, 0.4);
 }
 
-/* Modal Styles */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -1512,7 +1466,6 @@
     word-wrap: break-word;
 }
 
-/* Mobile Responsive Styles */
 @media (max-width: 768px) {
     .account-settings {
         padding-left: 16px;
@@ -1527,7 +1480,6 @@
         padding-right: 12px;
     }
 
-    /* Subscription Mobile Styles */
     .subscription-status-row {
         flex-direction: column;
         align-items: flex-start;

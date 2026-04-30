@@ -1,4 +1,5 @@
 import { env } from '../env';
+import { getPrompt1Data, loadRuntimePromptDocuments } from '../promptRuntime';
 
 const API_BASE_URL = (env.API_BASE_URL || 'https://image-edit-five.vercel.app').replace(/\/api\/?$/, '');
 
@@ -19,6 +20,53 @@ function normalizeStoryFormatForTitleGeneration(storyFormat?: string): 'interact
   return 'story';
 }
 
+function getWorldDisplayName(storyWorld: string): string {
+  const normalized = storyWorld.trim().toLowerCase();
+  return {
+    forest: 'Enchanted Forest',
+    'enchanted-forest': 'Enchanted Forest',
+    enchanted_forest: 'Enchanted Forest',
+    outerspace: 'Outer Space',
+    'outer-space': 'Outer Space',
+    outer_space: 'Outer Space',
+    underwater: 'Underwater Kingdom',
+    'underwater-kingdom': 'Underwater Kingdom',
+    underwater_kingdom: 'Underwater Kingdom'
+  }[normalized] || storyWorld;
+}
+
+function renderTitlePromptTemplate(template: string, replacements: Record<string, string>): string {
+  return Object.entries(replacements).reduce((result, [key, value]) => {
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), value ?? '');
+  }, template);
+}
+
+export function buildStoryTitlePrompt(options: GenerateStoryTitlesOptions): string {
+  const normalizedStoryFormat = normalizeStoryFormatForTitleGeneration(options.storyFormat);
+  const worldDisplay = getWorldDisplayName(options.storyWorld);
+  const ageGroup = options.ageGroup || '7-10';
+  const titlePrompts = getPrompt1Data().storyTitlePrompts || {};
+
+  if (normalizedStoryFormat === 'interactive') {
+    return renderTitlePromptTemplate(titlePrompts.interactive, {
+      character_name: options.characterName,
+      world_display: worldDisplay,
+      special_ability: options.specialAbility,
+      age_group: ageGroup
+    });
+  }
+
+  const learningTheme = options.learningTheme?.trim() || 'wonder and heart';
+  return renderTitlePromptTemplate(titlePrompts.story, {
+    character_name: options.characterName,
+    learning_theme: learningTheme,
+    world_display: worldDisplay,
+    special_ability: options.specialAbility,
+    age_group: ageGroup
+  });
+}
+
 export interface GenerateStoryTitlesOptions {
   characterName: string;
   specialAbility: string;
@@ -28,7 +76,6 @@ export interface GenerateStoryTitlesOptions {
   characterStyle?: string;
   storyFormat?: string;
   ageGroup?: string;
-  /** Learning / story theme label (e.g. from session selectedStoryThemeName) */
   learningTheme?: string;
 }
 
@@ -38,15 +85,13 @@ export interface GenerateStoryTitlesResult {
   error?: string;
 }
 
-/**
- * Generate 3 story title suggestions via the backend API.
- * The backend selects the exact prompt template based on the normalized story format.
- */
 export async function generateStoryTitles(
   options: GenerateStoryTitlesOptions
 ): Promise<GenerateStoryTitlesResult> {
   try {
+    await loadRuntimePromptDocuments();
     const normalizedStoryFormat = normalizeStoryFormatForTitleGeneration(options.storyFormat);
+    const titlePrompt = buildStoryTitlePrompt(options);
 
     const response = await fetch(`${API_BASE_URL}/story/generate-titles`, {
       method: 'POST',
@@ -62,7 +107,8 @@ export async function generateStoryTitles(
         character_style: options.characterStyle || 'cartoon',
         story_format: normalizedStoryFormat,
         age_group: options.ageGroup || '7-10',
-        learning_theme: options.learningTheme?.trim() || undefined
+        learning_theme: options.learningTheme?.trim() || undefined,
+        title_prompt: titlePrompt
       })
     });
 

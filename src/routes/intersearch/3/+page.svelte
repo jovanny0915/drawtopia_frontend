@@ -15,7 +15,6 @@
   import downloadSimple from "../../../assets/DownloadSimple.svg"
   import shareIcon from "../../../assets/Share.svg";
   
-  // Fallback images
   import magicalforest from "../../../assets/magicalforest.webp";
   import enchantedcastle from "../../../assets/enchantedcastle.webp";
   import crystalcave from "../../../assets/crystalcave.webp";
@@ -27,7 +26,7 @@
     subtitle: string;
     time: string;
     hints: number;
-    stars: number; // 0..3
+    stars: number;
     image: string;
   };
 
@@ -43,14 +42,12 @@
   let isDownloading = false;
   let downloadError = "";
 
-  // API Base URL
   const API_BASE_URL = "https://image-edit-five.vercel.app";
 
   $: if (browser) {
     storyId = $page.url.searchParams.get('storyId');
   }
 
-  // Scene titles based on world (matching intersearch/1)
   const sceneTitles: { [key: string]: string[] } = {
     "enchanted-forest": [
       "The Magical Forest",
@@ -111,7 +108,6 @@
     },
   ];
 
-  // Load scene results from sessionStorage
   function loadSceneResults(storyId: string | null): Map<number, any> {
     const resultsMap = new Map();
     try {
@@ -122,16 +118,13 @@
         const resultsData = JSON.parse(storedResults);
         console.log('[intersearch/3] Loaded scene results:', resultsData);
         
-        // Map results by sceneIndex for easy lookup
         if (resultsData.results && Array.isArray(resultsData.results)) {
           resultsData.results.forEach((result: any) => {
             resultsMap.set(result.sceneIndex, result);
           });
         }
         
-        // Load totals from sessionStorage (these are the authoritative values)
         if (resultsData.totalTime !== undefined && resultsData.totalTime !== null) {
-          // totalTime is stored in seconds, convert to "M:SS" format
           const totalSeconds = typeof resultsData.totalTime === 'number' 
             ? resultsData.totalTime 
             : parseInt(resultsData.totalTime);
@@ -157,21 +150,18 @@
           console.log(`[intersearch/3] Loaded avgStars from sessionStorage: ${avgStars}`);
         }
         
-        // If totals are missing or zero, try to calculate from individual scene results
         if ((!resultsData.totalTime && resultsMap.size > 0) || 
             (resultsData.totalHints === undefined && resultsMap.size > 0) ||
             (resultsData.avgStars === undefined && resultsMap.size > 0)) {
           
           console.log('[intersearch/3] Calculating totals from individual scene results...');
           
-          // Calculate total time from scene results if not provided
           if (!resultsData.totalTime || resultsData.totalTime === 0) {
             let calculatedTotalSeconds = 0;
             resultsMap.forEach((result: any) => {
               if (result.timeSeconds) {
                 calculatedTotalSeconds += result.timeSeconds;
               } else if (result.time) {
-                // Parse time string "M:SS" to seconds
                 const [minutes, seconds] = result.time.split(':').map(Number);
                 calculatedTotalSeconds += (minutes * 60 + seconds);
               }
@@ -184,7 +174,6 @@
             }
           }
           
-          // Calculate total hints from scene results if not provided
           if (resultsData.totalHints === undefined) {
             let calculatedTotalHints = 0;
             resultsMap.forEach((result: any) => {
@@ -196,7 +185,6 @@
             }
           }
           
-          // Calculate average stars from scene results if not provided
           if (resultsData.avgStars === undefined) {
             let totalStars = 0;
             let sceneCount = 0;
@@ -219,7 +207,6 @@
     return resultsMap;
   }
 
-  // Load scenes from sessionStorage as fallback
   function loadScenesFromSessionStorage(): boolean {
     try {
       const storedScenes = sessionStorage.getItem('intersearch_scenes');
@@ -231,18 +218,14 @@
       const scenesData = JSON.parse(storedScenes);
       console.log('[intersearch/3] Loading scenes from sessionStorage:', scenesData);
       
-      // Set story details from sessionStorage
       storyTitle = scenesData.storyTitle || "Adventure Complete!";
       characterName = scenesData.characterName || "Character";
       
-      // Determine world for fallback titles
       const world = scenesData.world || 'enchanted-forest';
       const titles = sceneTitles[world] || sceneTitles["enchanted-forest"];
       
-      // Load scene results
       const sceneResults = loadSceneResults(storyId);
       
-      // Build scenes array from sessionStorage data
       const loadedScenes: Scene[] = [];
       
       if (scenesData.scenes && Array.isArray(scenesData.scenes)) {
@@ -250,7 +233,6 @@
           const sceneImage = scene.sceneImage ? scene.sceneImage.split('?')[0] : null;
           const sceneTitle = scene.sceneTitle || titles[index] || `Scene ${index + 1}`;
           
-          // Get results for this scene if available
           const result = sceneResults.get(index);
           
           loadedScenes.push({
@@ -268,7 +250,6 @@
           scenes = loadedScenes;
           console.log('[intersearch/3] Loaded scenes from sessionStorage with results:', scenes);
           
-          // Calculate best scene (only if there are scenes with stars > 0)
           const scenesWithStars = scenes.filter(s => (s.stars ?? 0) > 0);
           if (scenesWithStars.length > 0) {
             const bestSceneIndex = scenes.reduce((bestIdx, scene, idx) => 
@@ -279,8 +260,6 @@
             bestScene = "None";
           }
           
-          // Note: totalTime, hintsUsedTotal, and avgStars are already loaded from sessionStorage
-          // by loadSceneResults() above (line 243). Don't recalculate as sessionStorage values are authoritative.
           
           return true;
         }
@@ -295,11 +274,9 @@
 
   onMount(async () => {
     if (browser) {
-      // Get story ID from URL query params
       storyId = $page.url.searchParams.get('storyId');
       
       if (!storyId) {
-        // No story ID provided, try to load from sessionStorage
         console.warn("No storyId provided, attempting to load from sessionStorage");
         const loadedFromSession = loadScenesFromSessionStorage();
         if (!loadedFromSession) {
@@ -310,11 +287,9 @@
       }
       
       try {
-        // Load story from database
         const result = await getStoryById(storyId);
         
         if (!result.success || !result.data) {
-          // Database load failed, try sessionStorage as fallback
           console.warn("Failed to load from database, trying sessionStorage");
           const loadedFromSession = loadScenesFromSessionStorage();
           if (!loadedFromSession) {
@@ -327,18 +302,15 @@
         const story = result.data;
         console.log("Loaded interactive search story for results:", story);
         
-        // Set story details
         storyTitle = story[0].story_title || "Adventure Complete!";
         characterName = story[0].character_name || "character";
         
-        // Determine world for scene titles
         const selectedWorld = story[0].story_world === 'forest' ? 'enchanted-forest' : 
                             story[0].story_world === 'space' ? 'outer-space' : 
                             story[0].story_world === 'underwater' ? 'underwater-kingdom' : 
                             'enchanted-forest';
         const titles = sceneTitles[selectedWorld] || sceneTitles["enchanted-forest"];
         
-        // Load story content to get scenes
         let scenesLoaded = false;
         if (story[0].story_content) {
           try {
@@ -348,10 +320,8 @@
             
             console.log('[intersearch/3] Parsed story content:', content);
             
-            // Load scene results from sessionStorage (this also loads totals)
             const sceneResults = loadSceneResults(storyId);
             
-            // Build scenes array from content
             const loadedScenes: Scene[] = [];
             
             if (content.scenes && Array.isArray(content.scenes)) {
@@ -359,7 +329,6 @@
                 const sceneImage = scene.sceneImage ? scene.sceneImage.split('?')[0] : null;
                 const sceneTitle = scene.sceneTitle || titles[index] || `Scene ${index + 1}`;
                 
-                // Get results for this scene if available
                 const result = sceneResults.get(index);
                 
                 loadedScenes.push({
@@ -378,7 +347,6 @@
                 scenesLoaded = true;
                 console.log('[intersearch/3] Loaded scenes from database with results:', scenes);
                 
-                // Calculate best scene (only if there are scenes with stars > 0)
                 const scenesWithStars = scenes.filter(s => (s.stars ?? 0) > 0);
                 if (scenesWithStars.length > 0) {
                   const bestSceneIndex = scenes.reduce((bestIdx, scene, idx) => 
@@ -389,9 +357,6 @@
                   bestScene = "None";
                 }
                 
-                // Note: totalTime, hintsUsedTotal, and avgStars are already loaded from sessionStorage
-                // by loadSceneResults() above. Only recalculate if they weren't loaded.
-                // Don't override values from sessionStorage as they are the authoritative source.
               }
             }
           } catch (error) {
@@ -399,7 +364,6 @@
           }
         }
         
-        // If database didn't have valid scenes, try sessionStorage
         if (!scenesLoaded) {
           console.warn('[intersearch/3] No valid scenes in database, trying sessionStorage');
           loadScenesFromSessionStorage();
@@ -408,7 +372,6 @@
         isLoading = false;
       } catch (error) {
         console.error('Error loading story:', error);
-        // Try sessionStorage as last resort
         const loadedFromSession = loadScenesFromSessionStorage();
         if (!loadedFromSession) {
           loadError = error instanceof Error ? error.message : "An unexpected error occurred";
@@ -431,11 +394,9 @@
   }
 
   function handlePlayAgain() {
-    // Navigate to intersearch/1 with current story ID to replay the adventure
     if (storyId) {
       goto(`/intersearch/1?storyId=${storyId}`);
     } else {
-      // If no storyId available, go to intersearch to start new
       goto('/intersearch');
     }
   }
@@ -461,7 +422,6 @@
       isDownloading = true;
       downloadError = "";
 
-      // Get auth token
       const authState = get(auth);
       if (!authState.session?.access_token) {
         downloadError = "Please log in to download the PDF";
@@ -471,7 +431,6 @@
 
       console.log(`Generating/fetching PDF for story ${storyId}...`);
 
-      // Step 1: Call generate-pdf endpoint to get/generate the PDF URL
       const response = await fetch(`${API_BASE_URL}/api/books/${storyId}/generate-pdf`, {
         method: 'POST',
         headers: {
@@ -485,7 +444,6 @@
         throw new Error(errorData.detail || `Failed to generate PDF: ${response.statusText}`);
       }
 
-      // Get the JSON response with pdf_url
       const data = await response.json();
       
       if (!data.success || !data.pdf_url) {
@@ -494,7 +452,6 @@
 
       console.log(`PDF URL received: ${data.pdf_url}`);
 
-      // Step 2: Download the PDF from the URL
       const pdfResponse = await fetch(data.pdf_url);
       if (!pdfResponse.ok) {
         throw new Error('Failed to download PDF from storage');
@@ -502,7 +459,6 @@
 
       const blob = await pdfResponse.blob();
       
-      // Create a download link and trigger download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -510,7 +466,6 @@
       document.body.appendChild(link);
       link.click();
       
-      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -910,7 +865,6 @@
     background: #059669;
   }
 
-  /* ---------- Responsive styles ---------- */
   @media (max-width: 1220px) {
     .card {
       width: 96vw;
@@ -1006,7 +960,6 @@
     }
   }
  
-/* Play Again Button Custom Styles */
 .button {
   height: 57px;
   padding-left: 24px;
@@ -1051,7 +1004,6 @@
 
 }
 
-  /* Download PDF Button Custom Styles */
   .download-pdf-btn {
     height: 52px;
     padding-left: 24px;
@@ -1089,8 +1041,6 @@
   }
 
   .notification {
-    /* width: 100%;
-    height: 100%; */
     padding-top: 12px;
     padding-bottom: 12px;
     padding-left: 18px;
@@ -1130,7 +1080,6 @@
     word-wrap: break-word;
   }
 
-  /* Error message styles */
   .error-message {
     background: #fee;
     border: 1px solid #fcc;
@@ -1149,7 +1098,6 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Downloading state animation */
   .download-pdf-btn.downloading .downloadsimple {
     animation: pulse 1.5s ease-in-out infinite;
   }

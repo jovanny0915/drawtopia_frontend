@@ -6,17 +6,14 @@
   import ChildCard from "./ChildCard.svelte";
   import usercircleplus from "../assets/UserCirclePlus.svg";
 
-  // Only keep event handler callbacks as props - component manages its own data
   export let handleAddChildren: () => void;
   export let handleNewStory: (event: CustomEvent) => void;
 
-  // Internal state for child profiles and loading
   let childProfiles: any[] = [];
   let loading: boolean = false;
   let error: string = "";
   let childProfilesFetched: boolean = false;
 
-  // Fetch child profiles from API
   const fetchChildProfiles = async (userId: string) => {
     if (!userId || loading) return;
     
@@ -43,7 +40,6 @@
     }
   };
 
-  // Fetch child profiles when component mounts
   onMount(() => {
     const unsubscribe = user.subscribe(($user) => {
       if ($user?.id && !childProfilesFetched) {
@@ -57,7 +53,6 @@
     };
   });
 
-  // Reactive statement to handle user changes
   $: if ($user?.id && !childProfilesFetched) {
     console.log('[ChildProfilesView] User available, fetching child profiles:', $user.id);
     fetchChildProfiles($user.id);
@@ -261,7 +256,6 @@
     display: inline-flex;
   }
 
-  /* Loading, Error, and Empty States */
   .loading-state,
   .error-state,
   .empty-state {
@@ -346,7 +340,6 @@
     margin: 0;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .frame-1410104149 {
       padding: 12px;

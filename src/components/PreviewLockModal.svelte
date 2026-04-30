@@ -2,8 +2,8 @@
   import { createEventDispatcher } from "svelte";
   import LockKeyRed from "../assets/LockKey-red.svg";
 
-  export let characterName = "Emma"; // Default character name
-  export let storyId: string | null = null; // Story ID to pass for purchase
+  export let characterName = "Emma";
+  export let storyId: string | null = null;
 
   const dispatch = createEventDispatcher();
 

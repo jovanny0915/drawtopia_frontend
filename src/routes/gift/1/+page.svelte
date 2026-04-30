@@ -5,8 +5,8 @@
     import arrow_left from "../../../assets/ArrowLeft.svg";
     import people_svg from "../../../assets/people.svg";
     import logo from "../../../assets/logo.webp";
-    import createSend from "../../../assets/create-send.webp"; // Two children with laptop and gift
-    import sendLink from "../../../assets/send-link.webp"; // Woman and boy with laptop
+    import createSend from "../../../assets/create-send.webp";
+    import sendLink from "../../../assets/send-link.webp";
     import shieldstart from "../../../assets/ShieldStar.svg";
     import star from "../../../assets/star.webp";
 
@@ -23,7 +23,7 @@
             sessionStorage.setItem("gift_mode", selectedMode);
         }
         if (selectedMode === "create") {
-            goto("/create-character/1"); // TODO: Update when create flow is ready
+            goto("/create-character/1");
         } else {
             goto("/gift/sendlink/1");
         }

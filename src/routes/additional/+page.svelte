@@ -10,8 +10,7 @@
   import splendidImage from "../../assets/splendid-book.webp";
   import stickerImage from "../../assets/sticker-pack.webp";
 
-  // Track selected item (single selection)
-  let selectedItem: 'giant' | 'splendid' | 'sticker' = 'splendid'; // Default to splendid
+  let selectedItem: 'giant' | 'splendid' | 'sticker' = 'splendid';
 
   const handleBack = () => {
     
@@ -43,7 +42,6 @@
     <AccountDropdown />
   </div>
   
-  <!-- Mobile Back Button -->
   <div class="mobile-back-wrapper">
     <MobileBackBtn backRoute="/purchase" backText="Back" />
   </div>
@@ -155,9 +153,6 @@
       <div class="contact-us-hellodrawtopiacom"><span class="contactushellodrawtopiacom_span">Contact us: hello@drawtopia.com</span></div>
       <div class="rectangle-34"></div>
       <div class="frame-1410103820">
-          <!--
-<div class="privacy-policy"><span class="privacypolicy_span">Privacy Policy</span></div>
--->
           <div class="terms-of-service"><span class="termsofservice_span">Terms of Service</span></div>
       </div>
   </div>
@@ -769,7 +764,6 @@
   display: inline-flex;
 }
 
-/* Mobile Back Button Wrapper */
 .mobile-back-wrapper {
   display: none;
   width: 100%;
@@ -784,7 +778,6 @@
   z-index: 10;
 }
 
-/* Mobile responsive styles */
 @media (max-width: 800px) {
   .mobile-back-wrapper {
     display: flex;
@@ -912,7 +905,6 @@
   }
 }
 
-/* Small header styles for page-level navbar wrapper */
 .navbar {
   width: 100%;
   padding-top: 12px;

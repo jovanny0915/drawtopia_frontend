@@ -15,14 +15,12 @@
   let showVideoConsentModal = false;
   let showReactionReadyModal = false;
   
-  // Progress bar state
   let progress = 0;
   let isPaused = false;
-  let isStopButton = true; // true = "Stop Reaction", false = "Replay Reaction"
-  /** @type {ReturnType<typeof setInterval> | null} */
+  let isStopButton = true;
   let progressInterval = null;
-  const PROGRESS_DURATION = 30000; // 30 seconds
-  const UPDATE_INTERVAL = 50; // Update every 50ms for smooth animation
+  const PROGRESS_DURATION = 30000;
+  const UPDATE_INTERVAL = 50;
   const PROGRESS_INCREMENT = (100 / PROGRESS_DURATION) * UPDATE_INTERVAL;
 
   function startProgress() {
@@ -45,7 +43,7 @@
 
   function stopProgress() {
     isPaused = true;
-    isStopButton = false; // Change to "Replay Reaction"
+    isStopButton = false;
     if (progressInterval) {
       clearInterval(progressInterval);
       progressInterval = null;
@@ -54,7 +52,7 @@
 
   function replayProgress() {
     isPaused = false;
-    isStopButton = true; // Change to "Stop Reaction"
+    isStopButton = true;
     startProgress();
   }
 
@@ -67,7 +65,6 @@
   }
 
   function handleRetakeClick() {
-    // Reset progress and restart
     progress = 0;
     isPaused = false;
     isStopButton = true;
@@ -95,7 +92,6 @@
     showReactionReadyModal = false;
   }
 
-  // Computed: is retake button enabled?
   $: isRetakeEnabled = progress >= 100 || (isPaused && !isStopButton);
 
   onMount(() => {
@@ -222,11 +218,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -717,39 +708,33 @@
   .button_02 {
     cursor: pointer;
   }
-  /* Title: single line, ellipsis if overflow */
   .recording-reaction {
     width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Make main photo full width */
   .frame-1410104055 {
     width: 100%;
     height: auto;
     display: block;
   }
   @media (max-width: 800px) {
-    /* Containers full width */
     .frame-1410103818 {
       width: 100%;
     }
     .frame-1410104083 {
       width: 100%;
     }
-    /* Title full width */
     .recording-reaction {
       width: 100%;
     }
     .heading_01 {
       width: 100%;
     }
-    /* Hide bottom Back button */
     .frame-1410103870 .button {
       display: none;
     }
-    /* Bottom actions stack and fill */
     .frame-1410103860 {
       flex-direction: column;
       justify-content: center;
@@ -763,7 +748,6 @@
     .button_02 {
       width: 100%;
     }
-    /* Modal as bottom sheet */
     .modal-overlay {
       align-items: flex-end;
     }
@@ -789,7 +773,6 @@
     }
   }
 
-  /* Retake button upgraded styles (overrides) */
   .vector {
     width: 19.50px;
     height: 18px;

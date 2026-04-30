@@ -13,7 +13,6 @@
 
   export let storyTitle: string = "";
   export let storyId: string = "";
-  /** Optional: cover image URL for Pinterest and richer social previews (Open Graph is set on the share page). */
   export let storyCoverUrl: string = "";
 
   const dispatch = createEventDispatcher();
@@ -37,7 +36,6 @@
     let url = "";
     switch (platform) {
       case "facebook":
-        // Meta uses Open Graph meta on the shared URL (og:image, og:title, og:description)
         url = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
         break;
       case "twitter":
@@ -56,7 +54,6 @@
         break;
       case "tiktok":
       case "instagram":
-        // No web share URL for external links; copy link and notify
         handleCopyLink();
         addNotification({
           type: "info",
@@ -93,10 +90,8 @@
     console.log('++++++++++++++++++++++++++++++++++++++++++++++');
 
     try {
-      // Generate share URL with current origin and story UID (without parameter name)
       const shareUrl = `${window.location.origin}/share?${storyId}`;
       
-      // Copy the share URL to clipboard
       await navigator.clipboard.writeText(shareUrl);
       
       addNotification({

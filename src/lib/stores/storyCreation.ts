@@ -1,7 +1,3 @@
-/**
- * Story Creation Store
- * Manages the story creation state throughout the character creation flow
- */
 
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
@@ -12,6 +8,7 @@ export interface StoryCreationState {
   selectedChildProfileName?: string;
   characterId?: number;
   characterName?: string;
+  characterGender?: 'male' | 'female' | 'non_binary';
   characterType?: 'person' | 'animal' | 'magical_creature';
   specialAbility?: string;
   characterStyle?: '3d' | 'cartoon' | 'anime';
@@ -27,7 +24,6 @@ export interface StoryCreationState {
   storyId?: string;
 }
 
-// Create the store
 const createStoryCreationStore = () => {
   const { subscribe, set, update } = writable<StoryCreationState>({});
 
@@ -36,13 +32,13 @@ const createStoryCreationStore = () => {
     set,
     update,
     
-    // Initialize from sessionStorage
     init: () => {
       if (browser) {
         const selectedChildProfileId = sessionStorage.getItem('selectedChildProfileId');
         const selectedChildProfileName = sessionStorage.getItem('selectedChildProfileName');
         const characterIdStr = sessionStorage.getItem('characterId');
         const characterName = sessionStorage.getItem('characterName');
+        const characterGender = sessionStorage.getItem('characterGender');
         const characterType = sessionStorage.getItem('selectedCharacterType');
         const specialAbility = sessionStorage.getItem('specialAbility');
         const characterStyle = sessionStorage.getItem('selectedStyle');
@@ -58,7 +54,6 @@ const createStoryCreationStore = () => {
           || sessionStorage.getItem('selectedImage_step6');
         const storyId = sessionStorage.getItem('currentStoryId');
         console.log(selectedChildProfileId);
-        // Load enhanced images if they exist
         const enhancedImages: string[] = [];
         if (characterStyle) {
           const enhancements = ['minimal', 'normal', 'high'];
@@ -76,6 +71,7 @@ const createStoryCreationStore = () => {
           selectedChildProfileName: selectedChildProfileName || undefined,
           characterId: characterIdStr ? parseInt(characterIdStr) : undefined,
           characterName: characterName || undefined,
+          characterGender: characterGender as any || undefined,
           characterType: characterType as any || undefined,
           specialAbility: specialAbility || undefined,
           characterStyle: characterStyle as any || undefined,
@@ -96,7 +92,6 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Update selected child profile
     setSelectedChild: (childId: string, childName: string) => {
       update(state => ({ ...state, selectedChildProfileId: childId, selectedChildProfileName: childName }));
       if (browser) {
@@ -105,21 +100,21 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Update character details
     setCharacterDetails: (details: {
       characterName?: string;
+      characterGender?: 'male' | 'female' | 'non_binary';
       characterType?: 'person' | 'animal' | 'magical_creature';
       specialAbility?: string;
     }) => {
       update(state => ({ ...state, ...details }));
       if (browser) {
         if (details.characterName) sessionStorage.setItem('characterName', details.characterName);
+        if (details.characterGender) sessionStorage.setItem('characterGender', details.characterGender);
         if (details.characterType) sessionStorage.setItem('selectedCharacterType', details.characterType);
         if (details.specialAbility) sessionStorage.setItem('specialAbility', details.specialAbility);
       }
     },
 
-    // Update style selection
     setCharacterStyle: (style: '3d' | 'cartoon' | 'anime') => {
       update(state => ({ ...state, characterStyle: style }));
       if (browser) {
@@ -127,7 +122,6 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Update format selection
     setSelectedFormat: (format: 'interactive' | 'story') => {
       update(state => ({ ...state, selectedFormat: format }));
       if (browser) {
@@ -135,7 +129,6 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Update world selection
     setStoryWorld: (world: 'forest' | 'space' | 'underwater') => {
       update(state => ({ ...state, storyWorld: world }));
       if (browser) {
@@ -143,7 +136,6 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Update adventure type
     setAdventureType: (adventure: 'treasure_hunt' | 'helping_friend') => {
       update(state => ({ ...state, adventureType: adventure }));
       if (browser) {
@@ -151,7 +143,6 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Update original image URL
     setOriginalImageUrl: (url: string) => {
       update(state => ({ ...state, originalImageUrl: url }));
       if (browser) {
@@ -159,12 +150,10 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Update enhanced images
     setEnhancedImages: (images: string[]) => {
       update(state => ({ ...state, enhancedImages: images }));
     },
 
-    // Update story title and cover design
     setStoryPresentation: (title: string, coverDesign: string, storyCover?: string) => {
       update(state => ({ ...state, storyTitle: title, coverDesign, storyCover }));
       if (browser) {
@@ -176,19 +165,18 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Set story ID after creation
     setStoryId: (id: string) => {
       update(state => ({ ...state, storyId: id }));
       if (browser) sessionStorage.setItem('currentStoryId', id);
     },
 
-    /** Hydrate store and sessionStorage from a Supabase story row (e.g. when editing a draft from dashboard). */
     hydrateFromStory: (row: Record<string, any>) => {
       if (!row || !browser) return;
       const s = row;
       const childProfileId = s.child_profile_id ?? s.childProfileId ?? '';
       const characterId = s.character_id ?? s.characterId;
       const characterName = s.character_name ?? s.characterName ?? '';
+      const characterGender = s.character_gender ?? s.characterGender ?? s.gender ?? '';
       const characterType = (s.character_type ?? s.characterType ?? 'person') as 'person' | 'animal' | 'magical_creature';
       const specialAbility = s.special_ability ?? s.specialAbility ?? '';
       const characterStyle = (s.character_style ?? s.characterStyle ?? 'cartoon') as '3d' | 'cartoon' | 'anime';
@@ -207,6 +195,7 @@ const createStoryCreationStore = () => {
       sessionStorage.setItem('selectedChildProfileId', String(childProfileId));
       sessionStorage.setItem('characterId', characterId != null ? String(characterId) : '');
       sessionStorage.setItem('characterName', characterName);
+      sessionStorage.setItem('characterGender', characterGender);
       sessionStorage.setItem('selectedCharacterType', characterType);
       sessionStorage.setItem('specialAbility', specialAbility);
       sessionStorage.setItem('selectedStyle', characterStyle);
@@ -228,6 +217,7 @@ const createStoryCreationStore = () => {
         selectedChildProfileId: String(childProfileId),
         characterId: characterId != null ? Number(characterId) : undefined,
         characterName: characterName || undefined,
+        characterGender: characterGender || undefined,
         characterType,
         specialAbility: specialAbility || undefined,
         characterStyle,
@@ -244,13 +234,13 @@ const createStoryCreationStore = () => {
       });
     },
 
-    // Clear all data
     clear: () => {
       set({});
       if (browser) {
         sessionStorage.removeItem('selectedChildProfileId');
         sessionStorage.removeItem('selectedChildProfileName');
         sessionStorage.removeItem('characterName');
+        sessionStorage.removeItem('characterGender');
         sessionStorage.removeItem('selectedCharacterType');
         sessionStorage.removeItem('specialAbility');
         sessionStorage.removeItem('selectedStyle');
@@ -265,7 +255,6 @@ const createStoryCreationStore = () => {
       }
     },
 
-    // Convert current state to Story object for database
     toStoryObject: (state: StoryCreationState): Partial<Story> => {
       if (!state.selectedChildProfileId || !state.characterName || !state.characterType ||
           !state.characterStyle || !state.storyWorld || !state.adventureType || !state.originalImageUrl) {
@@ -297,7 +286,6 @@ const createStoryCreationStore = () => {
 
 export const storyCreation = createStoryCreationStore();
 
-// Auto-initialize the store when the module is loaded (handles page refreshes)
 if (browser) {
   storyCreation.init();
 }

@@ -14,11 +14,9 @@
 
   let giftState: any = {};
   
-  // Checkbox states
   let includeGiftReceipt = false;
   let agreeToTerms = false;
   
-  // Stripe Elements
   let stripe: any = null;
   let elements: any = null;
   let paymentElement: any = null;
@@ -26,26 +24,19 @@
   let isLoadingPayment = false;
   let isPaymentElementReady = false;
   
-  // Loading state for Stripe checkout
   let isLoadingStripe = false;
 
-  // Reactive statements for auth state
   $: currentUser = $user;
   $: loading = $authLoading;
   $: authenticated = $isAuthenticated;
   $: userId = currentUser?.id;
   
-  // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
   
-  // Enable purchase button only when payment element is ready and terms are agreed
   $: canPurchase = agreeToTerms && isPaymentElementReady && !isLoadingPayment;
 
-  // Subscribe to gift creation state
   onMount(() => {
-    // Only run on client side
     if (browser) {
-      // Add a small delay to ensure auth state is fully loaded
       setTimeout(() => {
         if (safeToRedirect && !authenticated) {
           goto('/login');
@@ -58,14 +49,12 @@
       giftState = state;
     });
     
-    // Initialize Stripe Elements after a small delay to ensure DOM is ready
     setTimeout(async () => {
       await initializeStripe();
     }, 100);
     
     return () => {
       unsubscribe();
-      // Cleanup payment element
       if (paymentElement) {
         try {
           paymentElement.unmount();
@@ -76,15 +65,12 @@
     };
   });
 
-  // Initialize Stripe Elements
   async function initializeStripe() {
     if (!browser) return;
     
     try {
-      // Get API base URL
       const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
       
-      // Get current user info
       let userEmail = null;
       let userId = null;
       
@@ -93,10 +79,9 @@
         userId = currentUser.id;
       }
       
-      // Prepare request body for payment intent
       const requestBody: any = {
         purchase_type: 'gift',
-        amount: 999 // $9.99 in cents
+        amount: 999
       };
       
       if (giftState?.giftId) {
@@ -109,7 +94,6 @@
         requestBody.user_id = userId;
       }
       
-      // Create payment intent
       const res = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
         method: 'POST',
         headers: {
@@ -127,7 +111,6 @@
 
       console.log('Client secret:', clientSecret);
       
-      // Load Stripe
       const stripePublishableKey = 'pk_test_51Ss6Ts1ctHVGHBAXdLtvhIcjZxXMpEhSYFqIyfyQxVv2b1DHYJaPrZhVJsDB87WxwGMD78CaAJ9SDhM1IPQb4vBy00kmzjZNp0';
       if (!stripePublishableKey) {
         throw new Error('Stripe publishable key not found');
@@ -138,7 +121,6 @@
         throw new Error('Failed to load Stripe');
       }
       
-      // Create Elements
       elements = stripe.elements({ 
         clientSecret,
         appearance: {
@@ -146,10 +128,8 @@
         }
       });
       
-      // Create and mount Payment Element
       paymentElement = elements.create('payment');
       
-      // Wait for the DOM element to be available
       const paymentElementContainer = document.getElementById('payment-element');
       if (!paymentElementContainer) {
         throw new Error('Payment element container not found');
@@ -164,18 +144,14 @@
     }
   }
 
-  // Reactive redirect when auth state changes (client-side only)
   $: if (safeToRedirect && !authenticated) {
-    // Only redirect if we're sure about the auth state
     goto('/login');
   }
 
   const handleBack = () => {
-    // Navigate back to step 3
     goto("/gift/sendlink/2");
   };
 
-  // Save gift to Supabase after successful payment (Stripe Elements flow – no redirect, so we save here)
   async function saveGiftAfterPayment() {
     try {
       const giftData = giftCreation.toGiftObject(giftState);
@@ -200,7 +176,6 @@
               const deductData = await deductRes.json();
               if (deductData.success) console.log('✅ Link gift: 1 credit deducted from sender');
             }
-            // Add 1 credit to recipient (to_user_id) for link gift
             const addRecipientRes = await fetch(`${API_BASE_URL}/api/gifts/add-recipient-credit-on-send`, {
               method: 'POST',
               headers: {
@@ -246,7 +221,6 @@
         alert(error.message);
         isLoadingPayment = false;
       } else {
-        // Payment succeeded: store gift in Supabase (same as Stripe Checkout flow) then go to success page
         await saveGiftAfterPayment();
       }
     } catch (error) {
@@ -264,7 +238,6 @@
     isLoadingStripe = true;
     
     try {
-      // Get current user info
       let userEmail = null;
       let userId = null;
       
@@ -273,21 +246,17 @@
         userId = currentUser.id;
       }
       
-      // Build success URL - redirect to gift purchase success page
       const successUrl = `${window.location.origin}/gift/purchase?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${window.location.origin}/gift/review`;
       
-      // Get API base URL
       const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
       
-      // Prepare request body - only include fields that are not null/undefined
       const requestBody: any = {
         purchase_type: 'gift',
         success_url: successUrl,
         cancel_url: cancelUrl
       };
       
-      // Add optional fields only if they have values
       if (giftState?.giftId) {
         requestBody.gift_id = giftState.giftId;
       }
@@ -301,7 +270,6 @@
       console.log('Creating Stripe checkout session with:', requestBody);
       console.log('Current giftState:', giftState);
       
-      // Call the backend to create a Stripe checkout session for gift
       const response = await fetch(`${API_BASE_URL}/api/stripe/create-onetime-checkout`, {
         method: 'POST',
         headers: {
@@ -327,7 +295,6 @@
       const data = await response.json();
       
       if (data.success && data.checkout_url) {
-        // Redirect to Stripe Checkout
         window.location.href = data.checkout_url;
       } else {
         throw new Error(data.message || 'Failed to get checkout URL');
@@ -347,7 +314,6 @@
     }
   };
 
-  // Format delivery time for display (DD/MM/YYYY at H:MM AM/PM)
   const formatDeliveryTime = (deliveryOption: string, deliveryTime: string) => {
     if (deliveryOption === 'surprise') {
       return 'Surprise delivery (immediate)';
@@ -371,7 +337,6 @@
       <div class="logo-img"></div>
     </div>
   </div>
-  <!-- Mobile Back Button -->
   <div class="mobile-back-button">
     <div
       class="mobile-back-btn"
@@ -627,11 +592,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -1179,19 +1139,6 @@
     box-shadow: none;
   }
 
-  /* Ripple effect */
-  /* .button_01::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transition: width 0.3s, height 0.3s;
-    transform: translate(-50%, -50%);
-  } */
 
   .button_01:active::before {
     width: 300px;
@@ -1237,7 +1184,6 @@
     height: 20px;
   }
 
-  /* Make back button clickable */
   .button_02 {
     cursor: pointer;
     transition:
@@ -1545,7 +1491,6 @@
      display: inline-flex;
    }
 
-   /* Mobile Back Button Styles */
    .mobile-back-button {
      display: none;
    }
@@ -1581,7 +1526,6 @@
      line-height: 22.4px;
    }
 
-   /* Stripe Button Styles */
    .mobile-stripe-button {
      display: none;
    }
@@ -1590,7 +1534,6 @@
      display: flex;
    }
 
-   /* Mobile responsive styles */
    @media (max-width: 800px) {
      .mobile-back-button {
        display: flex;
@@ -1628,7 +1571,6 @@
        gap: 12px;
      }
 
-     /* Gift Summary Column Layout */
      .frame-1410104126 {
        padding: 12px;
        gap: 8px;
@@ -1657,7 +1599,6 @@
        text-align: left;
      }
 
-     /* Stripe Button Mobile */
      .desktop-stripe-button {
        display: none;
      }
@@ -1687,7 +1628,6 @@
        gap: 12px;
      }
 
-     /* Hide bottom back button on mobile */
      .button_02 {
        display: none;
      }
@@ -1732,7 +1672,6 @@
        gap: 16px;
      }
 
-     /* Typography adjustments for mobile */
      .giftsummary_span,
      .paymentinformation_span {
        font-size: 18px;

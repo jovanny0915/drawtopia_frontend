@@ -1,10 +1,5 @@
-/**
- * Email Helper Functions
- * Frontend functions to trigger backend email endpoints
- * Note: Emails are now sent immediately (no queue system)
- */
 
-const BACKEND_URL = 'https://image-edit-five.vercel.app'; // http://localhost:8000
+const BACKEND_URL = 'https://image-edit-five.vercel.app';
 
 export interface EmailResult {
   success: boolean;
@@ -13,13 +8,6 @@ export interface EmailResult {
   email_id?: string;
 }
 
-/**
- * Send parental consent verification email
- * @param parentEmail - Parent's email address
- * @param parentName - Parent's name
- * @param childName - Child's name
- * @returns Promise with result
- */
 export async function queueParentalConsentEmail(
   parentEmail: string,
   parentName: string,
@@ -60,34 +48,16 @@ export async function queueParentalConsentEmail(
   }
 }
 
-/** Scenario for gift notification email */
 export type GiftNotificationScenario = 'giver_creating' | 'another_adult_creating' | 'scheduled_delivery';
 
 export interface GiftNotificationEmailOptions {
-  /** Gift order ID for "Track your gift" link */
   giftOrderId?: string;
-  /** Scenario: giver_creating | another_adult_creating | scheduled_delivery */
   scenario?: GiftNotificationScenario;
-  /** Name of adult creating character (Scenario 2) */
   designatedAdultName?: string;
-  /** Scheduled delivery date display (e.g. "Jan 28, 2026") */
   deliveryDate?: string;
-  /** Scheduled delivery time display (e.g. "3:00 PM") */
   deliveryTime?: string;
 }
 
-/**
- * Send gift notification email
- * Trigger: Gift order created and payment processed.
- * Subject: "You've been sent a gift on Drawtopia! 🎁✨"
- * @param recipientEmail - Recipient's email address (or parent email if child)
- * @param recipientName - Recipient's name
- * @param giverName - Gift giver's name
- * @param occasion - Occasion (Birthday, First Day of School, etc.)
- * @param giftMessage - Personal message from giver
- * @param options - Optional: giftOrderId, scenario, designatedAdultName, deliveryDate, deliveryTime
- * @returns Promise with result
- */
 export async function queueGiftNotificationEmail(
   recipientEmail: string,
   recipientName: string,
@@ -140,28 +110,6 @@ export async function queueGiftNotificationEmail(
   }
 }
 
-/**
- * Send book completion notification email
- * Sends variables according to book_format:
- * - interactive_search: to_email, parent_name, child_name, character_name, character_type,
- *   book_title, special_ability, book_format, preview_link, download_link
- * - adventure-story: the above plus story_world, adventure_type, age_group
- *
- * @param toEmail - Recipient's email address
- * @param parentName - Parent's name
- * @param childName - Child's name
- * @param characterName - Character's name
- * @param characterType - Character type
- * @param bookTitle - Book/story title
- * @param specialAbility - Character's special ability
- * @param bookFormat - Book format ('story_adventure' or 'interactive_search')
- * @param previewLink - Link to preview the story
- * @param downloadLink - Link to download the story
- * @param storyWorld - Story world setting (adventure-story only)
- * @param adventureType - Adventure type (adventure-story only)
- * @param ageGroup - Age group (adventure-story only)
- * @returns Promise with result
- */
 export async function sendBookCompletionEmail(
   toEmail: string,
   parentName: string,
@@ -232,15 +180,6 @@ export async function sendBookCompletionEmail(
   }
 }
 
-/**
- * Send payment success confirmation email
- * @param toEmail - Recipient's email address
- * @param customerName - Customer's name
- * @param planType - Plan type ('monthly' or 'yearly')
- * @param amount - Payment amount (e.g., "$9.99")
- * @param nextBillingDate - Next billing date (optional, for subscriptions)
- * @returns Promise with result
- */
 export async function sendPaymentSuccessEmail(
   toEmail: string,
   customerName: string,
@@ -286,18 +225,6 @@ export async function sendPaymentSuccessEmail(
   }
 }
 
-/**
- * Send receipt email for purchase
- * @param toEmail - Recipient's email address
- * @param customerName - Customer's name
- * @param transactionId - Transaction/Invoice ID
- * @param items - Array of purchased items
- * @param subtotal - Subtotal amount
- * @param tax - Tax amount (default: 0)
- * @param total - Total amount
- * @param transactionDate - Transaction date (ISO string)
- * @returns Promise with result
- */
 export async function sendReceiptEmail(
   toEmail: string,
   customerName: string,

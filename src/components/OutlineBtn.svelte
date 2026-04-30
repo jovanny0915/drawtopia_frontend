@@ -59,7 +59,6 @@
     box-shadow: 0 4px 8px rgba(67, 139, 255, 0.3);
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 768px) {
     .outline_btn {
       padding-left: 20px;

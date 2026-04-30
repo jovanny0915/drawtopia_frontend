@@ -1,4 +1,4 @@
-import promptConfig from '$lib/prompt1.json';
+import { getPrompt1Data } from '$lib/promptRuntime';
 
 const NOT_MATCHED_TEXT = 'The story theme is not matched or existed';
 
@@ -72,7 +72,7 @@ export function buildStoryTextPrompt(
   }
 
   const allThemes =
-    promptConfig.generateStoryText?.storyTextGenerationPrompts as Record<string, ThemePromptConfig>;
+    getPrompt1Data().generateStoryText?.storyTextGenerationPrompts as Record<string, ThemePromptConfig>;
   const matchedTheme = Object.values(allThemes).find((theme) => {
     if (!theme.themeName || !theme.worldName) return false;
     return (

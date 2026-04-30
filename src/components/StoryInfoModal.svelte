@@ -9,7 +9,6 @@
 
   const dispatch = createEventDispatcher();
 
-  // Props
   export let storyId: string = "";
   export let storyTitle: string = "Story";
 
@@ -19,20 +18,17 @@
   let isLoadingQR = true;
   let pdfUrl: string = "";
 
-  // Generate QR code when component mounts
   onMount(async () => {
     if (storyId) {
       await fetchPDFUrlAndGenerateQR();
     }
   });
 
-  // Fetch PDF URL and generate QR code
   async function fetchPDFUrlAndGenerateQR() {
     try {
       isLoadingQR = true;
       console.log(`[StoryInfoModal] Fetching PDF URL for story ID: ${storyId}`);
       
-      // Call backend API to get or generate PDF URL
       const apiUrl = `https://image-edit-five.vercel.app/api/books/${storyId}/generate-pdf`;
       
       const response = await fetch(apiUrl, {
@@ -52,7 +48,6 @@
         pdfUrl = result.pdf_url;
         console.log(`[StoryInfoModal] PDF URL received: ${pdfUrl}`);
         
-        // Generate QR code from PDF URL
         qrCodeDataUrl = await QRCode.toDataURL(pdfUrl, {
           width: 200,
           margin: 1,
@@ -68,7 +63,6 @@
       }
     } catch (error) {
       console.error('[StoryInfoModal] Error generating QR code:', error);
-      // Generate a fallback QR code with a placeholder message
       try {
         qrCodeDataUrl = await QRCode.toDataURL('Story PDF not available', {
           width: 200,
@@ -92,15 +86,12 @@
     }
   }
 
-  // Handle download PDF button click
   const handleDownloadPDF = async (event?: MouseEvent) => {
-    // Prevent event propagation
     if (event) {
       event.stopPropagation();
       event.preventDefault();
     }
     
-    // Prevent multiple simultaneous downloads
     if (isDownloadingPDF) {
       console.log('[StoryInfoModal] PDF download already in progress...');
       return;
@@ -115,13 +106,11 @@
     isDownloadingPDF = true;
     
     try {
-      // Use cached PDF URL if available, otherwise fetch it
       let downloadPdfUrl = pdfUrl;
       
       if (!downloadPdfUrl) {
         console.log(`[StoryInfoModal] Requesting PDF generation for story ID: ${storyId}`);
         
-        // Call backend API to generate PDF
         const apiUrl = `https://image-edit-five.vercel.app/api/books/${storyId}/generate-pdf`;
         
         const response = await fetch(apiUrl, {
@@ -155,18 +144,15 @@
       
       console.log(`[StoryInfoModal] PDF URL: ${downloadPdfUrl}`);
       
-      // Try to download the PDF
       try {
-        // Method 1: Direct download via anchor tag
         const link = document.createElement('a');
         link.href = downloadPdfUrl;
         link.download = `${storyTitle.replace(/[^a-z0-9]/gi, '_')}_${storyId}.pdf`;
-        link.target = '_blank'; // Open in new tab as fallback
+        link.target = '_blank';
         link.rel = 'noopener noreferrer';
         document.body.appendChild(link);
         link.click();
         
-        // Clean up after a delay
         setTimeout(() => {
           document.body.removeChild(link);
         }, 100);
@@ -175,7 +161,6 @@
       } catch (downloadError) {
         console.warn('[StoryInfoModal] Direct download failed, trying alternative method:', downloadError);
         
-        // Method 2: Fetch and download as blob (fallback)
         try {
           const pdfResponse = await fetch(downloadPdfUrl);
           if (!pdfResponse.ok) {
@@ -191,7 +176,6 @@
           document.body.appendChild(link);
           link.click();
           
-          // Clean up
           setTimeout(() => {
             document.body.removeChild(link);
             URL.revokeObjectURL(blobUrl);
@@ -200,7 +184,6 @@
           console.log('[StoryInfoModal] PDF downloaded via blob method');
         } catch (blobError) {
           console.error('[StoryInfoModal] Blob download also failed:', blobError);
-          // Last resort: open in new window
           window.open(downloadPdfUrl, '_blank');
         }
       }
@@ -213,15 +196,12 @@
     }
   };
 
-  // Handle delete story button click
   const handleDeleteStory = async (event?: MouseEvent) => {
-    // Prevent event propagation
     if (event) {
       event.stopPropagation();
       event.preventDefault();
     }
     
-    // Prevent multiple simultaneous deletions
     if (isDeletingStory) {
       console.log('[StoryInfoModal] Story deletion already in progress...');
       return;
@@ -233,13 +213,12 @@
       return;
     }
     
-    // Confirmation dialog
     const confirmDelete = confirm(
       `Are you sure you want to delete "${storyTitle}"?\n\nThis action cannot be undone.`
     );
     
     if (!confirmDelete) {
-      return; // User cancelled
+      return;
     }
     
     isDeletingStory = true;
@@ -247,7 +226,6 @@
     try {
       console.log(`[StoryInfoModal] Requesting deletion for story ID: ${storyId}`);
       
-      // Call backend API to delete story
       const apiUrl = `https://image-edit-five.vercel.app/api/books/${storyId}`;
       
       const response = await fetch(apiUrl, {
@@ -272,13 +250,10 @@
         throw new Error(result.message || 'Story deletion failed');
       }
       
-      // Success! Show confirmation and dispatch event
       alert(`Story "${storyTitle}" has been deleted successfully.`);
       
-      // Dispatch delete event so parent can handle navigation
       dispatch('delete', { storyId });
       
-      // Close the modal
       handleClose();
       
     } catch (error) {

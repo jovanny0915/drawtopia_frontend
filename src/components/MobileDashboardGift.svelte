@@ -9,7 +9,6 @@
   export let loading: boolean = false;
   export let error: string = "";
 
-  // Sample data structure for gifts
   interface GiftItem {
     id: string;
     childName: string;
@@ -21,7 +20,6 @@
     deliveryDate?: string;
   }
 
-  // Handle button clicks
   function handleAddChildren() {
     dispatch("addChildren");
   }
@@ -255,7 +253,6 @@
     display: inline-flex;
   }
 
-  /* Loading, Error, and Empty States */
   .loading-state,
   .error-state,
   .empty-state {

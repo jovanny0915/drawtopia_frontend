@@ -39,7 +39,6 @@
     padding-right: 24px;
     padding-top: 16px;
     padding-bottom: 16px;
-    /* box-shadow: 0px 4px 4px rgba(141.8, 141.8, 141.8, 0.25) inset; */
     border-radius: 20px;
     justify-content: center;
     align-items: center;

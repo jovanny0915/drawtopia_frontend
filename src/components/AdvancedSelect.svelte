@@ -7,7 +7,7 @@
 	export let placeholder: string = "Select an option";
 	export let id: string = "advanced-select";
 	export let label: string = "";
-	export let width: string | undefined = undefined; // Optional width for dropdown list
+	export let width: string | undefined = undefined;
 
 	let open = false;
 	let rootEl: HTMLDivElement | null = null;
@@ -21,7 +21,6 @@
 	function selectItem(value: string) {
 		selectedOption = value;
 		open = false;
-		// Create a lightweight change-like object compatible with handlers expecting e.target.value
 		const synthetic = ({ target: { value } } as unknown) as Event;
 		onChange && onChange(synthetic);
 	}

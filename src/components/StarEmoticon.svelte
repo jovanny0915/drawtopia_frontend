@@ -9,11 +9,6 @@
 
   <div class="loopa">
     <img src={star} alt="star" class="star" />
-    <!-- <img src={star4} alt="star4" class="star-4" />
-    <img src={star6} alt="star6" class="star-6" />
-    <img src={eye} alt="eye" class="eye" />
-    <img src={eyebrow} alt="eyebrow" class="eyebrow" />
-    <img src={eyebrow} alt="eyebrow" class="eyebrow_01" /> -->
   </div>
 
   <style>

@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { browser } from '$app/environment';
 
-  // Redirect root path to dashboard
   onMount(() => {
     if (browser) {
       goto('/dashboard', { replaceState: true });
@@ -11,17 +10,10 @@
   });
 </script>
 
-<!-- Home page: includes Privacy Policy link for Google OAuth verification -->
 <div class="home-page">
   <div class="home-content">
     <p>Redirecting...</p>
   </div>
-  <!--
-  <footer class="home-footer">
-    <a href="/privacy">Privacy Policy</a>
-    <a href="/login">Login</a>
-  </footer>
-  -->
 </div>
 
 <style>

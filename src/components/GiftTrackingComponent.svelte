@@ -26,20 +26,16 @@
     delivery_time?: string;
     age?: number;
     notification_sent?: boolean;
-    /** When set, card shows "Book created" status */
     story_id?: string | null;
-    /** When true, card shows "From" with sender email instead of "Send to" */
     isReceivedByMe?: boolean;
     from_email?: string;
   }
 
-  // Internal state for gifts and loading
   let gifts: GiftData[] = [];
   let loadingGifts: boolean = false;
   let giftsError: string = "";
   let giftsFetched: boolean = false;
 
-  // Fetch gifts from API
   const fetchGifts = async () => {
     if (loadingGifts) return;
     
@@ -54,7 +50,6 @@
         const currentUserId = get(user)?.id;
         const rawGifts = result.data as Gift[];
 
-        // For gifts received by me (to_user_id === current user), fetch sender emails from users table
         const receivedGiftSenderIds = rawGifts
           .filter((g: Gift) => g.to_user_id && currentUserId && String(g.to_user_id) === String(currentUserId) && g.from_user_id)
           .map((g: Gift) => g.from_user_id!)
@@ -72,7 +67,6 @@
           }
         }
 
-        // Transform the data to match the GiftTrackingComponent interface (only include gifts with id)
         gifts = rawGifts
           .filter((g: Gift) => g.id)
           .map((gift: Gift) => {
@@ -81,7 +75,7 @@
           let from_email: string | undefined;
           if (isReceivedByMe) {
             from_email = gift.from_user_id ? (senderIdToEmail[gift.from_user_id] || (gift as any).from_user_email) : undefined;
-            sendToDisplay = ""; // not used when isReceivedByMe
+            sendToDisplay = "";
           } else if (gift.from_user_id && currentUserId && String(gift.from_user_id) === String(currentUserId)) {
             sendToDisplay = gift.delivery_email || "Unknown";
           } else {
@@ -119,7 +113,6 @@
     }
   };
 
-  // Fetch gifts when component mounts
   onMount(() => {
     const unsubscribe = user.subscribe(($user) => {
       if ($user?.id && !giftsFetched) {
@@ -133,7 +126,6 @@
     };
   });
 
-  // Reactive statement to handle user changes
   $: if ($user?.id && !giftsFetched) {
     console.log('[GiftTrackingComponent] User available, fetching gifts');
     fetchGifts();
@@ -141,15 +133,12 @@
   }
 
   const handlePurchaseGift = () => {
-    // Navigate to the new gifts selection page
     goto("/gift/1");
   };
 
-  // Handle gift card actions
   function handleResendLink(event: CustomEvent) {
     const { giftId } = event.detail;
     console.log(`Resending link for gift: ${giftId}`);
-    // TODO: Implement resend link functionality
   }
 
   function handleViewGift(event: CustomEvent) {
@@ -177,7 +166,6 @@
   function handleSendThankYou(event: CustomEvent) {
     const { giftId } = event.detail;
     console.log(`Sending thank you for gift: ${giftId}`);
-    // TODO: Implement send thank you functionality
   }
 </script>
 
@@ -355,20 +343,6 @@
     outline-offset: 2px;
   }
 
-  /* Ripple effect */
-  /* .frame_gift_1410103868::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transition: width 0.3s, height 0.3s;
-    transform: translate(-50%, -50%);
-    z-index: 1;
-  } */
 
   .frame_gift_1410103868:active::before {
     width: 100px;
@@ -419,7 +393,6 @@
     display: inline-flex;
   }
 
-  /* Loading, Error, and Empty States */
   .loading-state,
   .error-state,
   .empty-state {
@@ -500,7 +473,6 @@
     margin: 0;
   }
 
-  /* Gifts Grid */
   .gifts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -508,7 +480,6 @@
     width: 100%;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .frame_gift_1410104151 {
       width: 100%;
@@ -551,7 +522,6 @@
       touch-action: manipulation;
     }
 
-    /* Optimize button effects for mobile */
     .frame_gift_1410103868:hover {
       transform: translateY(-0.5px);
       box-shadow: 0 1px 4px rgba(67, 139, 255, 0.25);

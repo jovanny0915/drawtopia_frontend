@@ -15,9 +15,8 @@
 
   let isMobile = false;
   let showDevicePermissionModal = false;
-  let selectedOption = 'record'; // 'record' or 'preview'
+  let selectedOption = 'record';
 
-  // Reactive button text based on selection
   $: buttonText = selectedOption === 'record' ? 'Choose Record Video' : 'Preview a Story';
 
   function goToDashboard() {
@@ -26,7 +25,6 @@
 
   function handleChooseRecordVideo() {
     if (selectedOption === 'preview') {
-      // Navigate directly to preview page with story ID from sessionStorage
       if (browser) {
         const storyId = sessionStorage.getItem('currentStoryId');
         if (storyId) {
@@ -39,7 +37,6 @@
         goto('/preview/default');
       }
     } else {
-      // Show modal for record option
       showDevicePermissionModal = true;
     }
   }
@@ -50,13 +47,9 @@
 
   function handleGrantPermissions() {
     closeModal();
-    // Navigate to record/reaction page after permissions granted
     goto('/record/reaction');
   }
 
-  /**
-   * @param {'record' | 'preview'} option
-   */
   function selectOption(option) {
     selectedOption = option;
   }
@@ -65,44 +58,34 @@
     isMobile = window.innerWidth < 800;
   }
 
-  // Check story generation status on mount
   onMount(() => {
     if (browser) {
       const storyId = sessionStorage.getItem('currentStoryId');
       const storyGenerationError = sessionStorage.getItem('storyGenerationError');
       
-      // Check if story was generated successfully
       if (storyId) {
-        // Story generation successful - show success notification with story ID
         addNotification({
           type: 'success',
           message: `Story generated successfully! Story ID: ${storyId}`,
-          duration: 8000 // Show for 8 seconds
+          duration: 8000
         });
-        // Clear the error flag if it exists
         sessionStorage.removeItem('storyGenerationError');
       } else if (storyGenerationError) {
-        // Story generation failed - show error notification and redirect to dashboard
         addNotification({
           type: 'error',
           message: 'Story generation failed. Please try again.',
-          duration: 3000 // Show for 3 seconds before redirect
+          duration: 3000
         });
-        // Clear the error flag after showing
         sessionStorage.removeItem('storyGenerationError');
-        // Redirect to dashboard after showing notification
         setTimeout(() => {
           goto('/dashboard');
         }, 3000);
       } else {
-        // No story ID and no error flag - treat as failure
-        // This handles cases where user navigates directly or generation didn't complete
         addNotification({
           type: 'error',
           message: 'Story generation failed. Please try again.',
-          duration: 3000 // Show for 3 seconds before redirect
+          duration: 3000
         });
-        // Redirect to dashboard after showing notification
         setTimeout(() => {
           goto('/dashboard');
         }, 3000);
@@ -232,11 +215,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -557,7 +535,7 @@
     border-left: 1px #d3d3d3 solid;
     border-top: 1px #d3d3d3 solid;
     border-right: 1px #d3d3d3 solid;
-    background-image: url(https://placehold.co/402x280);
+    background-image: url(https:
     transition: border-color 0.2s;
   }
 
@@ -723,7 +701,6 @@
 
   .button_01 { cursor: pointer; }
 
-  /* Mobile Responsive Styles */
   @media (max-width: 768px) {
     .record-pages-default-selected {
       padding-top: 24px;

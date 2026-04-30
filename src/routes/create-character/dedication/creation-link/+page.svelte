@@ -17,7 +17,6 @@
     let childName: string = "";
     
     $: if (browser) {
-        // Load child name from sessionStorage
         if (!childName) {
             childName = sessionStorage.getItem("selectedChildName") || "";
         }
@@ -32,7 +31,6 @@
     
     $: characterCount = customDedicationText.length;
     
-    // Get selected dedication text (preset or custom)
     $: selectedDedicationText = isCustomDedicationSelected 
         ? customDedicationText 
         : (selectedPresetIndex === 0 
@@ -45,13 +43,11 @@
             ? "May your heart stay curious and your dreams grow brighter every day. — Love always, Grandma"
             : customDedicationText);
     
-    // Save dedication text to sessionStorage whenever it changes
     $: if (browser && selectedDedicationText) {
         sessionStorage.setItem("dedication_text", selectedDedicationText);
     }
     
     function handleContinueToPreview() {
-        // Ensure dedication text is saved before navigating
         if (browser && selectedDedicationText) {
             sessionStorage.setItem("dedication_text", selectedDedicationText);
         }

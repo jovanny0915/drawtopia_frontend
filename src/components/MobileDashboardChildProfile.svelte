@@ -7,19 +7,13 @@
   import ChildCard from "./ChildCard.svelte";
 
   export let childProfiles: any[] = [];
-  // Kept for parent component API compatibility (passed from parent but not used in this component)
   export let fetchChildProfiles: (userId: string) => Promise<void>;
 
 
-  // Handle "Add Children" button click
   function handleAddChildren() {
-    // TODO: Implement add children functionality
     console.log("Add children clicked");
-    // You might want to navigate to a create child profile page
-    // goto("/create-child-profile");
   }
 
-  // Handle "New Story" button click for a specific child
   function handleNewStory(event: CustomEvent) {
     const child = event.detail.item || event.detail;
     const childId = child.id?.toString();
@@ -30,16 +24,13 @@
       return;
     }
 
-    // Store child info in sessionStorage
     if (browser) {
       sessionStorage.setItem("selectedChildProfileId", childId);
       sessionStorage.setItem("selectedChildProfileName", childName);
     }
 
-    // Update story creation store
     storyCreation.setSelectedChild(childId, childName);
 
-    // Navigate to create-character/1
     goto("/create-character/1");
   }
 </script>

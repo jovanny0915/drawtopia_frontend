@@ -33,14 +33,11 @@
 
 <style>
 .image {
-  /* align-self: stretch; */
   width:  100%;
   height: 280px;
-  /* position: relative; */
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
   border: 1px #D3D3D3 solid;
-  /* z-index: 2; */
   aspect-ratio: 1 / 1;
   object-fit: cover;
 }
@@ -159,7 +156,6 @@
 
 
 
-/* Ripple effect for card clicks */
 .card::before {
   content: '';
   position: absolute;
@@ -192,14 +188,12 @@
   z-index: 2;
 }
 
-/* Mobile responsive styles */
 @media (max-width: 800px) {
   .card {
     touch-action: manipulation;
   }
   
   .card:hover {
-    /* Reduce hover effects on mobile for better touch experience */
     transform: translateY(-1px);
     box-shadow: 0px 1px 4px rgba(67, 139, 255, 0.1);
   }
@@ -209,7 +203,6 @@
     box-shadow: 0px 1px 6px #871fff;
   }
   
-  /* Adjust ripple effect for mobile */
   .card:active::before {
     width: 150px;
     height: 150px;

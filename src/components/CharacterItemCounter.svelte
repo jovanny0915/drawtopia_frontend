@@ -1,9 +1,9 @@
 <script lang="ts">
-  export let characterImages: string[] = []; // Array of character image URLs (up to 4)
-  export let collectedCount: number = 0; // Number of collected items (0-4)
-  export let totalCount: number = 4; // Total items (always 4)
-  export let isVisible: boolean = true; // Control visibility
-  export let foundIndices: boolean[] = [false, false, false, false]; // 0..3; true means that specific character is found
+  export let characterImages: string[] = [];
+  export let collectedCount: number = 0;
+  export let totalCount: number = 4;
+  export let isVisible: boolean = true;
+  export let foundIndices: boolean[] = [false, false, false, false];
 </script>
 
 <div class="character-item-counter" class:hidden={!isVisible}>

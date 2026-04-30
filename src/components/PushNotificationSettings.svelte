@@ -35,7 +35,6 @@
         console.error('Error checking subscription status:', err);
         subscribed = false;
         subscriptions = [];
-        // Don't show error on mount - only show when user tries to interact
       }
     }
   });
@@ -50,7 +49,6 @@
         subscribed = true;
         subscriptions = await getUserPushSubscriptions();
         
-        // Show test notification
         await showLocalNotification('Notifications Enabled! 🎉', {
           body: 'You will now receive gift notifications',
           icon: '/icon-192.png',

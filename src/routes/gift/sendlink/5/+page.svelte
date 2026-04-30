@@ -15,7 +15,6 @@
   import baby from '../../../../assets/baby.webp';
   import just from '../../../../assets/just.webp';
 
-  // Sample story data
   const stories = [
     {
       id: 1,
@@ -67,7 +66,6 @@
     },
   ];
 
-  // Age group options
   const ageGroupOptions = [
     { value: "0-2", label: "👶 Ages 0-2 (Tiny Explorers)" },
     { value: "3-5", label: "👧 Ages 3-5 (Imagination Builders)" },
@@ -76,7 +74,6 @@
     { value: "11-12", label: "🧑 Ages 11-12 (Dream Weavers)" },
   ];
 
-  // Relationship options
   const relationshipOptions = [
     { value: "parent", label: "Parent" },
     { value: "grandparent", label: "Grandparent" },
@@ -92,7 +89,6 @@
   let selectedStory: any = null;
   let giftState: any = null;
 
-  // Subscribe to giftCreation store
   const unsubscribe = giftCreation.subscribe((state) => {
     giftState = state;
     if (state.childName) {
@@ -106,23 +102,17 @@
     }
   });
 
-  // Reactive statements for auth state
   $: currentUser = $user;
   $: loading = $authLoading;
   $: authenticated = $isAuthenticated;
   $: userId = currentUser?.id;
 
-  // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
 
-  // Check authentication on mount (client-side only)
   onMount(() => {
-    // Initialize giftCreation store from sessionStorage
     giftCreation.init();
     
-    // Only run on client side
     if (browser) {
-      // Add a small delay to ensure auth state is fully loaded
       setTimeout(() => {
         if (safeToRedirect && !authenticated) {
           goto("/login");
@@ -131,13 +121,10 @@
       }, 100);
     }
     
-    // Cleanup subscription on component destroy
     return unsubscribe;
   });
 
-  // Reactive redirect when auth state changes (client-side only)
   $: if (safeToRedirect && !authenticated) {
-    // Only redirect if we're sure about the auth state
     goto("/login");
   }
 
@@ -167,18 +154,15 @@
       return;
     }
 
-    // Save story selection to gift store
     giftCreation.setOccasionAndStory({
-      occasion: selectedStory.title, // Using story title as occasion for now
+      occasion: selectedStory.title,
       selectedStory: selectedStory,
     });
 
-    // Navigate to step 3
     goto("/gift/sendlink/7");
   };
 
   const handleBack = () => {
-    // Navigate back to step 1
     goto("/gift/sendlink/5");
   };
 </script>
@@ -190,7 +174,6 @@
     </div>
   </div>
 
-  <!-- Mobile Back Button -->
   <div class="mobile-back-button">
     <div
       class="mobile-back-btn"
@@ -229,9 +212,7 @@
         stepLabel="Step 2"
       />
     </div>
-    <!-- Story Selection Section -->
     <div class="story-selection">
-      <!-- Stories Grid -->
       <div class="stories-grid">
         {#each stories as story (story.id)}
           <div
@@ -254,7 +235,6 @@
         {/each}
       </div>
 
-      <!-- Continue Button -->
       <div class="continue-section-container">
         <div class="continue-section">
           <div class="frame-1410103991">
@@ -292,11 +272,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -431,7 +406,6 @@
 
   .button:hover {
     background: #3a7ae4;
-    /* transform: translateY(-2px); */
     box-shadow: 0 4px 12px rgba(67, 139, 255, 0.3);
   }
 
@@ -446,20 +420,6 @@
     outline-offset: 2px;
   }
 
-  /* Ripple effect */
-  /* .button::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transition: width 0.3s, height 0.3s;
-    transform: translate(-50%, -50%);
-    z-index: 1;
-  } */
 
   .button:active::before {
     width: 300px;
@@ -596,7 +556,6 @@
     display: inline-flex;
   }
 
-  /* Story Selection Styles */
   .story-selection {
     align-self: stretch;
     background: white;
@@ -626,12 +585,10 @@
   }
 
   .story-item:hover {
-    /* transform: translateY(-2px); */
     box-shadow: 0px 2px 8px rgba(67, 139, 255, 0.1);
   }
 
   .story-item:active {
-    /* transform: translateY(0); */
     box-shadow: 0px 1px 4px rgba(67, 139, 255, 0.15);
   }
 
@@ -639,17 +596,14 @@
     outline: 2px solid #438bff;
     outline-offset: 2px;
     box-shadow: 0 0 0 3px rgba(67, 139, 255, 0.1);
-    /* transform: translateY(-2px); */
   }
 
   .story-item.selected {
     outline: 2px #6912c5 solid;
     box-shadow: 0px 1px 8px #871fff;
-    /* transform: translateY(-1px); */
   }
 
   .story-item.selected:hover {
-    /* transform: translateY(-3px); */
     box-shadow: 0px 2px 12px #871fff;
   }
 
@@ -694,7 +648,6 @@
     display: flex;
   }
 
-  /* Mobile Back Button Styles */
   .mobile-back-button {
     display: none;
   }
@@ -732,14 +685,11 @@
   .story-item.selected {
     outline: 2px #6912c5 solid;
     box-shadow: 0px 1px 8px #871fff;
-    /* transform: translateY(-1px); */
   }
 
   .story-item.selected:hover {
-    /* transform: translateY(-3px); */
     box-shadow: 0px 2px 12px #871fff;
   }
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .mobile-back-button {
       display: flex;
@@ -763,7 +713,6 @@
       gap: 20px;
     }
 
-    /* GiftStepComponent mobile adjustments */
     :global(.progress-bar) {
       width: 100% !important;
       padding: 12px !important;
@@ -790,7 +739,6 @@
       margin-bottom: 8px;
     }
 
-    /* Stories grid responsive - horizontal scrolling */
     .stories-grid {
       display: flex !important;
       flex-direction: row !important;
@@ -808,7 +756,6 @@
       scroll-snap-align: start !important;
     }
 
-    /* Hide scrollbar but keep functionality */
     .stories-grid::-webkit-scrollbar {
       height: 4px;
     }
@@ -827,7 +774,6 @@
       background: #a8a8a8;
     }
 
-    /* Add subtle shadow to indicate more content */
     .story-selection {
       position: relative;
     }
@@ -848,30 +794,24 @@
       z-index: 1;
     }
 
-    /* Ensure story items have proper touch interaction */
     .story-item {
       touch-action: manipulation;
       user-select: none;
     }
 
-    /* Optimize selection effects for mobile */
     .story-item:hover {
-      /* transform: translateY(-1px); */
       box-shadow: 0px 1px 4px rgba(67, 139, 255, 0.1);
     }
 
     .story-item.selected {
       outline: 2px #6912c5 solid;
       box-shadow: 0px 1px 8px #871fff;
-      /* transform: translateY(-1px); */
     }
 
     .story-item.selected:hover {
-      /* transform: translateY(-2px); */
       box-shadow: 0px 2px 8px #871fff;
     }
 
-    /* Continue section mobile */
     .continue-section {
       width: 100%;
       gap: 16px;
@@ -883,9 +823,7 @@
       touch-action: manipulation;
     }
 
-    /* Optimize button effects for mobile */
     .button:hover {
-      /* transform: translateY(-1px); */
       box-shadow: 0 2px 8px rgba(67, 139, 255, 0.25);
     }
 
@@ -898,7 +836,6 @@
       display: none;
     }
 
-    /* Typography adjustments for mobile */
     .tellusaboutthechild_span {
       font-size: 32px;
       line-height: 44.8px;
@@ -921,7 +858,6 @@
       line-height: 19.6px;
     }
 
-    /* Layout adjustments */
     .frame-5 {
       gap: 20px;
     }
@@ -948,7 +884,6 @@
       width: 100%;
     }
 
-    /* Ensure proper overflow for mobile */
     .profile-creation-filled {
       overflow: visible;
     }

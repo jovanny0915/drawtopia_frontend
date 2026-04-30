@@ -39,7 +39,6 @@
     {value: "failed", label: "Failed"},
   ];
 
-  // Update children options when childProfiles change
   $: childrenOptions = [
     {value: "all", label: "All Children"},
     ...childProfiles.map((child) => ({
@@ -48,9 +47,7 @@
       })),
   ];
 
-  // Filter stories based on selectedFormat, selectedChild, selectedStatus, and searchQuery
   $: filteredStories = stories.filter((story) => {
-    // Filter by story type (format)
     if (selectedFormat !== "all") {
       const storyType = (story.story_type || "story").toLowerCase();
       if (selectedFormat === "story_adventure" && storyType !== "story") {
@@ -61,7 +58,6 @@
       }
     }
 
-    // Filter by child
     if (selectedChild !== "all") {
       const childId = story.child_profile_id?.toString() || story.child_profile_id;
       const selectedChildId = selectedChild.toString();
@@ -70,7 +66,6 @@
       }
     }
 
-    // Filter by status
     if (selectedStatus !== "all") {
       const storyStatus = (story.status || "").toLowerCase();
       if (storyStatus !== selectedStatus.toLowerCase()) {
@@ -78,7 +73,6 @@
       }
     }
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       const title = (story.story_title || story.title || "").toLowerCase();
@@ -91,7 +85,6 @@
     return true;
   });
 
-  // Fetch stories when component mounts or user changes
   onMount(() => {
     const unsubscribe = user.subscribe(($user) => {
       if ($user?.id && !storiesFetched) {
@@ -106,9 +99,7 @@
     };
   });
 
-  // Reset fetch flag when user changes
   $: if ($user?.id) {
-    // Re-fetch stories if user changed and stories haven't been fetched yet
     if (!storiesFetched && fetchStories) {
       console.log('[StoryLibraryView] User available, fetching stories:', $user.id);
       fetchStories($user.id);
@@ -117,7 +108,6 @@
   }
 
   const handleViewBook = (event: CustomEvent) => {
-    // Handle view book event if needed
     console.log('View book:', event.detail);
   };
 
@@ -424,7 +414,6 @@
     display: inline-flex;
   }
 
-  /* Loading, Error, and Empty States */
   .loading-state,
   .error-state,
   .empty-state {
@@ -505,7 +494,6 @@
     margin: 0;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .frame-1410104150_01 {
       padding: 12px;

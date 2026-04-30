@@ -10,7 +10,6 @@
 
   export let gift: any;
   
-  // Helper functions to safely get gift data with fallbacks
   $: sendTo = gift?.send_to || "Unknown";
   $: isReceivedByMe = gift?.isReceivedByMe === true;
   $: fromEmail = gift?.from_email || "";
@@ -28,10 +27,8 @@
     return parseInt(gift.ageGroup.split("-")[0]) || 7;
   })() : 7);
 
-  /** True when gift has a story (book created); drives "Book created" status and actions */
   $: isBookCreated = !!(gift?.story_id != null && gift.story_id !== "");
 
-  // Handle button clicks
   function handleResendLink() {
     dispatch('resendLink', { giftId: gift.id });
   }

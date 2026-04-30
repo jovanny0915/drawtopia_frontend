@@ -2,8 +2,8 @@
   import { goto } from "$app/navigation";
   import caretdown from "../assets/CaretDown.svg";
   
-  export let userName = "Alex Smith";
-  export let userPlan = "Premium Plan";
+  export let userName = "Account";
+  export let userPlan = "Free Plan";
   export let avatarUrl = "https://placehold.co/40x40";
   
   const goToDashboard = () => {
@@ -134,7 +134,6 @@
     display: inline-flex;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .heading {
       display: none;

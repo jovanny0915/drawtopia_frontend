@@ -103,11 +103,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -144,7 +139,6 @@
     width: 687px;
     text-align: center;
   }
-  /* Full width and single-line ellipsis like /record */
   .recording-reaction {
     width: 100%;
   }
@@ -173,7 +167,6 @@
     );
     border-radius: 8px;
   }
-  /* Ensure main image fills container width */
   .frame-1410104055 {
     width: 100%;
     height: auto;
@@ -541,25 +534,21 @@
   }
   .button_02 { cursor: pointer; }
   @media (max-width: 800px) {
-    /* Containers full width */
     .frame-1410103818 {
       width: 100%;
     }
     .frame-1410104083 {
       width: 100%;
     }
-    /* Title full width */
     .recording-reaction {
       width: 100%;
     }
     .heading_01 {
       width: 100%;
     }
-    /* Hide bottom Back button */
     .frame-1410103870 .button {
       display: none;
     }
-    /* Bottom actions stack and fill */
     .frame-1410103860 {
       flex-direction: column;
       justify-content: center;
@@ -573,7 +562,6 @@
     .button_02 {
       width: 100%;
     }
-    /* Modal as bottom sheet */
     .modal-overlay {
       align-items: flex-end;
     }

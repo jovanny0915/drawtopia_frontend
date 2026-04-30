@@ -13,11 +13,9 @@
 
   import { goto } from '$app/navigation';
 
-  // Track selected purchase option
-  let selectedOption: 'digital' | 'physical' | 'bundle' | null = 'physical'; // Default to physical
+  let selectedOption: 'digital' | 'physical' | 'bundle' | null = 'physical';
 
   const handleBack = () => {
-    // Navigate back in browser history
     if (typeof window !== 'undefined') {
       window.history.back();
     }
@@ -48,7 +46,6 @@
     <AccountDropdown slot="profile" />
   </Navbar>
   
-  <!-- Mobile Back Button -->
   <div class="mobile-back-wrapper">
     <MobileBackBtn backRoute="/dashboard" backText="Back" />
   </div>
@@ -259,11 +256,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -1241,7 +1233,6 @@
     display: inline-flex;
   }
 
-  /* Mobile Back Button Wrapper */
   .mobile-back-wrapper {
     display: none;
     width: 100%;
@@ -1256,7 +1247,6 @@
     z-index: 10;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .mobile-back-wrapper {
       display: flex;

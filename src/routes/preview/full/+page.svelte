@@ -833,7 +833,7 @@
     );
     overflow: hidden;
     border-radius: 8px;
-    background-image: url(https://placehold.co/558x668);
+    background-image: url(https:
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-end;
@@ -852,7 +852,7 @@
     );
     overflow: hidden;
     border-radius: 8px;
-    background-image: url(https://placehold.co/558x668);
+    background-image: url(https:
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-end;

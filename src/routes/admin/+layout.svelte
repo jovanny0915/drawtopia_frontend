@@ -1,4 +1,3 @@
-<!-- Admin Layout with Sidebar (Tailwind admin template inspired) -->
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
@@ -14,9 +13,7 @@
   let sidebarOpen = true;
   let hasStartedAdminCheck = false;
 
-  // Verify user is admin on mount
   onMount(() => {
-    // Poll until auth loading completes, then verify admin exactly once.
     const checkAuth = setInterval(() => {
       if (!$authLoading && !hasStartedAdminCheck) {
         hasStartedAdminCheck = true;
@@ -25,8 +22,6 @@
       }
     }, 100);
 
-    // Fallback: auth can take longer on slower network/OAuth callback flows.
-    // Do not redirect on timeout; trigger one admin check only if auth is ready.
     const authTimeout = setTimeout(() => {
       clearInterval(checkAuth);
       if (loading && !$authLoading && !hasStartedAdminCheck) {
@@ -53,7 +48,6 @@
     }
 
     try {
-      // Fetch user role from users table
       const { data, error } = await supabase
         .from('users')
         .select('role')
@@ -72,7 +66,6 @@
         return;
       }
 
-      // User is admin!
       userRole = data.role;
       loading = false;
     } catch (err) {
@@ -81,12 +74,10 @@
     }
   }
 
-  // Toggle sidebar
   function toggleSidebar() {
     sidebarOpen = !sidebarOpen;
   }
 
-  // Logout
   async function handleLogout() {
     await signOut();
     goto('/login');
@@ -108,7 +99,6 @@
     children?: NavChildItem[];
   };
 
-  // Sidebar nav items (icon component per item)
   const navItems: NavItem[] = [
     {
       label: 'Dashboard',
@@ -139,7 +129,7 @@
           label: 'Story List',
           description: 'Review generated stories',
           href: '/admin/stories?tab=story-list',
-          match: (path, tab) => path === '/admin/stories' && tab === 'story-list'
+          match: (path, tab) => path === '/admin/stories' && (tab === '' || tab === 'story-list')
         }
       ]
     },
@@ -153,13 +143,37 @@
       label: 'AI Prompts',
       description: 'Prompt management',
       path: '/admin/prompts-manage',
-      icon: MessageSquareText
+      icon: MessageSquareText,
+      match: (path) => path === '/admin/prompts-manage',
+      children: [
+        {
+          label: 'Character Enhancement Prompts',
+          description: 'Create-character enhancement',
+          href: '/admin/prompts-manage?tab=character-enhancement',
+          match: (path, tab) =>
+            path === '/admin/prompts-manage' && (tab === '' || tab === 'character-enhancement')
+        },
+        {
+          label: 'Cover Image Prompts',
+          description: 'Story cover generation',
+          href: '/admin/prompts-manage?tab=cover-image',
+          match: (path, tab) => path === '/admin/prompts-manage' && tab === 'cover-image'
+        },
+        {
+          label: 'Story Image Prompts',
+          description: 'Story scene generation',
+          href: '/admin/prompts-manage?tab=story-image',
+          match: (path, tab) => path === '/admin/prompts-manage' && tab === 'story-image'
+        },
+        {
+          label: 'Interactive Character Prompts',
+          description: 'Search story character prompts',
+          href: '/admin/prompts-manage?tab=interactive-character',
+          match: (path, tab) => path === '/admin/prompts-manage' && tab === 'interactive-character'
+        }
+      ]
     },
   ];
-
-  function normalizeStoriesTab(value: string | null): 'book-templates' | 'story-list' {
-    return value === 'book-templates' ? 'book-templates' : 'story-list';
-  }
 
   function isNavItemActive(item: NavItem, path: string, tab: string): boolean {
     if (item.match) {
@@ -170,7 +184,7 @@
   }
 
   $: currentPath = $page.url.pathname;
-  $: currentStoriesTab = normalizeStoriesTab($page.url.searchParams.get('tab'));
+  $: currentTab = $page.url.searchParams.get('tab') ?? '';
 </script>
 
 {#if loading}
@@ -180,7 +194,6 @@
   </div>
 {:else if userRole === 'admin'}
   <div class="admin-layout">
-    <!-- Sidebar -->
     <aside class="sidebar" class:collapsed={!sidebarOpen}>
       <div class="sidebar-header">
         <a href="/dashboard" class="logo-link">
@@ -189,7 +202,7 @@
       </div>
       <nav class="sidebar-nav">
         {#each navItems as item}
-          {@const itemActive = isNavItemActive(item, currentPath, currentStoriesTab)}
+          {@const itemActive = isNavItemActive(item, currentPath, currentTab)}
           <div class="nav-item-group" class:has-children={Boolean(item.children?.length)}>
             <a
               href={item.path}
@@ -207,13 +220,13 @@
               {/if}
             </a>
 
-            {#if sidebarOpen && item.children?.length}
+            {#if sidebarOpen && itemActive && item.children?.length}
               <div class="subnav-list">
                 {#each item.children as child}
                   <a
                     href={child.href}
                     class="subnav-item"
-                    class:active={child.match(currentPath, currentStoriesTab)}
+                    class:active={child.match(currentPath, currentTab)}
                   >
                     <span class="subnav-bullet"></span>
                     <span class="subnav-copy">
@@ -241,9 +254,7 @@
       </div>
     </aside>
 
-    <!-- Main Content -->
     <div class="main-content">
-      <!-- Header -->
       <header class="header">
         <button class="toggle-btn" on:click={toggleSidebar}>
           {sidebarOpen ? '✕' : '☰'}
@@ -254,7 +265,6 @@
         </div>
       </header>
 
-      <!-- Page Content -->
       <main class="page-content">
         <slot />
       </main>
@@ -269,7 +279,6 @@
     background-color: #f3f4f6;
   }
 
-  /* Sidebar */
   .sidebar {
     width: 290px;
     background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
@@ -452,7 +461,6 @@
     background-color: rgba(255, 255, 255, 0.2);
   }
 
-  /* Main content */
   .main-content {
     flex: 1;
     margin-left: 290px;
@@ -535,7 +543,6 @@
     }
   }
 
-  /* Responsive */
   @media (max-width: 768px) {
     .sidebar {
       width: 100%;

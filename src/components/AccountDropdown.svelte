@@ -4,7 +4,7 @@
   import { get } from "svelte/store";
   import { goto } from "$app/navigation";
   import caretdown from "../assets/CaretDown.svg";
-  import { auth, user } from "../lib/stores/auth";
+  import { auth } from "../lib/stores/auth";
   import { getUserProfile, signOut } from "../lib/auth";
   import type { UserProfile } from "../lib/supabase";
   import { addNotification } from "../lib/stores/notification";
@@ -15,22 +15,20 @@
   import signout from "../assets/SignOut.svg";
 
   export let avatarUrl = "https://placehold.co/40x40";
-  export let userName = "Alex Smith";
-  export let userPlan = "Free Plan"; // Default to Free Plan instead of Premium
+  export let userName = "Account";
+  export let userPlan = "Free Plan";
 
   let isOpen = false;
   let dropdownRef: HTMLElement | null = null;
   let realUserName = userName;
   let realUserEmail = "";
   let realAvatarUrl = avatarUrl;
-  let realUserPlan = "Free Plan"; // Initialize with Free Plan
+  let realUserPlan = "Free Plan";
   let lastFetchedUserId: string | null = null;
   
-  // Format subscription status for display
   function formatSubscriptionStatus(status: string | null | undefined): string {
     if (!status) return "Free Plan";
     
-    // Convert status to display format
     const statusMap: { [key: string]: string } = {
       'premium': 'Premium Plan',
       'free plan': 'Free Plan',
@@ -44,30 +42,30 @@
     return statusMap[normalizedStatus] || status.charAt(0).toUpperCase() + status.slice(1) + ' Plan';
   }
 
-  // Get name and email from auth session (stored in localStorage by Supabase)
+  function getDisplayName(authState = get(auth)): string {
+    const profileName = [authState.first_name, authState.last_name].filter(Boolean).join(" ").trim();
+    if (profileName) return profileName;
+
+    const metadata = authState.user?.user_metadata;
+    if (metadata?.full_name) return metadata.full_name;
+    if (metadata?.name) return metadata.name;
+
+    const metadataName = [metadata?.first_name, metadata?.last_name].filter(Boolean).join(" ").trim();
+    if (metadataName) return metadataName;
+
+    return authState.user?.email?.split("@")[0] || userName;
+  }
+
   function getAuthInfo() {
     if (!browser) return;
     
     const authState = get(auth);
     if (authState.user) {
-      // Get email from auth user
       realUserEmail = authState.user.email || "";
-      
-      // Get name from user_metadata or construct from metadata
-      if (authState.user.user_metadata?.full_name) {
-        realUserName = authState.user.user_metadata.full_name;
-      } else if (authState.user.user_metadata?.name) {
-        realUserName = authState.user.user_metadata.name;
-      } else if (authState.user.user_metadata?.first_name || authState.user.user_metadata?.last_name) {
-        realUserName = `${authState.user.user_metadata.first_name || ''} ${authState.user.user_metadata.last_name || ''}`.trim();
-      } else {
-        // Fallback to email username if no name available
-        realUserName = authState.user.email?.split('@')[0] || userName;
-      }
+      realUserName = getDisplayName(authState);
     }
   }
   
-  // Reactive statement to update user data when auth state changes
   $: if (browser && $auth.user && !$auth.loading) {
     getAuthInfo();
     if ($auth.user.id !== lastFetchedUserId) {
@@ -76,7 +74,6 @@
     }
   }
   
-  // Reset when user logs out
   $: if (browser && !$auth.loading && !$auth.user && lastFetchedUserId) {
     lastFetchedUserId = null;
     realUserName = userName;
@@ -105,7 +102,6 @@
     }
   };
 
-  // Fetch user data from users table (avatar_url, subscription_status, etc.)
   async function fetchUserData() {
     if (!browser) return;
 
@@ -114,24 +110,18 @@
       try {
         const result = await getUserProfile(authState.user.id);
         if (result.success && result.profile) {
-          // Handle both array and single object responses
           const profile: UserProfile = Array.isArray(result.profile) 
             ? result.profile[0] 
             : result.profile;
           
           if (profile) {
-            // Get subscription status from users table
             realUserPlan = formatSubscriptionStatus(profile.subscription_status);
             
-            // Get avatar URL from users table or user metadata
-            // Note: avatar_url should be in users table, but check metadata as fallback
             if (authState.user.user_metadata?.avatar_url) {
               realAvatarUrl = authState.user.user_metadata.avatar_url;
             } else if (authState.user.user_metadata?.picture) {
               realAvatarUrl = authState.user.user_metadata.picture;
             } else {
-              // If avatar_url is in users table, you can add it here
-              // For now, keep default or metadata value
               realAvatarUrl = avatarUrl;
             }
           }
@@ -142,15 +132,13 @@
     }
   }
 
-  // Handle logout
   async function handleLogout() {
     try {
-      closeDropdown(); // Close the dropdown first
+      closeDropdown();
       
       const result = await signOut();
       if (result.success) {
         console.log('User signed out successfully');
-        // Show success message and redirect to login
         addNotification({
           type: 'success',
           message: 'Signed out successfully!'
@@ -175,10 +163,8 @@
   onMount(() => {
     if (!browser) return;
 
-    // Get auth info from session (stored in localStorage by Supabase)
     getAuthInfo();
 
-    // Fetch user data from users table (avatar_url, subscription_status, etc.)
     if ($auth.user && !$auth.loading) {
       fetchUserData();
     }

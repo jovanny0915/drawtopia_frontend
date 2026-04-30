@@ -89,11 +89,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -461,39 +456,33 @@
     width: 100%;
     height: 100%;
   }
-  /* Title: single line, ellipsis if overflow */
   .recording-reaction {
     width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Make main photo full width */
   .frame-1410104055 {
     width: 100%;
     height: auto;
     display: block;
   }
   @media (max-width: 800px) {
-    /* Containers full width */
     .frame-1410103818 {
       width: 100%;
     }
     .frame-1410104083 {
       width: 100%;
     }
-    /* Title full width */
     .recording-reaction {
       width: 100%;
     }
     .heading_01 {
       width: 100%;
     }
-    /* Hide bottom Back button */
     .frame-1410103870 .button {
       display: none;
     }
-    /* Bottom action primary full width */
     .frame-1410103860 {
       justify-content: center;
     }
@@ -506,7 +495,6 @@
     .frame-1410104194 {
       height: 300px;
       width: 200px;
-      /* bottom: 100px; */
       top: auto;
     }
     .frame-1410104067 {

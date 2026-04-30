@@ -20,7 +20,7 @@
   import { storyCreation } from "../../../lib/stores/storyCreation";
 
   let isMobile = false;
-  let selectedAdventure = "treasure"; // Default selection: "treasure" or "helping"
+  let selectedAdventure = "treasure";
   let characterName = "";
   let selectedWorld = "";
   let specialAbility = "";
@@ -30,7 +30,6 @@
   let adventureImages: { [key: string]: string } = {};
   let generatingStates: { [key: string]: boolean } = {};
 
-  // World name mapping
   const worldNames = {
     forest: "Enchanted Forest",
     outspace: "Outer Space", 
@@ -41,7 +40,6 @@
     isMobile = window.innerWidth < 800;
   }
 
-  // Retrieve character data from sessionStorage on component mount
   onMount(() => {
     if (browser) {
       sessionStorage.removeItem('storyCover');
@@ -59,7 +57,6 @@
       if (storedSelectedStyle) selectedStyle = storedSelectedStyle;
       if (storedSelectedEnhancement) selectedEnhancement = storedSelectedEnhancement;
       
-      // Get the environment image from step 5
       if (selectedWorld && selectedStyle && selectedEnhancement) {
         const environmentKey = `environmentImage_${selectedStyle}_${selectedEnhancement}_${selectedWorld}`;
         const storedEnvironmentImage = sessionStorage.getItem(environmentKey);
@@ -68,10 +65,8 @@
         }
       }
       
-      // Check if the selected image from step 5 has changed
       const step5SelectedImage = getSelectedImageUrl('5');
       if (step5SelectedImage && hasSelectedImageChanged('5', step5SelectedImage)) {
-        // Clear adventure cache if the source image changed
         ['treasure', 'helping'].forEach(adventure => {
           ['forest', 'underwater', 'outerspace'].forEach(world => {
             sessionStorage.removeItem(`adventureImage_${world}_${adventure}`);
@@ -79,10 +74,7 @@
         });
       }
       
-      // Load any previously generated adventure images
       loadAdventureImages();
-      
-      // Generate adventure images for all adventure types
       generateAllAdventureImages();
     }
   });
@@ -90,22 +82,18 @@
   function selectAdventure(adventure: string) {
     selectedAdventure = adventure;
     
-    // Save the selected adventure image URL
     if (browser && adventureImages[adventure]) {
       saveSelectedImageUrl('6', adventureImages[adventure]);
-      // Set the adventure image as the original_image_url in the story creation store
       storyCreation.setOriginalImageUrl(adventureImages[adventure]);
     }
   }
 
-  // Load previously generated adventure images
   const loadAdventureImages = () => {
     const adventures = ['treasure', 'helping'];
     adventures.forEach(adventure => {
       const cachedImage = sessionStorage.getItem(`adventureImage_${selectedWorld}_${adventure}`);
       if (cachedImage) {
         adventureImages[adventure] = cachedImage.split('?')[0];
-        // If this is the currently selected adventure, update the story store
         if (adventure === selectedAdventure) {
           storyCreation.setOriginalImageUrl(adventureImages[adventure]);
         }
@@ -114,22 +102,17 @@
     adventureImages = { ...adventureImages };
   };
 
-  // Generate adventure images for all adventure types
   const generateAllAdventureImages = async () => {
     if (!environmentImage || !selectedWorld) return;
     
     const adventures = ['treasure', 'helping'];
-    
-    // Generate all adventure images in parallel
     const promises = adventures.map(adventure => generateAdventureImage(adventure, environmentImage));
     await Promise.allSettled(promises);
   };
 
-  // Generate adventure image for a specific adventure type
   const generateAdventureImage = async (adventure: string, baseImage: string) => {
     if (!baseImage || generatingStates[adventure]) return;
     
-    // Check if already cached
     const cacheKey = `adventureImage_${selectedWorld}_${adventure}`;
     const cachedImage = sessionStorage.getItem(cacheKey);
     if (cachedImage) {
@@ -142,7 +125,6 @@
     generatingStates = { ...generatingStates };
     
     try {
-      // Map adventure names to match prompt.json structure
       const adventureMapping: { [key: string]: string } = {
         'treasure': 'treasurehunt',
         'helping': 'helpfriend'
@@ -162,7 +144,6 @@
         adventureImages[adventure] = result.url;
         adventureImages = { ...adventureImages };
         
-        // If this is the currently selected adventure, save it and update story store
         if (adventure === selectedAdventure) {
           saveSelectedImageUrl('6', result.url);
           storyCreation.setOriginalImageUrl(result.url);
@@ -176,9 +157,7 @@
     }
   };
 
-  // Handle continue to next step
   const handleContinue = async () => {
-      // Update story creation store with selected adventure
       const adventureType = selectedAdventure === 'treasure' ? 'treasure_hunt' : 'helping_friend';
       storyCreation.setAdventureType(adventureType);
     goto("/create-character/7");
@@ -298,11 +277,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -355,7 +329,6 @@
     top: 50%;
     transform: translateY(-50%);
     border-top: 12px solid transparent;
-    /* border-bottom: 12px solid transparent; */
     border-right: 18px solid #d9eaff;
   }
 

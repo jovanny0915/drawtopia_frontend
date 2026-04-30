@@ -1013,7 +1013,7 @@
     overflow: hidden;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
-    background-image: url(https://placehold.co/586x280);
+    background-image: url(https:
 }
 
 .arrowleft {

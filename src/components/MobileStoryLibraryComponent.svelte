@@ -29,7 +29,6 @@
 
   let searchQuery = "";
 
-  // Apply search filter on top of the already filtered stories
   $: searchFilteredStories = searchQuery.trim() 
     ? filteredStories.filter(story => 
         story.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -38,7 +37,6 @@
       )
     : filteredStories;
 
-  // Filter characters based on search query
   $: searchFilteredCharacters = searchQuery.trim()
     ? characters.filter(character =>
         character.character_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -46,7 +44,6 @@
       )
     : characters;
 
-  // Filter children based on search query
   $: searchFilteredChildren = searchQuery.trim()
     ? childProfiles.filter(child =>
         child.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -54,7 +51,6 @@
       )
     : childProfiles;
 
-  // Clear search
   function clearSearch() {
     searchQuery = "";
   }
@@ -587,7 +583,6 @@
   display: inline-flex;
 }
 
-/* Loading, Error, and Empty States */
 .loading-state,
 .error-state,
 .empty-state {

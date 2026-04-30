@@ -19,23 +19,20 @@
 
     let giftState: any = {};
     let giftData: Gift | null = null;
-    let gifterName = "Grandma"; // Default or get from store/params
+    let gifterName = "Grandma";
     let recipientName = "";
     let recipientAge = "";
     let occasion = "";
     let giftMessage = "";
     let loadingGift = false;
 
-    // Reactive statements for auth state
     $: currentUser = $user;
     $: loading = $authLoading;
     $: authenticated = $isAuthenticated;
     $: safeToRedirect = browser && !loading && currentUser !== undefined;
     
-    // Get giftId from URL query params
     $: giftId = $page.url.searchParams.get('giftId');
 
-    // Load gift data from database if giftId is provided
     onMount(() => {
         if (giftId) {
             (async () => {
@@ -73,31 +70,25 @@
         return unsubscribe;
     });
 
-    // Helper to convert age range to a single age for display
     function getAgeFromRange(ageRange: string): string {
-        // Extract middle age from range like "3-6" -> "4" or "7-10" -> "8"
         const match = ageRange.match(/(\d+)-(\d+)/);
         if (match) {
             const min = parseInt(match[1]);
             const max = parseInt(match[2]);
             return Math.floor((min + max) / 2).toString();
         }
-        // Handle single ages like "11-12" -> "11"
         return ageRange.split("-")[0] || "7";
     }
 
-    // Capitalize first character only (e.g. for single word like relationship)
     function capitalizeFirst(s: string): string {
         return (s && s.length > 0) ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
     }
-    // Capitalize first character of first name and last name
     function capitalizeFirstAndLastName(firstName: string, lastName: string): string {
         const first = capitalizeFirst((firstName || "").trim());
         const last = capitalizeFirst((lastName || "").trim());
         return [first, last].filter(Boolean).join(" ") || "Someone";
     }
 
-    // Fetch giver display name from users table by from_user_id
     async function fetchGiverName(fromUserId: string): Promise<string> {
         const { data, error } = await supabase
             .from("users")
@@ -116,9 +107,7 @@
         return "";
     }
 
-    // gift_type "link" = recipient creates the story; show "Start creating". Otherwise (e.g. "story") = story exists; show "View the gift story"
     $: isLinkGift = (giftData?.gift_type ?? "link").toString().toLowerCase() === "link";
-    // Disable "Start creating" when a story has already been created for this gift
     $: startCreatingDisabled = giftData != null && giftData.story_id != null && giftData.story_id !== "";
 
     const handleStartCreating = () => {
@@ -149,7 +138,6 @@
 
         <p class="subtitle">A little surprise is waiting for you</p>
 
-        <!-- Gift Card Preview -->
         <div class="card-container">
             <div class="card-inner">
                 <div class="card-content">
@@ -161,7 +149,6 @@
                         where they're the hero. Click the link below to create
                         their magical adventure together!"
                     </div>
-                    <!-- Gift Details -->
                     <div class="gift-details">
                         <div class="details-label">
                             Create a personalized storybook for:
@@ -179,7 +166,6 @@
                     </div>
                 </div>
 
-                <!-- Call to Action -->
                 <div class="call-to-action">
                     {#if isLinkGift}
                         <button class="start-button" disabled={startCreatingDisabled} on:click={handleStartCreating}>
@@ -213,7 +199,6 @@
                         </button>
                     {/if}
 
-                    <!-- Expiration Notice -->
                     <div class="expiration-notice">
                         <img
                             src={CalendarBlank}
@@ -456,7 +441,6 @@
         flex-shrink: 0;
     }
 
-    /* Tablet and small desktop */
     @media (max-width: 900px) {
         .gift-redemption-page {
             padding: 20px 24px 92px;
@@ -468,7 +452,6 @@
         }
     }
 
-    /* Mobile */
     @media (max-width: 768px) {
         .gift-redemption-page {
             padding: 16px 20px 88px;
@@ -556,7 +539,6 @@
         }
     }
 
-    /* Small mobile */
     @media (max-width: 480px) {
         .gift-redemption-page {
             padding: 12px 16px 84px;

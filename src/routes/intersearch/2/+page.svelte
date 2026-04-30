@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import logo from "../../../assets/logo.webp";
-  // Placeholder image - replace with real cover asset
   import bookCover from "../../../assets/Luna1.webp";
   import fullscreen from "../../../assets/fullscreen.svg";
   import shareIcon from "../../../assets/Share.svg";
@@ -11,7 +10,7 @@
   import lockKeyIcon from "../../../assets/LockKey.svg";
 
   let activePage = 1;
-  const totalPages = 5; // adjust if needed
+  const totalPages = 5;
   type ViewMode = "one" | "two";
   let viewMode: ViewMode = "two";
 

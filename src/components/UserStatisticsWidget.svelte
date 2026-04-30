@@ -4,19 +4,16 @@
   import type { UserStatistics, UserStatisticsSummary } from '$lib/api/userStatistics';
   import { formatDateTime } from '$lib/dateUtils';
 
-  // Component props
   export let mode: 'summary' | 'detailed' = 'summary';
   export let autoRefresh: boolean = false;
-  export let refreshInterval: number = 60000; // 60 seconds default
+  export let refreshInterval: number = 60000;
 
-  // State
   let statistics: UserStatistics | null = null;
   let summary: UserStatisticsSummary | null = null;
   let loading = true;
   let error: string | null = null;
   let refreshTimer: number;
 
-  // Load statistics on mount
   onMount(async () => {
     await loadStatistics();
     
@@ -71,7 +68,6 @@
       <p>Loading statistics...</p>
     </div>
   {:else if mode === 'summary' && summary}
-    <!-- Summary View -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-value">{formatNumber(summary.summary.total_users)}</div>
@@ -89,9 +85,7 @@
       </div>
     </div>
   {:else if mode === 'detailed' && statistics}
-    <!-- Detailed View -->
     <div class="detailed-stats">
-      <!-- Overview -->
       <div class="stats-section">
         <h4>Overview</h4>
         <div class="stats-grid">
@@ -108,7 +102,6 @@
         </div>
       </div>
 
-      <!-- New Users -->
       <div class="stats-section">
         <h4>New Users</h4>
         <div class="stats-grid">
@@ -129,7 +122,6 @@
         </div>
       </div>
 
-      <!-- By Role -->
       <div class="stats-section">
         <h4>Users by Role</h4>
         <div class="distribution-list">
@@ -142,7 +134,6 @@
         </div>
       </div>
 
-      <!-- By Subscription -->
       <div class="stats-section">
         <h4>Users by Subscription</h4>
         <div class="distribution-list">
@@ -155,7 +146,6 @@
         </div>
       </div>
 
-      <!-- Metadata -->
       <div class="metadata">
         <small>Last updated: {formatDateTime(statistics.metadata.generated_at)}</small>
       </div>

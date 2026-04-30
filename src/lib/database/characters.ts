@@ -1,6 +1,3 @@
-/**
- * Characters Database Operations
- */
 
 import { supabase } from '../supabase';
 
@@ -11,34 +8,26 @@ export interface Character {
   user_id?: string;
   child_profile_id?: number | null;
   
-  // Basic character information
   character_name: string;
   character_type: 'person' | 'animal' | 'magical_creature';
   special_ability?: string;
   
-  // Character appearance/style
   character_style: '3d' | 'cartoon' | 'anime';
   
-  // Character images
   original_image_url: string;
-  enhanced_images?: string; // Text URL of enhanced image
+  enhanced_images?: string;
   thumbnail_url?: string;
   
-  // Character metadata
   age_group?: '3-6' | '7-10' | '11-12';
   description?: string;
   
-  // Usage statistics
   last_used_at?: string;
   
-  // Character status
   is_active?: boolean;
   is_favorite?: boolean;
   
-  // Character extraction data (for AI generation consistency)
   extraction_data?: CharacterExtractionData;
   
-  // Tags for categorization
   tags?: string[];
 }
 
@@ -64,11 +53,6 @@ export interface DatabaseResult {
   error?: string;
 }
 
-/**
- * Create a new character
- * @param character - The character data to insert
- * @returns Promise with operation result
- */
 export async function createCharacter(character: Character): Promise<DatabaseResult> {
   console.log('Creating character:', character);
   try {
@@ -82,7 +66,7 @@ export async function createCharacter(character: Character): Promise<DatabaseRes
         special_ability: character.special_ability,
         character_style: character.character_style,
         original_image_url: character.original_image_url,
-        enhanced_images: character.enhanced_images || '', // Store as text URL
+        enhanced_images: character.enhanced_images || '',
         description: character.description,
       }])
       .select('*')
@@ -110,11 +94,6 @@ export async function createCharacter(character: Character): Promise<DatabaseRes
   }
 }
 
-/**
- * Get character by ID
- * @param characterId - The character ID
- * @returns Promise with character data
- */
 export async function getCharacterById(characterId: number): Promise<DatabaseResult> {
   try {
     const { data, error } = await supabase
@@ -145,12 +124,6 @@ export async function getCharacterById(characterId: number): Promise<DatabaseRes
   }
 }
 
-/**
- * Get all characters for a user
- * @param userId - The user ID
- * @param options - Optional filters
- * @returns Promise with characters
- */
 export async function getCharactersByUserId(
   userId: string,
   options?: {
@@ -168,7 +141,6 @@ export async function getCharactersByUserId(
       .select('*')
       .eq('user_id', userId);
 
-    // Apply filters
     if (options?.childProfileId !== undefined) {
       query = query.eq('child_profile_id', options.childProfileId);
     }
@@ -185,7 +157,6 @@ export async function getCharactersByUserId(
       query = query.eq('character_type', options.characterType);
     }
 
-    // Apply ordering
     const orderBy = options?.orderBy || 'created_at';
     const ascending = options?.ascending !== undefined ? options.ascending : false;
     query = query.order(orderBy, { ascending });
@@ -214,11 +185,6 @@ export async function getCharactersByUserId(
   }
 }
 
-/**
- * Get characters for a child profile
- * @param childProfileId - The child profile ID
- * @returns Promise with characters
- */
 export async function getCharactersByChildProfile(childProfileId: number): Promise<DatabaseResult> {
   try {
     const { data, error } = await supabase
@@ -250,12 +216,6 @@ export async function getCharactersByChildProfile(childProfileId: number): Promi
   }
 }
 
-/**
- * Update character
- * @param characterId - The character ID
- * @param updates - The fields to update
- * @returns Promise with operation result
- */
 export async function updateCharacter(
   characterId: number,
   updates: Partial<Character>
@@ -290,12 +250,6 @@ export async function updateCharacter(
   }
 }
 
-/**
- * Toggle character favorite status
- * @param characterId - The character ID
- * @param isFavorite - New favorite status
- * @returns Promise with operation result
- */
 export async function toggleCharacterFavorite(
   characterId: number,
   isFavorite: boolean
@@ -303,20 +257,10 @@ export async function toggleCharacterFavorite(
   return updateCharacter(characterId, { is_favorite: isFavorite });
 }
 
-/**
- * Soft delete character (set is_active to false)
- * @param characterId - The character ID
- * @returns Promise with operation result
- */
 export async function softDeleteCharacter(characterId: number): Promise<DatabaseResult> {
   return updateCharacter(characterId, { is_active: false });
 }
 
-/**
- * Hard delete character
- * @param characterId - The character ID
- * @returns Promise with operation result
- */
 export async function deleteCharacter(characterId: number): Promise<DatabaseResult> {
   try {
     const { error } = await supabase
@@ -346,12 +290,6 @@ export async function deleteCharacter(characterId: number): Promise<DatabaseResu
   }
 }
 
-/**
- * Search characters by name or tags
- * @param userId - The user ID
- * @param searchTerm - The search term
- * @returns Promise with matching characters
- */
 export async function searchCharacters(
   userId: string,
   searchTerm: string
@@ -387,12 +325,6 @@ export async function searchCharacters(
   }
 }
 
-/**
- * Get most used characters for a user
- * @param userId - The user ID
- * @param limit - Maximum number of characters to return
- * @returns Promise with most used characters
- */
 export async function getMostUsedCharacters(
   userId: string,
   limit: number = 10
@@ -427,12 +359,6 @@ export async function getMostUsedCharacters(
   }
 }
 
-/**
- * Get recently used characters for a user
- * @param userId - The user ID
- * @param limit - Maximum number of characters to return
- * @returns Promise with recently used characters
- */
 export async function getRecentlyUsedCharacters(
   userId: string,
   limit: number = 10
@@ -469,12 +395,6 @@ export async function getRecentlyUsedCharacters(
   }
 }
 
-/**
- * Get the count of characters created today (UTC) by a user.
- * Used for free tier daily upload limit.
- * @param userId - The user ID
- * @returns Promise with count
- */
 export async function getCharactersCreatedTodayCount(userId: string): Promise<DatabaseResult & { count?: number }> {
   try {
     const now = new Date();

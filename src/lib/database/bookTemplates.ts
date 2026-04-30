@@ -1,16 +1,3 @@
-/**
- * Book Templates Database Operations
- * Templates store image URLs for book pages.
- * 
- * Storage Structure:
- * All images are stored in: book-images/book-templates/[template-id]/
- * - cover_image.webp
- * - copyright_page_image.webp
- * - dedication_page_image.webp
- * - story-page-1.webp, story-page-.webpbp, etc.
- * - last_story_page_image.webp
- * - back_cover_image.webp
- */
 
 import { supabase } from '../supabase';
 import { env } from '../env';
@@ -18,33 +5,16 @@ import { env } from '../env';
 export interface BookTemplate {
   id: string;
   name: string;
-  /** Story world theme: forest, underwater, or outerspace */
   story_world?: 'forest' | 'underwater' | 'outerspace';
-  /**
-   * Story template type/style metadata.
-   * Legacy values: 3d, anime, cartoon
-   * Current values may include: story/adventure or interactive/search-and-find
-   */
   story_style?: string;
-  /**
-   * Story format (e.g. adventure_story, interactive_story). Free-form text in the database.
-   */
   story_format?: string;
-  /** URL to cover image stored in Supabase storage at: book-templates/[template-id]/cover_image.* */
   cover_image?: string;
-  /** URL to copyright page image stored in Supabase storage at: book-templates/[template-id]/copyright_page_image.* */
   copyright_page_image?: string;
-  /** URL to dedication page image stored in Supabase storage at: book-templates/[template-id]/dedication_page_image.* */
   dedication_page_image?: string;
-  /** Array of URLs to story page images stored in Supabase storage at: book-templates/[template-id]/story-page-[N].* */
   story_page_images?: string[];
-  /** Array of URLs to main character reference images for interactive templates at: book-templates/[template-id]/main-character-[N].* */
   main_character_images?: string[];
-  /** URL to last words page image (left half of final spread) at: book-templates/[template-id]/last_words_page_image.* */
   last_words_page_image?: string;
-  /** URL to last story/admin page image (right half of final spread) at: book-templates/[template-id]/last_story_page_image.* */
   last_story_page_image?: string;
-  /** URL to back cover image stored in Supabase storage at: book-templates/[template-id]/back_cover_image.* */
   back_cover_image?: string;
   created_at?: string;
 }
@@ -109,14 +79,9 @@ export async function deleteBookTemplate(
   return { error: error?.message ?? null };
 }
 
-/**
- * Get a random book template by story_world
- * Used for cover generation to insert character into template cover image
- */
 export async function getRandomTemplateByStoryWorld(
   storyWorld: 'forest' | 'underwater' | 'outerspace'
 ): Promise<{ data: BookTemplate | null; error: string | null }> {
-  // Prefer backend lookup so production does not depend on frontend RLS visibility.
   try {
     const response = await fetch(
       `${env.API_BASE_URL}/templates/random?story_world=${encodeURIComponent(storyWorld)}`,
@@ -143,12 +108,11 @@ export async function getRandomTemplateByStoryWorld(
     console.warn('Backend template lookup unavailable, falling back to Supabase client query:', backendError);
   }
 
-  // Fallback for local/dev environments where direct Supabase client access is available.
   const { data, error } = await supabase
     .from('book_templates')
     .select('*')
     .eq('story_world', storyWorld)
-    .not('cover_image', 'is', null); // Only get templates with cover images
+    .not('cover_image', 'is', null);
 
   if (error) return { data: null, error: error.message };
   
@@ -156,7 +120,6 @@ export async function getRandomTemplateByStoryWorld(
     return { data: null, error: `No templates found for story world: ${storyWorld}` };
   }
   
-  // Select a random template from the results
   const randomIndex = Math.floor(Math.random() * data.length);
   return { data: data[randomIndex] as BookTemplate, error: null };
 }

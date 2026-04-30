@@ -1,16 +1,13 @@
-/**
- * Stories Database Operations
- */
 
 import { supabase } from '../supabase';
 
 export interface Story {
   id?: string;
-  uid?: string; // Unique identifier
+  uid?: string;
   created_at?: string;
-  user_id?: string; // User ID of the story creator/owner
+  user_id?: string;
   child_profile_id: string;
-  character_id?: number; // Reference to character in characters table
+  character_id?: number;
   character_name: string;
   character_type: 'person' | 'animal' | 'magical_creature';
   special_ability?: string;
@@ -23,31 +20,30 @@ export interface Story {
   template_id?: string;
   story_cover?: string;
   cover_design?: string;
-  story_content?: string | any; // JSON string or object containing story pages/text
-  scene_images?: string[]; // Array of scene image URLs
-  audio_urls?: (string | null)[]; // Array of audio URLs (one per page, null if failed)
-  dedication_text?: string; // Dedication message text
-  dedication_image?: string; // Dedication page image URL
-  copyright_image?: string; // Copyright page image URL (displayed on left half)
-  last_word_page_image?: string; // Last words page image URL (left half of final spread)
-  last_admin_page_image?: string; // Last admin/scene page image URL (right half of final spread)
-  back_cover_image?: string; // Back cover image URL
+  story_content?: string | any;
+  scene_images?: string[];
+  audio_urls?: (string | null)[];
+  dedication_text?: string;
+  dedication_image?: string;
+  copyright_image?: string;
+  last_word_page_image?: string;
+  last_admin_page_image?: string;
+  back_cover_image?: string;
   status?: 'generating' | 'completed' | 'failed';
-  story_type?: string; // Type of story: adventure story book or search adventure
-  reading_state?: ReadingState; // Reading statistics
-  hints?: number | null; // Number of hints remaining (for search type stories, default is 3)
-  gift_id?: string; // Gift ID if this story was created from a gift
-  purchased?: boolean; // True if story was generated as a gift (pre-purchased) or purchased via payment
+  story_type?: string;
+  reading_state?: ReadingState;
+  hints?: number | null;
+  gift_id?: string;
+  purchased?: boolean;
 }
 
-// Reading state interfaces
 export interface StoryAdventureReadingState {
-  reading_time: number; // Time in seconds
+  reading_time: number;
   audio_listened: boolean;
 }
 
 export interface InteractiveSearchReadingState {
-  reading_time: number; // Time in seconds
+  reading_time: number;
   avg_star: number;
   avg_hint: number;
 }
@@ -60,14 +56,10 @@ export interface DatabaseResult {
   error?: string;
 }
 
-/** True if value is a non-empty string (used to avoid overwriting DB with null when client has no value). */
 function hasValue(v: string | null | undefined): boolean {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
-/**
- * Build the story row payload (shared for insert and update).
- */
 function buildStoryRowPayload(story: Story, uid: string, storyContentValue: string | null) {
   return {
     uid,
@@ -103,11 +95,6 @@ function buildStoryRowPayload(story: Story, uid: string, storyContentValue: stri
   };
 }
 
-/**
- * Create a new story, or update existing if story.uid is provided and already exists (e.g. continued from draft).
- * @param story - The story data to insert or update (if story.uid is set and exists in DB, we update)
- * @returns Promise with operation result
- */
 export async function createStory(story: Story): Promise<DatabaseResult> {
   console.log('Creating story:', story);
   try {
@@ -128,8 +115,6 @@ export async function createStory(story: Story): Promise<DatabaseResult> {
         .eq('uid', existingUid)
         .maybeSingle();
       if (existingRow) {
-        // When updating, preserve existing optional page images/text if incoming is empty
-        // so that dedication/copyright/etc. are not cleared when sessionStorage doesn't have them
         const preserved = {
           template_id: hasValue(story.template_id) ? story.template_id : (existingRow.template_id ?? null),
           dedication_text: hasValue(story.dedication_text) ? story.dedication_text : (existingRow.dedication_text ?? null),
@@ -184,12 +169,6 @@ export async function createStory(story: Story): Promise<DatabaseResult> {
   }
 }
 
-/**
- * Update a story
- * @param storyId - The story ID to update
- * @param updates - The fields to update
- * @returns Promise with operation result
- */
 export async function updateStory(storyId: string, updates: Partial<Story>): Promise<DatabaseResult> {
   try {
     const { data, error } = await supabase
@@ -221,43 +200,32 @@ export async function updateStory(storyId: string, updates: Partial<Story>): Pro
   }
 }
 
-/**
- * Update reading state for a story by uid
- * @param storyUid - The story UID
- * @param readingState - The reading state to update
- * @returns Promise with operation result
- */
 export async function updateReadingState(storyUid: string, readingState: ReadingState): Promise<DatabaseResult> {
   try {
-    // First, get the current reading_state to merge with new data
     const { data: existingStory, error: fetchError } = await supabase
       .from('stories')
       .select('reading_state')
       .eq('uid', storyUid)
       .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+    if (fetchError && fetchError.code !== 'PGRST116') {
       console.error('Error fetching existing reading state:', fetchError);
     }
 
-    // Merge existing reading state with new data
-    // IMPORTANT: Sum the reading_time instead of replacing it
     let mergedState: any;
     
     if (existingStory?.reading_state && typeof existingStory.reading_state === 'object') {
       const existingReadingTime = existingStory.reading_state.reading_time || 0;
       const newReadingTime = readingState.reading_time || 0;
       
-      // Merge all fields and sum the reading_time
       mergedState = {
         ...existingStory.reading_state,
         ...readingState,
-        reading_time: existingReadingTime + newReadingTime // Sum instead of replace
+        reading_time: existingReadingTime + newReadingTime
       };
       
       console.log(`[updateReadingState] Summing reading time: ${existingReadingTime} + ${newReadingTime} = ${mergedState.reading_time}`);
     } else {
-      // No existing state, use the new state as-is
       mergedState = readingState;
     }
 
@@ -290,11 +258,6 @@ export async function updateReadingState(storyUid: string, readingState: Reading
   }
 }
 
-/**
- * Get stories for a specific child profile
- * @param childProfileId - The child profile ID
- * @returns Promise with stories
- */
 export async function getStoriesForChild(childProfileId: string): Promise<DatabaseResult> {
   try {
     const { data, error } = await supabase
@@ -325,14 +288,8 @@ export async function getStoriesForChild(childProfileId: string): Promise<Databa
   }
 }
 
-/**
- * Get all stories for a parent (across all their children)
- * @param parentId - The parent's user ID
- * @returns Promise with stories
- */
 export async function getAllStoriesForParent(parentId: string): Promise<DatabaseResult> {
   try {
-    // Validate parentId
     if (!parentId || typeof parentId !== 'string' || parentId.trim() === '' || parentId === 'undefined' || parentId === 'null') {
       console.error('[getAllStoriesForParent] Invalid parentId:', parentId);
       return {
@@ -341,10 +298,8 @@ export async function getAllStoriesForParent(parentId: string): Promise<Database
       };
     }
     
-    // Determine backend URL
-    let backendUrl = 'https://image-edit-five.vercel.app'; // http://localhost:8000
+    let backendUrl = 'https://image-edit-five.vercel.app';
     
-    // Call Python backend API
     const endpoint = `${backendUrl}/api/books/?parent_id=${encodeURIComponent(parentId)}`;
     
     const response = await fetch(endpoint, {
@@ -378,16 +333,10 @@ export async function getAllStoriesForParent(parentId: string): Promise<Database
   }
 }
 
-/**
- * Get all characters from the backend API
- * @returns Promise with character data
- */
 export async function getAllCharacters(parentId: string): Promise<DatabaseResult> {
   try {
-    // Determine backend URL
-    let backendUrl = 'https://image-edit-five.vercel.app'; // http://localhost:8000
+    let backendUrl = 'https://image-edit-five.vercel.app';
     
-    // Call Python backend API
     const endpoint = `${backendUrl}/api/characters/?parent_id=${encodeURIComponent(parentId)}`;
     
     const response = await fetch(endpoint, {
@@ -428,18 +377,10 @@ export async function getAllCharacters(parentId: string): Promise<DatabaseResult
   }
 }
 
-/**
- * Delete a character by ID
- * @param characterId - The character ID to delete
- * @param userId - The user ID for authorization
- * @returns Promise with deletion result
- */
 export async function deleteCharacter(characterId: string, userId: string): Promise<DatabaseResult> {
   try {
-    // Determine backend URL
-    let backendUrl = 'https://image-edit-five.vercel.app'; // http://localhost:8000
+    let backendUrl = 'https://image-edit-five.vercel.app';
     
-    // Call Python backend API
     const endpoint = `${backendUrl}/api/characters/${encodeURIComponent(characterId)}?user_id=${encodeURIComponent(userId)}`;
     
     const response = await fetch(endpoint, {
@@ -480,11 +421,6 @@ export async function deleteCharacter(characterId: string, userId: string): Prom
   }
 }
 
-/**
- * Get a single story by ID
- * @param storyId - The story ID
- * @returns Promise with story data
- */
 export async function getStoryById(storyId: string): Promise<DatabaseResult> {
   try {
     const { data, error } = await supabase
@@ -516,11 +452,6 @@ export async function getStoryById(storyId: string): Promise<DatabaseResult> {
   }
 }
 
-/**
- * Delete a story
- * @param storyId - The story ID to delete
- * @returns Promise with operation result
- */
 export async function deleteStory(storyId: string): Promise<DatabaseResult> {
   try {
     const { error } = await supabase

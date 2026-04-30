@@ -38,7 +38,7 @@
     if (value.length <= maxCharacters) {
       reflectionText = value;
     } else {
-      target.value = reflectionText; // Revert if over limit
+      target.value = reflectionText;
     }
   }
 

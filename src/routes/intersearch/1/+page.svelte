@@ -27,7 +27,7 @@
   import { getUserProfile } from "../../../lib/auth";
   import { getStoryById, updateReadingState } from "../../../lib/database/stories";
   import { getChildProfileById } from "../../../lib/database/childProfiles";
-  import promptImageData from "../../../lib/prompt_image.json";
+  import { getPromptImageData, loadRuntimePromptDocuments } from "../../../lib/promptRuntime";
   import { attachGameEngine, clearGameMarkers, detachGameEngine } from "$lib/gameengine";
 
   const goToDashboard = () => {
@@ -43,41 +43,38 @@
   let storyPages: Array<{ pageNumber: number; text: string }> = [];
   let currentSceneIndex = 0;
   const totalScenes = 5;
-  let viewMode: 'one-page' | 'two-page' = 'two-page'; // Default to two-page view
+  let viewMode: 'one-page' | 'two-page' = 'two-page';
   let isFullscreen = false;
   let imageWrapperRef: HTMLDivElement | null = null;
-  let currentSubPage: 'left' | 'right' = 'left'; // Track which sub-page to show in one-page mode
+  let currentSubPage: 'left' | 'right' = 'left';
   
   let storyTitle = "Luna's Adventure";
   let pagesRead = 0;
   let readingTime = "0:00";
   let audioListened = "0 min";
-  let isFreePlan = true; // Default to free plan for safety
-  let isPurchased = false; // Whether the current story has been purchased
-  let hasTemporaryStoryUnlock = false; // Temporary unlock after verified Stripe payment
-  let currentStoryId: string | null = null; // Current story ID
-  let templateId: string | null = null; // template_id from stories table (if present)
+  let isFreePlan = true;
+  let isPurchased = false;
+  let hasTemporaryStoryUnlock = false;
+  let currentStoryId: string | null = null;
+  let templateId: string | null = null;
   let isLoading = true;
   let loadError = "";
-  let pageCounterText = ""; // Page counter display text
-  let currentPageText = ""; // Current page text content
-  let currentStoryPageNumber = -1; // 1-based story page number for non-special pages
-  let showStoryTextOverlay = false; // Show story text on page images (pages 1-5)
-  let isFirstStoryPage = false; // Page 1 uses bottom-right placement
-  let pageTextContent: any = null; // Text positioning data from prompt_image.json
-  let characterStyle = '3d'; // Character art style: 3d, cartoon, or anime
+  let pageCounterText = "";
+  let currentPageText = "";
+  let currentStoryPageNumber = -1;
+  let showStoryTextOverlay = false;
+  let isFirstStoryPage = false;
+  let pageTextContent: any = null;
+  let characterStyle = '3d';
 
-  // Dedication and copyright data
   let dedicationText = '';
   let dedicationImage = '';
   let copyrightImage = '';
   let hasDedication = false;
-  // Copyright page personalized names (for intro text)
   let copyrightChildName = '[CHILD_NAME]';
   let copyrightCharacterName = '[CHARACTER_NAME]';
-  let characterSpecialAbility = ''; // Character special ability from story data
+  let characterSpecialAbility = '';
   
-  // Parsed dedication: body text and signature (e.g. "— From Papa")
   $: dedicationParsed = (() => {
     const raw = (dedicationText || '').trim();
     if (!raw) return { body: '', signature: '' };
@@ -96,42 +93,37 @@
     return s === 'underwater' || s.includes('underwater');
   })();
 
-  /** Space / outer space stories: no decorative blur on copyright, dedication, special thanks, or last admin spreads. */
   $: isSpaceTheme = (() => {
     const s = String(storyWorldRaw || '').toLowerCase();
     return s.includes('outerspace') || s.includes('space');
   })();
   
-  // Last words + admin last spread and back cover
   let lastWordPageImage = '';
   let lastAdminPageImage = '';
   let backCoverImage = '';
   let backCoverAgeText = '[Age 6-12]';
   let hasLastWordsAdmin = false;
-  /** Raw `story_world` from DB (may be a short key or a longer label). */
   let storyWorldRaw = '';
 
-  // Audio playback state
-  let audioUrls: string[] = []; // Array of audio URLs from database
+  let audioUrls: string[] = [];
   let currentAudio: HTMLAudioElement | null = null;
   let isPlaying = false;
-  let audioProgress = 0; // 0-100 percentage
-  let currentTime = 0; // Current time in seconds
-  let duration = 0; // Total duration in seconds
-  let audioSpeed = 1; // Playback speed
-  let isAudioAvailable = false; // Whether audio exists for current page
+  let audioProgress = 0;
+  let currentTime = 0;
+  let duration = 0;
+  let audioSpeed = 1;
+  let isAudioAvailable = false;
 
-  // Character item counter state
-  let characterImages: string[] = []; // Array of character images (1-4)
-  let characterForFinding: string[] = []; // Full set of character-for-finding URLs (expected up to 16)
-  let collectedCount: number = 0; // Number of collected items
-  let foundCharacterIndices: boolean[] = [false, false, false, false]; // 0..3; maps to response 1..4
+  let characterImages: string[] = [];
+  let characterForFinding: string[] = [];
+  let collectedCount: number = 0;
+  let foundCharacterIndices: boolean[] = [false, false, false, false];
   $: collectedCount = foundCharacterIndices.filter(Boolean).length;
-  let showCharacterCounter: boolean = false; // Show/hide counter based on current page
+  let showCharacterCounter: boolean = false;
 
-  let displayedPageNumber = -1; // Actual page number the user is looking at (respects one/two-page view)
-  let lastCharacterResetPageNumber = -1; // Helps avoid resetting found state multiple times
-  let lastAutoAdvancePageNumber = -1; // Helps avoid firing nextScene repeatedly
+  let displayedPageNumber = -1;
+  let lastCharacterResetPageNumber = -1;
+  let lastAutoAdvancePageNumber = -1;
   let autoAdvanceTimer: number | null = null;
 
   $: displayedPageNumber = (() => {
@@ -142,7 +134,6 @@
     return adjustedIndex >= 0 ? adjustedIndex + 1 : -1;
   })();
 
-  // Reset "found" state when user navigates to a different page (including left/right changes in one-page mode).
   $: if (browser) {
     const isCharacterPage = showCharacterCounter && displayedPageNumber >= 3 && displayedPageNumber <= 6;
     if (!isCharacterPage) {
@@ -158,15 +149,12 @@
     }
   }
 
-  // Auto-advance when all 4 character points are found on pages 3-6.
   $: if (browser) {
     const isCharacterPage = showCharacterCounter && displayedPageNumber >= 3 && displayedPageNumber <= 6;
     if (!isCharacterPage) {
-      // no-op when not on a character-finding page
     } else {
       const allFound = foundCharacterIndices.length === 4 && foundCharacterIndices.every(Boolean);
       if (!allFound) {
-        // no-op until all are found
       } else {
         if (displayedPageNumber !== lastAutoAdvancePageNumber) {
           lastAutoAdvancePageNumber = displayedPageNumber;
@@ -182,11 +170,10 @@
 
   }
 
-  // Reading time tracking
-  let readingStartTime: number = 0; // Timestamp when reading started
-  let totalReadingTime: number = 0; // Total time spent reading in seconds
-  let readingTimerInterval: number | null = null; // Interval ID for the timer
-  let hasAudioBeenPlayed: boolean = false; // Track if audio has been played
+  let readingStartTime: number = 0;
+  let totalReadingTime: number = 0;
+  let readingTimerInterval: number | null = null;
+  let hasAudioBeenPlayed: boolean = false;
 
   const INTERSEARCH_CUSTOM_SCENE_ORDER = [1, 2, 5, 6, 7, 8, 3, 4];
 
@@ -231,18 +218,15 @@
     return [...reordered, ...remaining];
   }
 
-  // Reactive statement to check subscription status when user changes
   $: if (browser && $user) {
     checkSubscriptionStatus();
   }
 
-  // Function to check if user is on free plan
   const checkSubscriptionStatus = async () => {
     if (!browser) return;
     
     const currentUser = $user;
     if (!currentUser) {
-      // If no user, default to free plan (show lock modal)
       isFreePlan = true;
       return;
     }
@@ -253,27 +237,23 @@
         const profile = Array.isArray(result.profile) ? result.profile[0] : result.profile;
         const subscriptionStatus = profile?.subscription_status;
         
-        // Normalize subscription status to check if it's free plan
         if (!subscriptionStatus) {
           isFreePlan = true;
         } else {
           const normalizedStatus = subscriptionStatus.toLowerCase().trim();
-          // Check if it's free plan (could be 'free', 'free plan', null, etc.)
           isFreePlan = normalizedStatus === 'free' || normalizedStatus === 'free plan' || normalizedStatus === '';
         }
       } else {
-        // If we can't fetch profile, default to free plan
         isFreePlan = true;
       }
     } catch (error) {
       console.error("Error fetching subscription status:", error);
-      // On error, default to free plan (safer to show lock modal)
       isFreePlan = true;
     }
   };
 
   const TEMP_UNLOCK_KEY_PREFIX = 'preview_temp_unlock_';
-  const TEMP_UNLOCK_TTL_MS = 60 * 60 * 1000; // 1 hour grace for backend sync
+  const TEMP_UNLOCK_TTL_MS = 60 * 60 * 1000;
 
   function getTemporaryUnlock(storyId: string): boolean {
     if (!browser) return false;
@@ -306,13 +286,12 @@
     return `[Age ${normalized}]`;
   }
 
-  // Get page text content with positioning from prompt_image.json
   function getPageTextContent(pageNumber: number, style: string, world: string): any {
     try {
       const styleKey = (style || '').toLowerCase().trim();
       const worldKey = (world || '').toLowerCase().trim();
       
-      const styleData = (promptImageData as any)?.interactiveStoryStyleWorldPagePrompts?.[styleKey];
+      const styleData = getPromptImageData()?.interactiveStoryStyleWorldPagePrompts?.[styleKey];
       if (!styleData) return null;
       
       const worldData = styleData?.[worldKey];
@@ -328,41 +307,34 @@
     }
   }
 
-  // Replace placeholder text with real values from sessionStorage and story data
   function replacePlaceholderText(text: string): string {
     if (!browser || !text) return text;
     
     try {
       let replacedText = text;
       
-      // Get character name from story data first, fall back to sessionStorage
       let characterName = copyrightCharacterName || '';
       if (!characterName || characterName === '[CHARACTER_NAME]') {
         const characterNameRaw = sessionStorage.getItem('character_name') || '';
         characterName = typeof characterNameRaw === 'string' ? characterNameRaw : '';
       }
       
-      // Get special ability from story data first, then fall back to sessionStorage
       let specialAbility = characterSpecialAbility || '';
       if (!specialAbility) {
-        // Try camelCase first (how it's set in components)
         const camelCaseAbility = sessionStorage.getItem('specialAbility') || '';
         if (camelCaseAbility) {
           specialAbility = camelCaseAbility;
         } else {
-          // Try snake_case as fallback
           const snakeCaseAbility = sessionStorage.getItem('special_ability') || '';
           specialAbility = snakeCaseAbility;
         }
       }
       
-      // Replace [Character Name] and [CHARACTER NAME] with actual character name
       if (characterName && characterName !== '[CHARACTER_NAME]') {
         replacedText = replacedText.replace(/\[Character\s+Name\]/gi, characterName);
         replacedText = replacedText.replace(/\[CHARACTER\s+NAME\]/gi, characterName);
       }
       
-      // Replace [SPECIAL_ABILITY] with actual special ability
       if (specialAbility) {
         replacedText = replacedText.replace(/\[SPECIAL_ABILITY\]/gi, specialAbility);
       }
@@ -374,13 +346,11 @@
     }
   }
 
-  // Load story data from database
   onMount(async () => {
     if (browser) {
-      // Check subscription status first
+      await loadRuntimePromptDocuments();
       await checkSubscriptionStatus();
       
-      // Get story ID from URL query params
       const storyId = $page.url.searchParams.get('storyId');
       const sceneIndexFromUrl = $page.url.searchParams.get('sceneIndex');
       
@@ -392,11 +362,9 @@
       }
       
       try {
-        // Store current story ID
         currentStoryId = storyId;
         hasTemporaryStoryUnlock = getTemporaryUnlock(storyId);
         
-        // Fetch story from database
         const result = await getStoryById(storyId);
         
         if (!result.success || !result.data) {
@@ -409,13 +377,9 @@
         const story = result.data;
         console.log("Loaded story:", story);
         
-        // Set story title
         storyTitle = story[0].story_title;
         
-        // Check if story has been purchased
-        // Ensure we properly check the purchased field from the database
         const storyData = Array.isArray(story) ? story[0] : story;
-        // Capture template_id (may be present on stories rows)
         templateId = storyData?.template_id || storyData?.templateId || null;
         storyWorldRaw = String(storyData?.story_world ?? '');
         characterStyle = String(storyData?.character_style ?? '3d').toLowerCase() as any;
@@ -426,10 +390,8 @@
         console.log("[preview] Story world:", storyWorldRaw);
         console.log("[preview] Story data purchased field:", storyData?.purchased);
         
-        // Re-check subscription status after loading story (in case it changed during payment)
         await checkSubscriptionStatus();
         
-        // Load audio URLs from database (audio_url field)
         if (storyData?.audio_url) {
           if (Array.isArray(storyData.audio_url)) {
             audioUrls = storyData.audio_url;
@@ -443,31 +405,25 @@
           console.log("[preview] Loaded audio URLs:", audioUrls.length);
         }
         
-        // Build storyScenes array: [cover, scene1, scene2, ...]
         const loadedScenes: string[] = [];
         
-        // Load story content/pages and extract scene images
         if (story[0].story_content) {
           try {
-            // Parse story_content if it's a string
             const content = typeof story[0].story_content === 'string' 
               ? JSON.parse(story[0].story_content) 
               : story[0].story_content;
             
             console.log('[preview] Parsed story content:', content);
             
-            // First, add the story cover if available
             const coverUrl = story[0].story_cover || content.cover;
             if (coverUrl) {
               loadedScenes.push(coverUrl.split("?")[0]);
               console.log('[preview] Added story cover:', coverUrl);
             }
             
-            // Check for copyright and dedication images, and insert after cover if they exist
             copyrightImage = story[0].copyright_image ? story[0].copyright_image.split("?")[0] : '';
             dedicationText = story[0].dedication_text || '';
             dedicationImage = story[0].dedication_image ? story[0].dedication_image.split("?")[0] : '';
-            // Copyright page personalized names and character details
             copyrightCharacterName = storyData?.character_name || '[CHARACTER_NAME]';
             characterSpecialAbility = storyData?.special_ability || '';
             backCoverAgeText = formatBackCoverAge(storyData?.age_group);
@@ -482,27 +438,21 @@
               }
             }
             
-            // If we have copyright or dedication, add the copyright/dedication page
             if (copyrightImage || dedicationImage || dedicationText) {
               hasDedication = true;
               
-              // Insert copyright/dedication scene after cover (at index 1)
-              // We'll use a special marker for this combined page
               if (loadedScenes.length > 0) {
                 loadedScenes.splice(1, 0, 'COPYRIGHT_DEDICATION_PAGE');
                 console.log('[preview] Added copyright/dedication page after cover');
               }
             }
             
-            // Handle different content formats
             if (Array.isArray(content)) {
-              // If it's an array of pages
               storyPages = content.map((page: any, index: number) => ({
                 pageNumber: page.pageNumber || index + 1,
                 text: page.text || page.content || ""
               }));
               
-              // Extract scene images from pages
               const scenesFromPages = content
                 .map((page: any) => page.sceneImage || page.scene || page.imageUrl || page.image_url || page.image)
                 .filter((url: string | undefined): url is string => !!url);
@@ -518,8 +468,6 @@
               Array.isArray(content.scenes) &&
               content.scenes.length > 0
             ) {
-              // Interactive search (/intersearch reader → this preview): must run before content.pages
-              // so we never take scene URLs from a stale or differently ordered `pages` array.
               const sortedSearchScenes = sortSearchScenesForRoute(content.scenes, $page.url.pathname);
               storyPages = sortedSearchScenes.map((scene: any, index: number) => ({
                 pageNumber: scene.sceneNumber || scene.scene_number || index + 1,
@@ -533,13 +481,11 @@
                 console.log('[preview] Loaded search_adventure scenes:', scenesFromSearch.length);
               }
             } else if (content.pages && Array.isArray(content.pages)) {
-              // If it has a pages property (adventure books, etc.)
               storyPages = content.pages.map((page: any, index: number) => ({
                 pageNumber: page.pageNumber || index + 1,
                 text: page.text || page.content || ""
               }));
               
-              // Extract scene images from pages
               const scenesFromPages = content.pages
                 .map((page: any) => page.sceneImage || page.scene || page.imageUrl || page.image_url || page.image)
                 .filter((url: string | undefined): url is string => !!url);
@@ -549,11 +495,9 @@
                 console.log('[preview] Loaded scene images from content.pages:', scenesFromPages);
               }
             } else if (typeof content === 'string') {
-              // If it's a single string, create one page
               storyPages = [{ pageNumber: 1, text: content }];
             }
 
-            // Search-type stories: fallback if story_content did not list scenes (legacy rows)
             if (
               storyData.story_type === 'search' &&
               Array.isArray(story[0].scene_images) &&
@@ -573,7 +517,6 @@
               pagesRead = storyPages.length;
             }
             
-            // Add last-words + admin-last spread (one scene), then back cover
             if (story[0].last_word_page_image) {
               lastWordPageImage = story[0].last_word_page_image.split("?")[0];
             }
@@ -593,14 +536,11 @@
           }
         }
         
-        // Set the scenes array (cover + scenes)
         if (loadedScenes.length > 0) {
           storyScenes = loadedScenes;
           
-          // Check if we have a stored scene index for this story (from returning after payment)
           let savedSceneIndex: number | null = null;
 
-          // Highest priority: scene index passed directly in URL
           if (sceneIndexFromUrl !== null) {
             const parsedUrlSceneIndex = parseInt(sceneIndexFromUrl, 10);
             if (!isNaN(parsedUrlSceneIndex) && parsedUrlSceneIndex >= 0 && parsedUrlSceneIndex < loadedScenes.length) {
@@ -620,11 +560,8 @@
             }
           }
           
-          // If story is purchased or user has premium subscription, restore saved scene index
-          // Otherwise start at the beginning
           if (savedSceneIndex !== null && canAccessLockedPages) {
             currentSceneIndex = savedSceneIndex;
-            // Clear the saved index after restoring it
             if (browser && currentStoryId) {
               sessionStorage.removeItem(`preview_scene_index_${currentStoryId}`);
             }
@@ -636,7 +573,6 @@
           console.log('[preview] Total scenes (including cover):', storyScenes.length);
         }
         
-        // Populate characterForFinding URLs (16 expected) from story data if present
         try {
           const urls = storyData?.character_for_finding || [];
           if (Array.isArray(urls)) {
@@ -656,42 +592,35 @@
         isLoading = false;
       }
       
-      // Start reading time tracker
       startReadingTimer();
     }
   });
 
-  // Start reading timer
   function startReadingTimer() {
     if (!browser) return;
     
     readingStartTime = Date.now();
     console.log('[reading-timer] Started reading timer');
     
-    // Update every second
     readingTimerInterval = window.setInterval(() => {
       const elapsedSeconds = Math.floor((Date.now() - readingStartTime) / 1000);
       totalReadingTime = elapsedSeconds;
     }, 1000);
   }
   
-  // Stop reading timer and save to database
   async function stopReadingTimerAndSave() {
     if (!browser || !currentStoryId) return;
     
-    // Clear interval
     if (readingTimerInterval !== null) {
       clearInterval(readingTimerInterval);
       readingTimerInterval = null;
     }
     
-    // Calculate final reading time
     if (readingStartTime > 0) {
       const elapsedSeconds = Math.floor((Date.now() - readingStartTime) / 1000);
       totalReadingTime = elapsedSeconds;
     }
     
-    // Only save if user spent at least 1 second
     if (totalReadingTime < 1) {
       console.log('[reading-timer] Reading time too short, not saving');
       return;
@@ -699,7 +628,6 @@
     
     console.log(`[reading-timer] Stopped. Total time: ${totalReadingTime} seconds`);
     
-    // Prepare reading state based on story type (we'll assume 'story' type for now)
     const readingState = {
       reading_time: totalReadingTime,
       audio_listened: hasAudioBeenPlayed
@@ -736,15 +664,12 @@
     if (viewMode === 'one-page' && currentSceneIndex > 0) {
       const currentStoryPageIndex = getStoryPageIndex(currentSceneIndex);
 
-      // If we're on the right page, go back to left page of same scene
       if (currentSubPage === 'right' && currentStoryPageIndex >= 0) {
         currentSubPage = 'left';
         return;
       }
-      // If we're on left page, go to previous scene's right page
       if (currentSceneIndex > 1) {
         currentSceneIndex--;
-        // If previous scene is a story page (not special page), go to its right page
         const prevStoryPageIndex = getStoryPageIndex(currentSceneIndex);
         if (prevStoryPageIndex >= 0) {
           currentSubPage = 'right';
@@ -752,12 +677,10 @@
           currentSubPage = 'left';
         }
       } else if (currentSceneIndex === 1) {
-        // Go back to cover
         currentSceneIndex = 0;
         currentSubPage = 'left';
       }
     } else {
-      // Two-page mode or on special pages - just go back one scene
       if (currentSceneIndex > 0) {
         currentSceneIndex--;
         currentSubPage = 'left';
@@ -770,32 +693,25 @@
     const nextSceneIndex = currentSceneIndex + 1;
     const nextStoryPageIndex = getStoryPageIndex(nextSceneIndex);
     
-    // Check if trying to go beyond page 2 for free plan users who haven't purchased
-    // Story page index 1 = page 2 (0-indexed: page 1 = index 0, page 2 = index 1)
     if (nextStoryPageIndex > 1 && !canAccessLockedPages) {
       showPreviewLockModal = true;
       return;
     }
     
-    // In one-page mode, advance through sub-pages
     if (viewMode === 'one-page' && currentSceneIndex > 0 && currentStoryPageIndex >= 0) {
-      // If on left page, advance to right page
       if (currentSubPage === 'left') {
         currentSubPage = 'right';
         return;
       }
-      // If on right page, advance to next scene's left page
       if (currentSceneIndex < storyScenes.length - 1) {
         currentSceneIndex++;
         currentSubPage = 'left';
       }
     } else {
-      // Two-page mode or on special pages - just advance one scene
       if (currentSceneIndex < storyScenes.length - 1) {
         currentSceneIndex++;
         currentSubPage = 'left';
       } else if (currentSceneIndex === 0) {
-        // Moving from cover to next page (copyright/dedication or first scene)
         currentSceneIndex = 1;
         currentSubPage = 'left';
       }
@@ -812,7 +728,6 @@
   }
   
   function handleDownloadPDF() {
-    // TODO: Implement PDF download functionality
     console.log('Download PDF clicked');
   }
   
@@ -834,18 +749,15 @@
     
     const storyPageIndex = getStoryPageIndex(index);
     
-    // Prevent navigation to pages beyond page 2 for free plan users who haven't purchased
-    // Story page index 1 = page 2, so we allow index 0 (page 1) and index 1 (page 2)
     if (storyPageIndex > 1 && !canAccessLockedPages) {
       console.log("[preview] Showing lock modal via goToScene - index:", index, "storyPageIndex:", storyPageIndex, "isFreePlan:", isFreePlan, "isPurchased:", isPurchased);
       showPreviewLockModal = true;
       return;
     }
     
-    // Allow navigation for paid users or to pages 1-2 for free users
     if (index >= 0 && index < storyScenes.length) {
       currentSceneIndex = index;
-      currentSubPage = 'left'; // Reset to left page when jumping to a scene
+      currentSubPage = 'left';
     }
   }
   
@@ -853,7 +765,6 @@
     showPreviewLockModal = false;
   }
 
-  // Build books list for BookSelectionModal (current story)
   $: bookSelectionBooks = currentStoryId && storyTitle
     ? [
         {
@@ -878,13 +789,11 @@
     showPreviewLockModal = false;
     const storyId = event.detail?.book?.id || currentStoryId;
 
-    // Store current scene index in sessionStorage so we can restore it after payment
     if (browser && storyId && currentSceneIndex !== undefined) {
       sessionStorage.setItem(`preview_scene_index_${storyId}`, currentSceneIndex.toString());
       console.log(`[preview] Stored scene index ${currentSceneIndex} for story ${storyId}`);
     }
 
-    // Pass story ID and scene index as URL parameters to pricing page
     if (storyId) {
       const sceneIndexParam = currentSceneIndex !== undefined ? `&sceneIndex=${currentSceneIndex}` : '';
       goto(`/pricing?storyId=${storyId}${sceneIndexParam}`);
@@ -893,13 +802,10 @@
     }
   }
 
-  // ==================== AUDIO PLAYBACK FUNCTIONS ====================
   
   function loadAudio(sceneIndex: number) {
-    // Clean up previous audio
     cleanupAudio();
     
-    // Reset audio state
     isPlaying = false;
     audioProgress = 0;
     currentTime = 0;
@@ -912,7 +818,6 @@
     }
     const audioIndex = getStoryPageIndex(sceneIndex);
     
-    // Check if audio exists for this scene
     if (audioIndex < 0 || audioIndex >= audioUrls.length || !audioUrls[audioIndex]) {
       console.log("[audio] No audio available for scene index:", sceneIndex);
       return;
@@ -921,11 +826,9 @@
     const audioUrl = audioUrls[audioIndex];
     console.log("[audio] Loading audio for scene", sceneIndex, ":", audioUrl);
     
-    // Create new audio element
     currentAudio = new Audio(audioUrl);
     currentAudio.playbackRate = audioSpeed;
     
-    // Add event listeners
     currentAudio.addEventListener('timeupdate', handleTimeUpdate);
     currentAudio.addEventListener('ended', handleAudioEnded);
     currentAudio.addEventListener('error', handleAudioError);
@@ -933,7 +836,6 @@
     
     isAudioAvailable = true;
     
-    // Load the audio
     currentAudio.load();
   }
   
@@ -985,7 +887,7 @@
         playPromise
           .then(() => {
             isPlaying = true;
-            hasAudioBeenPlayed = true; // Track that audio has been played
+            hasAudioBeenPlayed = true;
             console.log("[audio] Playing audio");
           })
           .catch((error) => {
@@ -1054,12 +956,10 @@
     loadAudio(currentSceneIndex);
   }
   
-  // Reset to left page when switching to one-page mode
   $: if (viewMode === 'one-page' && currentSceneIndex > 0) {
     currentSubPage = 'left';
   }
   
-  // Cleanup on component destroy
   onDestroy(() => {
     if (browser && isFullscreen && document.fullscreenElement) {
       document.exitFullscreen();
@@ -1068,12 +968,10 @@
     stopReadingTimerAndSave();
   });
   
-  // Save reading state before navigating away
   beforeNavigate(() => {
     stopReadingTimerAndSave();
   });
 
-  // Update page counter text
   $: {
     if (storyScenes.length === 0) {
       pageCounterText = "Page 1 of 2 (FREE PREVIEW) • Pages 3-5 available after purchase";
@@ -1110,7 +1008,6 @@
     const rawText = storyPages.length > 0 && pageIndex >= 0 && pageIndex < storyPages.length
       ? storyPages[pageIndex].text
       : '';
-    // Apply placeholder replacements to display text with real values
     return replacePlaceholderText(rawText);
   })();
 
@@ -1119,7 +1016,6 @@
     return pageIndex >= 0 ? pageIndex + 1 : -1;
   })();
 
-  // Load page text content with positioning from prompt_image.json
   $: if (!isSpecialSceneIndex(currentSceneIndex) && currentStoryPageNumber >= 1 && currentStoryPageNumber <= 7) {
     pageTextContent = getPageTextContent(currentStoryPageNumber, characterStyle, storyWorldRaw);
   } else {
@@ -1134,24 +1030,20 @@
 
   $: isFirstStoryPage = currentStoryPageNumber === 1;
 
-  // Show character counter only on pages 3-6
   $: showCharacterCounter = !isSpecialSceneIndex(currentSceneIndex) && currentStoryPageNumber >= 3 && currentStoryPageNumber <= 6;
 
-  // When showing the character counter on pages 3-6, pick the correct 4 images
   $: if (showCharacterCounter) {
-    const page = currentStoryPageNumber; // 3..6
-    const offset = (page - 3) * 4; // page 3 -> 0, 4 -> 4, 5 -> 8, 6 -> 12
+    const page = currentStoryPageNumber;
+    const offset = (page - 3) * 4;
     if (Array.isArray(characterForFinding) && characterForFinding.length > offset) {
       characterImages = characterForFinding.slice(offset, offset + 4);
     } else {
       characterImages = [];
     }
   } else {
-    // Not a character-finding page: clear to avoid showing template images
     characterImages = [];
   }
 
-  // Attach/detach game engine when character-finding pages (3-6) are shown
   $: if (browser && imageWrapperRef) {
     if (showCharacterCounter) {
       attachGameEngine({
@@ -1171,23 +1063,19 @@
     }
   }
 
-  // Clear any drawn markers when changing pages/subpages so they don't persist across navigation.
   $: if (browser && imageWrapperRef) {
-    // Reference reactive values so this runs on navigation.
     void currentSceneIndex;
     void currentSubPage;
     void currentStoryPageNumber;
     clearGameMarkers(imageWrapperRef);
   }
   
-  // Toggle fullscreen mode (same as /intersearch/1: fullscreen the story container only)
   function toggleFullscreen() {
     if (!browser) return;
     
     const elem = imageWrapperRef || document.documentElement;
     
     if (!document.fullscreenElement) {
-      // Enter fullscreen
       if (elem.requestFullscreen) {
         elem.requestFullscreen().then(() => {
           isFullscreen = true;
@@ -1197,7 +1085,6 @@
         });
       }
     } else {
-      // Exit fullscreen
       if (document.exitFullscreen) {
         document.exitFullscreen().then(() => {
           isFullscreen = false;
@@ -1209,7 +1096,6 @@
     }
   }
   
-  // Listen for fullscreen changes (user pressing ESC, etc.)
   onMount(() => {
     if (browser) {
       const handleFullscreenChange = () => {
@@ -1354,20 +1240,17 @@
               <div class="frame-1410104106">
                 <div class="book-container">
                   {#if isLoading}
-                    <!-- Loading state -->
                     <div class="loading-container">
                       <div class="loading-spinner"></div>
                       <p>Loading story...</p>
                     </div>
                   {:else if loadError}
-                    <!-- Error state -->
                     <div class="error-container">
                       <p class="error-message">Error: {loadError}</p>
                       <button class="retry-button" on:click={() => window.location.reload()}>Retry</button>
                     </div>
                   {:else if storyScenes.length > 0}
                     {#if currentSceneIndex === 0}
-                      <!-- Cover: Single image display -->
                       <div class="cover-image-container" class:fullscreen-cover={isFullscreen}>
                         <div class="image cover-image">
                           <img
@@ -1382,7 +1265,6 @@
                         </div>
                       </div>
                     {:else if hasDedication && currentSceneIndex === 1 && storyScenes[currentSceneIndex] === 'COPYRIGHT_DEDICATION_PAGE'}
-                      <!-- Copyright/Dedication Page: Left copyright text page, Right dedication image and text -->
                       <div class="mobile-image-split" class:world-underwater={isUnderwaterTheme} style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left dedication-blank copyright-page-wrapper" style="position: relative;">
                           <div class="copyright-page-bg" style={copyrightImage ? `background-image: url(${copyrightImage});` : ''}></div>
@@ -1418,9 +1300,7 @@
                         </div>
                       </div>
                     {:else if hasLastWordsAdmin && storyScenes[currentSceneIndex] === 'LAST_WORDS_ADMIN_PAGE'}
-                      <!-- One page: left half = last words (thank you), right half = last admin (thank you) - side by side -->
                       <div class="mobile-image-split last-words-admin-one-page" class:world-underwater-last-spread={isUnderwaterTheme} class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
-                        <!-- Last word page (left): thank-you text overlay -->
                         <div class="mobile-image-half mobile-image-left last-words-page-wrapper" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image">
                             <div class="last-words-page-bg" style={lastWordPageImage ? `background-image: url(${lastWordPageImage});` : ''}></div>
@@ -1442,7 +1322,6 @@
                             <div class="inner-shadow"></div>
                           </div>
                         </div>
-                        <!-- Last admin page (right): Drawtopia branding (same content as image) -->
                         <div class="mobile-image-half mobile-image-right last-admin-page-wrapper" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image_01" style="position: relative;">
                             <div class="last-admin-page-bg" style={lastAdminPageImage ? `background-image: url(${lastAdminPageImage});` : ''}></div>
@@ -1473,7 +1352,6 @@
                         </div>
                       </div>
                     {:else if backCoverImage && currentSceneIndex === storyScenes.length - 1}
-                      <!-- Back cover: single half page with text overlay (same layout as design) -->
                       <div class="cover-image-container" class:fullscreen-cover={isFullscreen}>
                         <div class="image cover-image back-cover-wrapper">
                           <div class="back-cover-bg" style={backCoverImage ? `background-image: url(${backCoverImage});` : ''}></div>
@@ -1545,7 +1423,6 @@
                         </div>
                       </div>
                     {:else if viewMode === 'one-page' && storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'LAST_WORDS_ADMIN_PAGE'}
-                      <!-- One-page mode: Show only left OR right page -->
                       <div class="mobile-image-split" class:single-page-mode={true} style={isFullscreen ? 'height: 90dvh;' : ''}>
                         {#if currentSubPage === 'left'}
                           <div class="mobile-image-half mobile-image-left single-page-full" style={isFullscreen ? 'height: 100%;' : ''}>
@@ -1590,11 +1467,9 @@
                             </div>
                           </div>
                         {/if}
-                        <!-- Text overlays on full book view div -->
                         {#if showStoryTextOverlay}
                           {#if pageTextContent}
                             {#if Array.isArray(pageTextContent)}
-                              <!-- Multiple text overlays from prompt_image.json (e.g., left and right for page 7) -->
                               {#each pageTextContent as textItem}
                                 <div class="image-text-overlay" style={`position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none;`}>
                                   <p 
@@ -1620,7 +1495,6 @@
                                 </div>
                               {/each}
                             {:else if pageTextContent.text}
-                              <!-- Single text overlay from prompt_image.json -->
                               <div class="image-text-overlay" style={`position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none;`}>
                                 <p 
                                   class="positioned-text"
@@ -1659,7 +1533,6 @@
                         {/if}
                       </div>
                     {:else if storyScenes[currentSceneIndex] && storyScenes[currentSceneIndex] !== 'COPYRIGHT_DEDICATION_PAGE' && storyScenes[currentSceneIndex] !== 'LAST_WORDS_ADMIN_PAGE'}
-                      <!-- Two-page mode: Split into left and right halves (same image) -->
                       <div class="mobile-image-split" class:fullscreen-split={isFullscreen} style={isFullscreen ? 'height: 90dvh; width: 80dvw;' : ''}>
                         <div class="mobile-image-half mobile-image-left" style={isFullscreen ? 'height: 100%;' : ''}>
                           <div class="image">
@@ -1704,7 +1577,6 @@
                         {#if showStoryTextOverlay}
                           {#if pageTextContent}
                             {#if Array.isArray(pageTextContent)}
-                              <!-- Multiple text overlays from prompt_image.json (e.g., left and right for page 7) -->
                               {#each pageTextContent as textItem}
                                 <div class="image-text-overlay" style={`position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none;`}>
                                   <p 
@@ -1730,7 +1602,6 @@
                                 </div>
                               {/each}
                             {:else if pageTextContent.text}
-                              <!-- Single text overlay from prompt_image.json -->
                               <div class="image-text-overlay" style={`position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none;`}>
                                 <p 
                                   class="positioned-text"
@@ -1754,14 +1625,12 @@
                                 </p>
                               </div>
                             {:else}
-                              <!-- Fallback to current page text with predefined positioning -->
                               <div class="story-main-text-overlay" class:story-world-underwater={isUnderwaterTheme} class:story-main-text-overlay-top={!isFirstStoryPage} class:story-main-text-overlay-bottom={isFirstStoryPage}>
                                 <div class="story-main-text-blur-layer" class:story-world-underwater={isUnderwaterTheme} class:underwater-story-page-3={isUnderwaterTheme && currentStoryPageNumber === 3}></div>
                                 <p class="story-main-text" class:story-world-underwater={isUnderwaterTheme} class:story-world-outerspace={isSpaceTheme && currentStoryPageNumber >= 1 && currentStoryPageNumber <= 7} class:underwater-story-page-3={isUnderwaterTheme && currentStoryPageNumber === 3}>{currentPageText}</p>
                               </div>
                             {/if}
                           {:else}
-                            <!-- Fallback to current page text with predefined positioning -->
                             <div class="story-main-text-overlay" class:story-world-underwater={isUnderwaterTheme} class:story-main-text-overlay-top={!isFirstStoryPage} class:story-main-text-overlay-bottom={isFirstStoryPage}>
                               <div class="story-main-text-blur-layer" class:story-world-underwater={isUnderwaterTheme} class:underwater-story-page-3={isUnderwaterTheme && currentStoryPageNumber === 3}></div>
                               <p class="story-main-text" class:story-world-underwater={isUnderwaterTheme} class:story-world-outerspace={isSpaceTheme && currentStoryPageNumber >= 1 && currentStoryPageNumber <= 7} class:underwater-story-page-3={isUnderwaterTheme && currentStoryPageNumber === 3}>{currentPageText}</p>
@@ -1782,7 +1651,6 @@
                       </div>
                     {/if}
                   {:else}
-                    <!-- No scenes available -->
                     <div class="no-content-container">
                       <p>No story scenes available</p>
                     </div>
@@ -1845,7 +1713,6 @@
                 </div>
               </div>
               <div class="frame-1410104059">
-                <!-- Play/Pause Button -->
                 <div 
                   class="frame-1410104056 audio-btn"
                   class:disabled={!isAudioAvailable}
@@ -1856,7 +1723,6 @@
                   title={!isAudioAvailable ? "No audio available" : (isPlaying ? "Pause" : "Play")}
                 >
                   {#if isPlaying}
-                    <!-- Pause Icon -->
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
                       <rect x="7" y="5" width="3" height="14" rx="1"/>
                       <rect x="14" y="5" width="3" height="14" rx="1"/>
@@ -1866,7 +1732,6 @@
                   {/if}
                 </div>
                 
-                <!-- Audio Progress Bar -->
                 <div class="audio">
                   <img src={SpeakerSimpleHigh} alt="speaker" />
 
@@ -1885,7 +1750,6 @@
                   </div>
                 </div>
                 
-                <!-- Speed Control -->
                 <div class="frame-1410104063">
                   <div><span class="speed_span">Speed</span></div>
                   <div 
@@ -1920,7 +1784,6 @@
               {#if storyScenes.length > 0}
                 {#each storyScenes as scene, idx}
                   {#if idx === 0}
-                    <!-- Cover -->
                     <div 
                       class="number" 
                       class:active={currentSceneIndex === idx} 
@@ -1954,7 +1817,6 @@
                       <img src={EnvelopeSimple} alt="Last Words & Final Scene" />
                     </div>
                   {:else if idx === storyScenes.length - 1 && backCoverImage}
-                    <!-- Back Cover -->
                     <div 
                       class="number" 
                       class:active={currentSceneIndex === idx} 
@@ -1966,7 +1828,6 @@
                       <img src={Book} alt="Back Cover" />
                     </div>
                   {:else}
-                    <!-- Story Pages -->
                     {#if hasDedication}
                       <div 
                         class="number_02" 
@@ -1995,7 +1856,6 @@
                   {/if}
                 {/each}
               {:else}
-                <!-- Default static display when no scenes -->
                 <div class="number">
                   <img src={Book} alt="book" />
                 </div>
@@ -2065,11 +1925,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -2083,7 +1938,6 @@
       on:close={() => showStoryInfoModal = false}
       on:delete={(e) => {
         showStoryInfoModal = false;
-        // Navigate back to dashboard after deletion
         goto('/dashboard');
       }}
     />
@@ -2227,7 +2081,6 @@
     position: relative;
   }
 
-  /* Fullscreen Navigation (same as /intersearch/1) */
   .fullscreen-navigation {
     position: absolute;
     top: 0;
@@ -2283,7 +2136,6 @@
     display: block;
   }
 
-  /* Fullscreen: keep book spread side-by-side (left half = left page, right half = right page) */
   .mobile-image-split.fullscreen-split {
     flex-direction: row;
     display: flex;
@@ -2661,7 +2513,6 @@
     display: inline-flex;
   }
 
-  /* Scene image styles */
   .scene-main-image {
     display: block;
     max-width: 100%;
@@ -2675,14 +2526,12 @@
     z-index: 1;
   }
 
-  /* Active state for navigation dots */
   .number.active,
   .number_01.active,
   .number_02.active {
     background: #144be1 !important;
   }
 
-  /* Disabled state for buttons */
   .button_02.disabled,
   .button_03.disabled,
   .mobile-button_02.disabled,
@@ -2692,7 +2541,6 @@
     pointer-events: none;
   }
 
-  /* Make navigation dots clickable */
   .number,
   .number_01,
   .number_02 {
@@ -2706,7 +2554,6 @@
     background: #a8b5d0;
   }
   
-  /* Locked pages should show cursor not-allowed */
   .number_02.locked {
     cursor: not-allowed;
     opacity: 0.6;
@@ -3108,7 +2955,6 @@
     );
     overflow: hidden;
     border-radius: 8px;
-    background-image: url(https://placehold.co/558x668);
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-end;
@@ -3128,7 +2974,6 @@
     );
     overflow: hidden;
     border-radius: 8px;
-    background-image: url(https://placehold.co/558x668);
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-end;
@@ -3214,7 +3059,6 @@
     position: relative;
   }
   
-  /* Ensure images inside the wrapper divs respect the split view */
   .mobile-image-half .image,
   .mobile-image-half .image_01 {
     padding: 0;
@@ -3225,7 +3069,6 @@
     user-select: none;
   }
   
-  /* Make images 200% width to enable split view */
   .mobile-image-half .image .scene-main-image,
   .mobile-image-half .image_01 .scene-main-image {
     width: 200%;
@@ -3237,7 +3080,6 @@
     z-index: 1;
   }
   
-  /* Left half: show left 50% of the image */
   .mobile-image-left .image .scene-main-image {
     object-position: left center;
     margin-left: 0;
@@ -3245,13 +3087,11 @@
     position: absolute;
   }
   
-  /* Right half: show right 50% of the image */
   .mobile-image-right .image_01 .scene-main-image {
     object-position: right center;
     margin-left: -100%;
   }
   
-  /* Ensure overlays are positioned correctly above the image */
   .mobile-image-half .frame-1410104055,
   .mobile-image-half .frame-1410104055_01 {
     position: absolute;
@@ -3317,13 +3157,11 @@
     color: #ffffff;
   }
 
-  /* Positioned text overlay from prompt_image.json */
   .positioned-text {
     font-weight: 500;
     z-index: 10;
   }
 
-  /* Underwater: main story text (spec: Quicksand 700, #0E2C54, 64px/80px — scaled for preview viewport) */
   .story-main-text-overlay.story-world-underwater {
     justify-content: flex-end;
     padding-bottom: clamp(12px, 4vmin, 48px);
@@ -3353,7 +3191,6 @@
     filter: blur(56px);
   }
 
-  /* Underwater: dedication + copyright — solid white on scene backgrounds */
   .world-underwater .copyright-page-p,
   .world-underwater .copyright-page-footer {
     color: #ffffff;
@@ -3445,23 +3282,19 @@
     width: 100%;
   }
 
-  /* Cover Image Styles */
   .cover-image-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    /* width: 100%; */
     padding: 0;
   }
 
-  /* Fullscreen: center cover vertically and horizontally */
   .cover-image-container.fullscreen-cover {
     height: 90vh;
     min-height: 90vh;
   }
 
   .cover-image-container.fullscreen-cover .cover-image {
-    /* height: 100%; */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -3521,7 +3354,6 @@
     pointer-events: none;
   }
 
-  /* Mobile image split container - book style */
   .mobile-image-split {
     display: flex;
     flex-direction: row;
@@ -3530,7 +3362,6 @@
     height: 750px;
   }
 
-  /* Last words + last admin: one page, left half and right half always side by side */
   .mobile-image-split.last-words-admin-one-page {
     flex-direction: row;
   }
@@ -3539,7 +3370,6 @@
     min-width: 0;
   }
 
-  /* Single page mode: center the single page */
   .mobile-image-split.single-page-mode {
     justify-content: center;
   }
@@ -3555,13 +3385,11 @@
     align-items: stretch;
   }
   
-  /* When showing only one page, limit its width */
   .mobile-image-half.single-page-full {
     max-width: 600px;
   }
 
 
-  /* Base styles for split view images - must be applied to all halves */
   .mobile-image-half .scene-main-image {
     width: 200%;
     max-width: 200%;
@@ -3569,13 +3397,11 @@
     object-fit: cover;
   }
 
-  /* Split view image positioning - left half shows left 50% */
   .mobile-image-left .scene-main-image {
     object-position: left center;
     margin-left: 0;
   }
 
-  /* Split view image positioning - right half shows right 50% */
   .mobile-image-right .scene-main-image {
     object-position: right center;
     margin-left: -100%;
@@ -3625,7 +3451,6 @@
     pointer-events: none;
   }
 
-  /* Loading, Error, and No Content States */
   .loading-container,
   .error-container,
   .no-content-container {
@@ -3715,7 +3540,6 @@
     background: white;
   }
 
-  /* Dedication Page Styles – match attached image: white text, rounded sans-serif, centered */
   .dedication-blank {
     background: transparent;
   }
@@ -3776,7 +3600,6 @@
     word-wrap: break-word;
   }
 
-  /* Copyright page (intro text) – match attached image: sans-serif, light, centered */
   .copyright-page-wrapper {
     position: relative;
     min-height: 100%;
@@ -3799,7 +3622,6 @@
     background-position: center;
     background-repeat: no-repeat;
     background-color: #1a2f38;
-    /* Magical forest: cool blue, teal, green tones when no image */
     background-image: linear-gradient(180deg, #1a3540 0%, #152f38 20%, #14323a 40%, #163a3e 60%, #152f36 80%, #1a3540 100%);
   }
 
@@ -3835,7 +3657,6 @@
     position: absolute;
   }
 
-  /* Last words page (left) & Last admin page (right): thank-you text overlay */
   .last-words-page-wrapper .image,
   .last-admin-page-wrapper .image_01 {
     position: relative;
@@ -3947,7 +3768,6 @@
     background: #3a7ae8;
   }
 
-  /* CTA moved after frame/inner-shadow so it stacks on top and remains clickable */
   .last-admin-page-wrapper .image_01 .last-admin-page-cta-clickable {
     position: absolute;
     bottom: 100px;
@@ -4021,7 +3841,6 @@
     text-decoration-skip-ink: none;
   }
 
-  /* Underwater: thank-you + last-admin spread — navy text on bright scene art */
   .world-underwater-last-spread .last-words-page-title,
   .world-underwater-last-spread .last-admin-page-title {
     color: #0e2c54;
@@ -4042,7 +3861,6 @@
     filter: brightness(0) saturate(100%) invert(12%) sepia(55%) saturate(1200%) hue-rotate(167deg);
   }
 
-  /* Underwater last spread: blur/decoration layer color only (size, blur filter unchanged) */
   .world-underwater-last-spread .center-blur-decoration {
     background: linear-gradient(270deg, #89e4df 0%, rgba(137, 228, 223, 0) 100%);
     transform: matrix(-1, 0, 0, 1, 0, 0);
@@ -4052,7 +3870,6 @@
     background: linear-gradient(270deg, #89e4df 0%, rgba(137, 228, 223, 0) 100%);
   }
 
-  /* Back cover: background image + text overlay (layout matches design) */
   .back-cover-wrapper {
     position: relative;
     overflow: hidden;
@@ -4088,7 +3905,6 @@
     position: absolute;
     width: 100%;
     height: 40%;
-    /* left: calc(50% - 2550px / 2); */
     top: 0;
     background: linear-gradient(180.18deg, #1b3b7b 0.15%, rgba(27, 59, 123, 0) 99.84%);
     backdrop-filter: blur(0px);
@@ -4100,7 +3916,6 @@
     position: absolute;
     width: 100%;
     height: 40%;
-    /* left: calc(50% - 2550px / 2); */
     bottom: 0;
     background: linear-gradient(180.18deg, #1b3b7b 0.15%, rgba(27, 59, 123, 0) 99.84%);
     backdrop-filter: blur(0px);
@@ -4391,7 +4206,6 @@
       flex-direction: column;
       height: 100%;
     }
-    /* Last words + last admin: keep one page (left | right) on all screen sizes */
     .mobile-image-split.last-words-admin-one-page {
       flex-direction: column;
     }
@@ -4405,9 +4219,7 @@
       height: 50dvh;
     }
     
-    /* Cover image mobile styles */
     .cover-image-container {
-      /* width: 100%; */
       padding: 0;
     }
     
@@ -4627,7 +4439,6 @@
     }
   }
   
-  /* Character item counter positioning */
   .character-counter-wrapper {
     position: absolute;
     top: 16px;

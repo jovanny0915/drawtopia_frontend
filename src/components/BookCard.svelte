@@ -18,11 +18,9 @@
   
   const dispatch = createEventDispatcher();
   
-  // Loading state for PDF download
   let isDownloadingPDF = false;
   let isPurchased = false;
 
-  /** Interactive search stories: DB story_type, template story_format, or adventure_type from dashboard mapping. */
   const isInteractiveSearchStory = (row: any) => {
     const st = (row?.story_type || "").toLowerCase();
     if (st === "search") return true;
@@ -33,13 +31,11 @@
     return false;
   };
 
-  // Determine the card type/tag based on story_type (fallback to status)
   const getCardType = () => {
     if (isInteractiveSearchStory(item)) return "search";
     const storyType = (item?.story_type || "").toLowerCase();
     if (storyType === "story") return "story";
 
-    // Legacy fallback: mimic previous status-based behavior
     if (item?.status === "generating") return "search";
     return "story";
   };
@@ -47,7 +43,6 @@
   const cardType = getCardType();
   $: isPurchased = item?.purchased === true;
 
-  // Get status icon and text
   const getStatusInfo = () => {
     if (item?.status === "completed") {
       return { icon: greenCheck, text: "Completed" };
@@ -63,7 +58,6 @@
 
   const statusInfo = getStatusInfo();
 
-  // Get status badge class
   const getStatusBadgeClass = () => {
     if (item?.status === "completed") return "status-completed";
     if (item?.status === "failed") return "status-failed";
@@ -73,7 +67,6 @@
 
   const statusBadgeClass = getStatusBadgeClass();
 
-  // Get action button info
   const getActionButton = () => {
     if (item?.status === "completed") {
       return { icon: whiteEye, text: "View Book" };
@@ -89,32 +82,25 @@
 
   const actionButton = getActionButton();
 
-  // Get image source
   const getImageSrc = () => {
     return item?.story_cover || item?.original_image_url || vectorBook;
   };
 
-  // Get title
   const getTitle = () => {
     return item?.title || item?.story_title || "Untitled Story";
   };
 
-  // Get created by
   const getCreatedBy = () => {
     return item?.user_name || item?.child_profiles?.first_name || "Unknown";
   };
 
-  // Get created date
   const getCreatedDate = () => {
-    // Prefer created_at (raw date) over createdDate (pre-formatted string)
     return formatDate(item?.created_at || item?.createdDate) || "Unknown";
   };
 
-  // Handle main action button: "Edit Book" (draft) -> story-preview; "View Book" / "Re-generate" -> preview or intersearch
   const handleMainAction = () => {
     const isEditBook = item?.status === "draft" && (actionButton.text === "Edit Book");
     if (isEditBook && !isInteractiveSearchStory(item)) {
-      // Edit: go to adventure-story/story-preview with story ID (page will load story from Supabase)
       const storyId = item?.uid || item?.id;
       if (storyId) goto(`/adventure-story/story-preview?storyId=${encodeURIComponent(String(storyId))}`);
       return;
@@ -122,7 +108,6 @@
     handleViewBook();
   };
 
-  // Handle view book button click (preview / view only)
   const handleViewBook = () => {
     if (item?.status === "completed" || item?.status === "generating") {
       dispatch("viewBook", item);
@@ -137,22 +122,17 @@
     }
   };
 
-  // Handle download PDF button click
   const handleDownloadPDF = async (event?: MouseEvent) => {
-    // Prevent event propagation
     if (event) {
       event.stopPropagation();
       event.preventDefault();
     }
     
-    // Prevent multiple simultaneous downloads
     if (isDownloadingPDF) {
       console.log('[BookCard] PDF download already in progress...');
       return;
     }
     
-    // Get book ID - try uid first (as per user's changes), then id
-    // Convert to string to ensure consistency
     let bookId: string = "";
     if (item?.uid) {
       bookId = String(item.uid);
@@ -182,20 +162,16 @@
     });
     
     try {
-      // Determine backend URL
       let backendUrl = 'https://image-edit-five.vercel.app';
       
-      // Check if VITE_API_BASE_URL is set
       if (import.meta.env.VITE_API_BASE_URL) {
         const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-        // Remove /api suffix if present
         backendUrl = apiBaseUrl.replace('/api', '').replace(/\/$/, '');
       }
       
       const endpoint = `${backendUrl}/api/books/${encodeURIComponent(bookId)}/generate-pdf`;
       console.log(`[BookCard] Calling backend endpoint: ${endpoint}`);
       
-      // Call backend endpoint to generate PDF
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -230,22 +206,18 @@
         throw new Error('PDF URL not returned from server');
       }
 
-      // Download the PDF file
       const pdfUrl = result.pdf_url;
       console.log(`[BookCard] PDF URL received: ${pdfUrl}`);
       
-      // Try to download the PDF
       try {
-        // Method 1: Direct download via anchor tag
         const link = document.createElement('a');
         link.href = pdfUrl;
         link.download = `${(item.title || item.story_title || 'book').replace(/[^a-z0-9]/gi, '_')}_${bookId}.pdf`;
-        link.target = '_blank'; // Open in new tab as fallback
+        link.target = '_blank';
         link.rel = 'noopener noreferrer';
         document.body.appendChild(link);
         link.click();
         
-        // Clean up after a delay
         setTimeout(() => {
           document.body.removeChild(link);
         }, 100);
@@ -254,7 +226,6 @@
       } catch (downloadError) {
         console.warn('[BookCard] Direct download failed, trying alternative method:', downloadError);
         
-        // Method 2: Fetch and download as blob (fallback)
         try {
           const pdfResponse = await fetch(pdfUrl);
           if (!pdfResponse.ok) {
@@ -270,7 +241,6 @@
           document.body.appendChild(link);
           link.click();
           
-          // Clean up
           setTimeout(() => {
             document.body.removeChild(link);
             URL.revokeObjectURL(blobUrl);
@@ -279,7 +249,6 @@
           console.log('[BookCard] PDF downloaded via blob method');
         } catch (blobError) {
           console.error('[BookCard] Blob download also failed:', blobError);
-          // Last resort: open in new tab
           window.open(pdfUrl, '_blank');
           console.log('[BookCard] PDF opened in new tab as fallback');
         }
@@ -708,7 +677,6 @@
     display: flex;
   }
 
-  /* Status-specific styling */
   .frame-1410103870.status-completed {
     background: #e8f5e9;
     outline: 1px #4caf50 solid;

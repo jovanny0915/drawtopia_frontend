@@ -20,20 +20,15 @@
   let isVerifyingPayment = false;
   let paymentVerified = false;
 
-  // Reactive statements for auth state
   $: currentUser = $user;
   $: loading = $authLoading;
   $: authenticated = $isAuthenticated;
   $: userId = currentUser?.id;
   
-  // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
 
-  // Subscribe to gift creation state
   onMount(() => {
-    // Only run on client side
     if (browser) {
-      // Add a small delay to ensure auth state is fully loaded
       setTimeout(() => {
         if (safeToRedirect && !authenticated) {
           goto('/login');
@@ -46,10 +41,8 @@
       giftState = state;
     });
     
-    // Check if we're returning from Stripe checkout
     const sessionId = $page.url.searchParams.get('session_id');
     if (sessionId && browser) {
-      // Call async function without blocking
       verifyStripePayment(sessionId).catch(error => {
         console.error('Error in verifyStripePayment:', error);
       });
@@ -58,13 +51,10 @@
     return unsubscribe;
   });
 
-  // Reactive redirect when auth state changes (client-side only)
   $: if (safeToRedirect && !authenticated) {
-    // Only redirect if we're sure about the auth state
     goto('/login');
   }
 
-  // Format delivery time for display (DD/MM/YYYY at H:MM AM/PM)
   const formatDeliveryTime = (deliveryOption: string, deliveryTime: string) => {
     if (deliveryOption === 'surprise') {
       return 'Surprise delivery (immediate)';
@@ -82,7 +72,6 @@
   };
 
   const handleBack = () => {
-    // Navigate back to review page
     goto("/gift/review");
   };
 
@@ -92,10 +81,8 @@
     isVerifyingPayment = true;
     
     try {
-      // Get API base URL
       const API_BASE_URL = env.API_BASE_URL.replace('/api', '') || 'http://localhost:8000';
       
-      // Fetch session details from backend
       const response = await fetch(`${API_BASE_URL}/api/stripe/session/${sessionId}`);
       
       if (response.ok) {
@@ -104,7 +91,6 @@
         if (sessionData.success && sessionData.payment_status === 'paid' && sessionData.purchase_type === 'gift') {
           paymentVerified = true;
           
-          // Save gift to Supabase after successful payment
           await saveGiftAfterPayment();
         } else {
           console.error('Payment verification failed:', sessionData);
@@ -127,18 +113,14 @@
     try {
       isLoading = true;
       
-      // Convert gift state to gift object
       const giftData = giftCreation.toGiftObject(giftState);
       
-      // Save gift to Supabase database (also queues gift notification email)
       const result = await createGift(giftData);
       
       if (result.success) {
-        // Store the gift ID
         giftCreation.setGiftId(result.data.id);
         console.log('✅ Gift saved successfully to Supabase after payment:', result.data);
 
-        // Link mode: deduct 1 credit from sender and add 1 credit to recipient (to_user_id) when sending gift notification
         const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
         if (giftMode === 'link') {
           const accessToken = $session?.access_token;
@@ -162,7 +144,6 @@
             } else {
               console.warn('Link gift: failed to deduct sender credit', await deductRes.json().catch(() => ({})));
             }
-            // Add 1 credit to recipient (to_user_id) for link gift
             const addRecipientRes = await fetch(`${API_BASE_URL}/api/gifts/add-recipient-credit-on-send`, {
               method: 'POST',
               headers: {
@@ -192,8 +173,6 @@
   };
 
   const handleFinish = () => {
-    // Simply navigate to dashboard
-    // Gift should already be saved if coming from Stripe payment
     goto('/dashboard');
   };
 </script>
@@ -205,7 +184,6 @@
     </div>
   </div>
 
-  <!-- Mobile Back Button -->
   <MobileBackBtn backRoute="/gift/review" backText="Back" />
 
   <div class="frame-1410103818">
@@ -371,11 +349,6 @@
     </div>
     <div class="rectangle-34"></div>
     <div class="frame-1410103820">
-      <!--
-      <div class="privacy-policy">
-        <span class="privacypolicy_span">Privacy Policy</span>
-      </div>
-      -->
       <div class="terms-of-service">
         <span class="termsofservice_span">Terms of Service</span>
       </div>
@@ -800,19 +773,6 @@
     box-shadow: none;
   }
 
-  /* Ripple effect */
-  /* .button::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transition: width 0.3s, height 0.3s;
-    transform: translate(-50%, -50%);
-  } */
 
   .button:active:not(.loading)::before {
     width: 300px;
@@ -1103,7 +1063,6 @@
     display: inline-flex;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .gift-confirmation {
       padding-left: 16px;
@@ -1120,7 +1079,6 @@
       gap: 20px;
     }
 
-    /* Main content sections mobile */
     .frame-1410104130 {
       padding: 16px;
       gap: 16px;
@@ -1137,7 +1095,6 @@
       display: block;
     }
 
-    /* Information transaction mobile layout */
     .frame-1410104141 {
       flex-direction: column;
       gap: 16px;
@@ -1170,7 +1127,6 @@
       width: 100%;
     }
 
-    /* Status section mobile */
     .frame-1410104122 {
       width: 100%;
       flex-direction: column;
@@ -1185,7 +1141,6 @@
       align-self: stretch;
     }
 
-    /* Continue section mobile */
     .frame-1410104113 {
       width: 100%;
       gap: 16px;
@@ -1200,7 +1155,6 @@
       display: none;
     }
 
-    /* Typography adjustments for mobile */
     .giftpurchasedsuccessfully_span {
       font-size: 32px;
       line-height: 44.8px;
@@ -1272,7 +1226,6 @@
       line-height: 19.6px;
     }
 
-    /* Layout adjustments */
     .frame-5 {
       gap: 20px;
       text-align: center;
@@ -1291,7 +1244,6 @@
       gap: 16px;
     }
 
-    /* Green check icon mobile */
     .frame-5 img {
       width: 48px;
       height: 48px;

@@ -1,7 +1,3 @@
-/**
- * Admin API Client
- * Handles all admin operations by sending requests to the backend API
- */
 
 import { env } from '$lib/env';
 
@@ -461,9 +457,6 @@ function normalizeAdminStoryDetail(value: unknown): AdminStoryDetail | undefined
   };
 }
 
-/**
- * Get story generation counts per day (from stories table) for the last N days.
- */
 export async function getStoryCountsByDay(days: number = 90): Promise<ApiResponse<StoryCountByDay[]>> {
   try {
     const response = await fetch(`${API_URL}/admin/analysis/story-counts-by-day?days=${days}`, {
@@ -484,9 +477,6 @@ export async function getStoryCountsByDay(days: number = 90): Promise<ApiRespons
   }
 }
 
-/**
- * Get login/register counts per day (from user_auth_history table) for the last N days.
- */
 export async function getUserAuthCountsByDay(days: number = 90): Promise<ApiResponse<UserAuthCountByDay[]>> {
   try {
     const response = await fetch(`${API_URL}/admin/analysis/user-auth-counts-by-day?days=${days}`, {
@@ -507,9 +497,6 @@ export async function getUserAuthCountsByDay(days: number = 90): Promise<ApiResp
   }
 }
 
-/**
- * Get users list for admin user management page
- */
 export async function getUsers(filters?: AdminUserListFilters): Promise<ApiResponse<AdminUser[]>> {
   try {
     const query = new URLSearchParams();
@@ -543,9 +530,6 @@ export async function getUsers(filters?: AdminUserListFilters): Promise<ApiRespo
   }
 }
 
-/**
- * Get a single user detail payload for admin.
- */
 export async function getUserDetail(userId: string): Promise<ApiResponse<AdminUserDetail>> {
   try {
     const response = await fetch(`${API_URL}/admin/users/${userId}`, {
@@ -566,9 +550,6 @@ export async function getUserDetail(userId: string): Promise<ApiResponse<AdminUs
   }
 }
 
-/**
- * Create user record from admin panel
- */
 export async function createUser(payload: AdminUserCreateInput): Promise<ApiResponse<AdminUser>> {
   try {
     const response = await fetch(`${API_URL}/admin/users`, {
@@ -590,9 +571,6 @@ export async function createUser(payload: AdminUserCreateInput): Promise<ApiResp
   }
 }
 
-/**
- * Update user record from admin panel
- */
 export async function updateUser(userId: string, payload: AdminUserUpdateInput): Promise<ApiResponse<AdminUser>> {
   try {
     const response = await fetch(`${API_URL}/admin/users/${userId}`, {
@@ -614,9 +592,6 @@ export async function updateUser(userId: string, payload: AdminUserUpdateInput):
   }
 }
 
-/**
- * Delete user record from admin panel
- */
 export async function deleteUser(userId: string): Promise<ApiResponse<void>> {
   try {
     const response = await fetch(`${API_URL}/admin/users/${userId}`, {
@@ -637,9 +612,6 @@ export async function deleteUser(userId: string): Promise<ApiResponse<void>> {
   }
 }
 
-/**
- * Get admin story list for the Stories > Story List view.
- */
 export async function getAdminStories(filters?: AdminStoryListFilters): Promise<ApiResponse<AdminStorySummary[]>> {
   try {
     const query = new URLSearchParams();
@@ -674,9 +646,6 @@ export async function getAdminStories(filters?: AdminStoryListFilters): Promise<
   }
 }
 
-/**
- * Get the detailed admin story payload for the detail modal.
- */
 export async function getAdminStoryDetail(storyId: string): Promise<ApiResponse<AdminStoryDetail>> {
   try {
     const response = await fetch(`${API_URL}/admin/stories/${encodeURIComponent(storyId)}`, {
@@ -703,9 +672,6 @@ export async function getAdminStoryDetail(storyId: string): Promise<ApiResponse<
   }
 }
 
-/**
- * Get all book templates
- */
 export async function getTemplates(
   storyFormat?: BookTemplateStoryFormat
 ): Promise<ApiResponse<BookTemplate[]>> {
@@ -744,10 +710,6 @@ export async function getTemplates(
   }
 }
 
-/**
- * Get one random book template by story world via backend API.
- * Uses backend service-level DB access, avoiding frontend RLS visibility issues.
- */
 export async function getRandomTemplateByStoryWorld(
   storyWorld: 'forest' | 'underwater' | 'outerspace',
   storyStyle?: string,
@@ -807,9 +769,6 @@ export async function getRandomTemplateByStoryWorld(
   }
 }
 
-/**
- * Create a new book template
- */
 export async function createTemplate(
   name: string,
   storyWorld?: 'forest' | 'underwater' | 'outerspace',
@@ -851,9 +810,6 @@ export async function createTemplate(
   }
 }
 
-/**
- * Delete a book template
- */
 export async function deleteTemplate(
   templateId: string,
   storyFormat?: BookTemplateStoryFormat
@@ -895,9 +851,6 @@ export async function deleteTemplate(
   }
 }
 
-/**
- * Upload a single image for a template field
- */
 export async function uploadTemplateImage(
   templateId: string,
   file: File,
@@ -934,9 +887,6 @@ export async function uploadTemplateImage(
   }
 }
 
-/**
- * Upload a single story page image for a template
- */
 export async function uploadStoryPage(
   templateId: string,
   file: File,
@@ -973,9 +923,6 @@ export async function uploadStoryPage(
   }
 }
 
-/**
- * Upload a single main character image for a template (0-based index in main_character_images array)
- */
 export async function uploadMainCharacterImage(
   templateId: string,
   file: File,
@@ -1015,9 +962,6 @@ export async function uploadMainCharacterImage(
   }
 }
 
-/**
- * Upload a single character-for-finding image for a template (0-based index in character_for_finding array)
- */
 export async function uploadCharacterForFindingImage(
   templateId: string,
   file: File,
@@ -1054,9 +998,6 @@ export async function uploadCharacterForFindingImage(
   }
 }
 
-/**
- * Upload multiple story page images for a template (uploads one by one sequentially)
- */
 export async function uploadStoryPages(
   templateId: string,
   files: File[],
@@ -1066,7 +1007,6 @@ export async function uploadStoryPages(
     let currentData: BookTemplate | undefined;
     const startIndex = existingImages.length;
     
-    // Upload files one by one to avoid 413 error
     for (let i = 0; i < files.length; i++) {
       const pageIndex = startIndex + i;
       const file = files[i];
@@ -1095,10 +1035,6 @@ export async function uploadStoryPages(
   }
 }
 
-/**
- * Delete a single image field from a template.
- * Also removes the underlying object from storage on the backend.
- */
 export async function deleteTemplateImage(
   templateId: string,
   fieldKey: 'cover_image' | 'copyright_page_image' | 'dedication_page_image' | 'last_words_page_image' | 'last_story_page_image' | 'back_cover_image'
@@ -1133,10 +1069,6 @@ export async function deleteTemplateImage(
   }
 }
 
-/**
- * Delete one story page image by index.
- * Also removes the underlying object from storage on the backend.
- */
 export async function deleteStoryPage(
   templateId: string,
   pageIndex: number
@@ -1168,10 +1100,6 @@ export async function deleteStoryPage(
   }
 }
 
-/**
- * Delete one main character image by index.
- * Also removes the underlying object from storage on the backend.
- */
 export async function deleteMainCharacterImage(
   templateId: string,
   imageIndex: number
@@ -1237,9 +1165,6 @@ export async function deleteCharacterForFindingImage(
   }
 }
 
-/**
- * Update template metadata (e.g., remove story pages, update story_world)
- */
 export async function updateTemplate(
   templateId: string,
   updates: {

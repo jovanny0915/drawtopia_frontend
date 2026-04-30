@@ -24,8 +24,8 @@
   let loadingStories: boolean = false;
   let storiesError: string = "";
   let error: string = "";
-  let allStories: any[] = []; // Store all stories from API
-  let filteredStories: any[] = []; // Filtered stories based on filters
+  let allStories: any[] = [];
+  let filteredStories: any[] = [];
   let characters: any[] = [];
   let childProfiles: any[] = [];
   let loading: boolean = false;
@@ -53,7 +53,6 @@
     {value: "failed", label: "Failed"},
   ];
 
-  // Update children options when childProfiles change
   $: childrenOptions = [
     {value: "all", label: "All Children"},
     ...childProfiles.map((child) => ({
@@ -62,11 +61,8 @@
       })),
   ];
 
-  // Filter stories based on selectedFormat, selectedChild, and selectedStatus
   $: filteredStories = allStories.filter((story) => {
-    // Filter by story type (format)
     if (selectedFormat !== "all") {
-      // Default to "story" if story_type is not set (as per createStory default)
       const storyType = (story.story_type || "story").toLowerCase();
       if (selectedFormat === "story_adventure" && storyType !== "story") {
         return false;
@@ -76,7 +72,6 @@
       }
     }
 
-    // Filter by child
     if (selectedChild !== "all") {
       const childId = story.child_profile_id?.toString() || story.child_profile_id;
       const selectedChildId = selectedChild.toString();
@@ -85,7 +80,6 @@
       }
     }
 
-    // Filter by status
     if (selectedStatus !== "all") {
       const storyStatus = (story.status || "").toLowerCase();
       if (storyStatus !== selectedStatus.toLowerCase()) {
@@ -96,7 +90,6 @@
     return true;
   });
 
-  // Ensure each story has a unique key for the each block
   $: storiesWithKeys = filteredStories.map((story, index) => {
     const uniqueKey = story.id || story.uid || `story-${index}-${story.created_at || Date.now()}`;
     return {
@@ -105,16 +98,14 @@
     };
   });
 
-  // Calculate story counts by type (exported for parent component to use)
   export let adventureStoriesCount: number = 0;
   export let searchStoriesCount: number = 0;
-  export let adventureReadingTime: number = 0; // Total reading time in seconds
-  export let searchReadingTime: number = 0; // Total reading time in seconds
-  export let audioListenedCount: number = 0; // Count of adventure stories with audio listened
-  export let averageStars: number = 0; // Average stars across all interactive search stories
-  export let averageHints: number = 0; // Average hints across all interactive search stories
+  export let adventureReadingTime: number = 0;
+  export let searchReadingTime: number = 0;
+  export let audioListenedCount: number = 0;
+  export let averageStars: number = 0;
+  export let averageHints: number = 0;
 
-  // Update story counts and reading times whenever allStories changes
   $: {
     const adventureStories = allStories.filter(story => {
       const storyType = (story.story_type || "story").toLowerCase();
@@ -126,11 +117,9 @@
       return storyType === "search";
     });
     
-    // Count stories
     adventureStoriesCount = adventureStories.length;
     searchStoriesCount = searchStories.length;
     
-    // Calculate total reading times
     adventureReadingTime = adventureStories.reduce((total, story) => {
       if (story.reading_state && typeof story.reading_state === 'object') {
         const readingTime = story.reading_state.reading_time || 0;
@@ -147,7 +136,6 @@
       return total;
     }, 0);
     
-    // Count adventure stories where audio has been listened
     audioListenedCount = adventureStories.filter(story => {
       if (story.reading_state && typeof story.reading_state === 'object') {
         return story.reading_state.audio_listened === true;
@@ -155,7 +143,6 @@
       return false;
     }).length;
     
-    // Calculate average stars for interactive search stories
     const searchStoriesWithStars = searchStories.filter(story => 
       story.reading_state && 
       typeof story.reading_state === 'object' && 
@@ -171,7 +158,6 @@
       averageStars = 0;
     }
     
-    // Calculate average hints for interactive search stories
     const searchStoriesWithHints = searchStories.filter(story => 
       story.reading_state && 
       typeof story.reading_state === 'object' && 
@@ -188,19 +174,15 @@
     }
   }
 
-  // Track current user ID for reactive statements
   let currentUserId: string = "";
-  let charactersFetched: boolean = false; // Track if we've already attempted to fetch
+  let charactersFetched: boolean = false;
 
-  // Watch for libraryView changes and fetch characters when needed
-  // Only fetch when: view is "characters", haven't fetched yet, not currently loading, and have valid user ID
   $: if (libraryView === "characters" && !charactersFetched && !loadingCharacters && currentUserId) {
     loadingCharacters = true;
-    charactersFetched = true; // Mark as attempted to prevent re-fetching
+    charactersFetched = true;
     charactersError = "";
     getAllCharacters(currentUserId).then((result) => {
       if (result.success && result.data) {
-        // Calculate books count for each character based on allStories
         const characterBookCounts = new Map<string, number>();
         
         allStories.forEach((story: any) => {
@@ -210,7 +192,6 @@
           }
         });
 
-        // Add booksCount to each character
         characters = result.data.map((character: any) => ({
           ...character,
           booksCount: characterBookCounts.get(character.character_name?.toLowerCase() || '') || 0
@@ -227,18 +208,15 @@
     });
   }
 
-  // Reset charactersFetched when switching away from characters view (allows refresh on return)
   $: if (libraryView !== "characters") {
     charactersFetched = false;
   }
 
-  // Track if children have been fetched to prevent infinite loops
   let childrenFetched: boolean = false;
 
-  // Watch for libraryView changes and fetch children when needed
   $: if (libraryView === "children" && !childrenFetched && !loading && currentUserId) {
     loading = true;
-    childrenFetched = true; // Mark as attempted to prevent re-fetching
+    childrenFetched = true;
     error = "";
     getChildrenForParent(currentUserId).then((result) => {
       if (result.success && result.data) {
@@ -255,7 +233,6 @@
     });
   }
 
-  // Reset childrenFetched when switching away from children view
   $: if (libraryView !== "children") {
     childrenFetched = false;
   }
@@ -269,7 +246,6 @@
         getAllStoriesForParent($user.id).then((result) => {
           if (result.success && result.data) {
             allStories = result.data;
-            // filteredStories will be updated by the reactive statement
           } else {
             storiesError = result.error || "Failed to fetch stories";
             allStories = [];
@@ -284,7 +260,6 @@
         getChildrenForParent($user?.id).then((result) => {
           if (result.success && result.data) {
             childProfiles = result.data;
-            // childrenOptions will be updated automatically by the reactive statement
           } else {
             error = result.error || "Failed to fetch children";
             childProfiles = [];
@@ -310,180 +285,24 @@
     showShareStoryModal = true;
   }
   
-  // const handleViewBook = async (event: CustomEvent) => {
-  //   const bookInfo = event.detail;
     
-  //   if (!bookInfo || !browser) {
-  //     console.error("Invalid book info or browser not available");
-  //     return;
-  //   }
 
-  //   try {
-  //     // Get story ID from the book info
-  //     const storyId = bookInfo.uid; 
       
-  //     if (!storyId) {
-  //       console.error("Story ID not found in book info");
-  //       return;
-  //     }
 
-  //     // Fetch the story record from Supabase
-  //     const { data: story, error: fetchError } = await supabase
-  //       .from('stories')
-  //       .select('*')
-  //       .eq('uid', storyId)
-  //       .single();
 
-  //     if (fetchError) {
-  //       console.error("Error fetching story from Supabase:", fetchError);
-  //       alert("Failed to load story. Please try again.");
-  //       return;
-  //     }
 
-  //     if (!story) {
-  //       console.error("Story not found in database");
-  //       alert("Story not found.");
-  //       return;
-  //     }
 
-  //     const storyType = (story.story_type || "").toLowerCase();
 
-  //     // Store story data in sessionStorage for the preview or intersearch page
-  //     if (story.story_title) {
-  //       sessionStorage.setItem("storyTitle", story.story_title);
-  //       sessionStorage.setItem("story_title", story.story_title);
-  //     }
 
-  //     // Handle search adventure stories
-  //     if (storyType === "search") {
-  //       // Store cover image - priority: story_cover field, then story_content.cover
-  //       let coverImage: string | null = null;
-  //       if (story.story_cover) {
-  //         coverImage = story.story_cover;
-  //       } else if (story.story_content) {
-  //         try {
-  //           const storyContent = JSON.parse(story.story_content);
-  //           if (storyContent.cover) {
-  //             coverImage = storyContent.cover;
-  //           }
-  //         } catch (parseError) {
-  //           console.error("Error parsing story content for cover:", parseError);
-  //         }
-  //       }
         
-  //       if (coverImage) {
-  //         // Remove query parameters if any
-  //         const cleanCoverUrl = coverImage.split("?")[0];
-  //         sessionStorage.setItem('intersearch_cover', cleanCoverUrl);
-  //       }
 
-  //       // Store scene images (scenes 1-4)
-  //       // scene_images array contains only the 4 scenes, not the cover
-  //       if (story.scene_images && Array.isArray(story.scene_images)) {
-  //         story.scene_images.forEach((imageUrl: string, index: number) => {
-  //           // Index 0 = scene 1, index 1 = scene 2, etc.
-  //           const sceneNumber = index + 1;
-  //           const cleanSceneUrl = imageUrl.split("?")[0];
-  //           sessionStorage.setItem(`intersearch_scene_${sceneNumber}`, cleanSceneUrl);
-  //         });
-  //       } else if (story.story_content) {
-  //         // Fallback: try to get scenes from story_content
-  //         try {
-  //           const storyContent = JSON.parse(story.story_content);
-  //           if (storyContent.scenes && Array.isArray(storyContent.scenes)) {
-  //             storyContent.scenes.forEach((scene: any, index: number) => {
-  //               const sceneNumber = scene.sceneNumber || (index + 1);
-  //               const sceneImageUrl = scene.sceneImage || scene.scene_image;
-  //               if (sceneImageUrl) {
-  //                 const cleanSceneUrl = sceneImageUrl.split("?")[0];
-  //                 sessionStorage.setItem(`intersearch_scene_${sceneNumber}`, cleanSceneUrl);
-  //               }
-  //             });
-  //           }
-  //         } catch (parseError) {
-  //           console.error("Error parsing story content for scenes:", parseError);
-  //         }
-  //       }
 
-  //       // Store character and world information for intersearch page
-  //       if (story.character_name) {
-  //         sessionStorage.setItem('characterName', story.character_name);
-  //       }
-  //       if (story.character_type) {
-  //         sessionStorage.setItem('selectedCharacterType', story.character_type);
-  //       }
-  //       if (story.special_ability) {
-  //         sessionStorage.setItem('specialAbility', story.special_ability);
-  //       }
-  //       if (story.character_style) {
-  //         sessionStorage.setItem('selectedStyle', story.character_style);
-  //       }
-  //       if (story.original_image_url) {
-  //         sessionStorage.setItem('characterImageUrl', story.original_image_url);
-  //       }
         
-  //       // Map story_world to intersearch format
-  //       if (story.story_world) {
-  //         const worldMap: { [key: string]: string } = {
-  //           'forest': 'enchanted-forest',
-  //           'space': 'outer-space',
-  //           'underwater': 'underwater-kingdom'
-  //         };
-  //         const intersearchWorld = worldMap[story.story_world] || story.story_world;
-  //         sessionStorage.setItem('intersearch_world', intersearchWorld);
-  //       }
 
-  //       // Get difficulty from story_content if available
-  //       if (story.story_content) {
-  //         try {
-  //           const storyContent = JSON.parse(story.story_content);
-  //           if (storyContent.difficulty) {
-  //             sessionStorage.setItem('intersearch_difficulty', storyContent.difficulty);
-  //           }
-  //         } catch (parseError) {
-  //           // Ignore parse errors for difficulty
-  //         }
-  //       }
 
-  //       // Coming from dashboard, we want to resume existing intersearch scenes
-  //       sessionStorage.setItem("intersearch_resume_existing", "true");
-  //       goto("/intersearch/1");
-  //     } else {
-  //       // Handle regular story books
-  //       // Parse and process story content
-  //       if (story.story_content) {
-  //         try {
-  //           let storyPages = JSON.parse(story.story_content);
             
-  //           // Handle different story content structures
-  //           if (storyPages.pages && Array.isArray(storyPages.pages)) {
-  //             storyPages = storyPages.pages.map((page: any, index: number) => {
-  //               return {
-  //                 pageNumber: page.pageNumber,
-  //                 text: page.text,
-  //                 scene: page.sceneImage
-  //               }
-  //             });
-  //             sessionStorage.setItem('storyPages', JSON.stringify(storyPages));
-  //           }
-  //         } catch (parseError) {
-  //           console.error("Error parsing story content:", parseError);
-  //         }
-  //       }
 
-  //       // Store additional story data for navigation
-  //       if (story.story_cover) {
-  //         sessionStorage.setItem("story_cover", story.story_cover);
-  //       }
 
-  //       // Default behaviour: go to preview page
-  //       goto("/preview/default");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error handling view book:", error);
-  //     alert("An error occurred while loading the story. Please try again.");
-  //   }
-  // };
 
   
 
@@ -628,7 +447,6 @@
           <div class="empty-message">No children found</div>
         {:else}
           {#each childProfiles as child, index (child.id || child.uid || `child-${index}-${child.first_name || ''}`)}
-            <!-- <ChildCard item={child} /> -->
             <ChildCard 
             item={child}
             on:newStory={handleNewStory}
@@ -744,7 +562,6 @@
     display: flex;
   }
 
-  /* Library switch active/idle styles */
   .switch .button,
   .switch .button_01,
   .switch .button_02 {
@@ -756,7 +573,6 @@
   .switch .button_02.active {
     background: white;
   }
-  /* Make only the active tab text dark */
   .switch .button .allbooks_span,
   .switch .button_01 .characters_span,
   .switch .button_02 .children_span {
@@ -969,7 +785,6 @@
     padding: 32px;
   }
 
-  /* Add Children Button Styles */
   .frame-1410104245-add-children {
     width: 200px;
     padding-left: 20px;
@@ -1039,7 +854,6 @@
     text-align: center;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .frame-1410104150 {
       width: 100%;

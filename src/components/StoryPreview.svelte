@@ -10,7 +10,6 @@
   import img11122 from '../assets/11-12-2.webp';
   
 
-  // Map age groups to their corresponding images
   const getPreviewImage = (ageGroup: string) => {
     const imageMap: { [key: string]: [string, string] } = {
       "0-2": [img02, "x"],
@@ -20,10 +19,9 @@
       "11-12": [img11121, img11122],
     };
 
-    return imageMap[ageGroup] || [img02, "x"]; // Default to 02 image
+    return imageMap[ageGroup] || [img02, "x"];
   };
 
-  // Get story text based on age group
   const getStoryText = (ageGroup: string) => {
     const storyMap: { [key: string]: string } = {
       "0-2": "Once upon a time, [Character Name] discovered a colorful toy…",
@@ -257,7 +255,6 @@
     border-radius: 15px;
     object-fit: cover;
   }
-  /* Mobile responsive styles */
   @media (max-width: 768px) {
     .frame-11 {
       min-width: 100%;
@@ -292,7 +289,6 @@
     }
   }
 
-  /* Extra small mobile devices */
   @media (max-width: 480px) {
     .storypreview_span {
       font-size: 24px;

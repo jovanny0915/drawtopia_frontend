@@ -1,21 +1,14 @@
-/**
- * Authentication store
- * This module provides reactive authentication state management
- */
 
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { supabase, AUTH_STORAGE_KEY } from '../supabase';
 import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory, fetchPhoneSessionUser, clearPhoneSession, PHONE_TOKEN_STORAGE_KEY, signOut } from '../auth';
 import type { PhoneSession } from '../auth';
 import type { User, Session } from '@supabase/supabase-js';
 
-// User with profile fields from custom users table (for display name, etc.)
 export type UserWithProfile = User & { first_name?: string | null; last_name?: string | null };
 
-// Session can be Supabase session or passwordless phone (has access_token for API calls)
 export type AppSession = Session | PhoneSession | null;
 
-// Auth state interface
 interface AuthState {
   user: User | null;
   session: AppSession;
@@ -24,7 +17,6 @@ interface AuthState {
   last_name: string | null;
 }
 
-// Initial state
 const initialState: AuthState = {
   user: null,
   session: null,
@@ -33,9 +25,8 @@ const initialState: AuthState = {
   last_name: null
 };
 
-// Enforce a hard max session age regardless of token refresh.
 const SESSION_STARTED_AT_KEY = 'drawtopia_session_started_at';
-const DEFAULT_MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DEFAULT_MAX_SESSION_AGE_MS = 24 * 60 * 60 * 1000;
 const maxSessionAgeMs = (() => {
   const configured = Number(import.meta.env.VITE_MAX_SESSION_AGE_MS);
   return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_MAX_SESSION_AGE_MS;
@@ -71,7 +62,7 @@ function resetSessionStartMarker(): void {
   setSessionStartMarker(Date.now());
 }
 
-async function enforceHardSessionTimeout(session: Session | null): Promise<boolean> {
+async function enforceHardSessionTimeout(session: AppSession): Promise<boolean> {
   if (typeof window === 'undefined' || !session) return false;
 
   const startedAtMs = ensureSessionStartMarker();
@@ -85,7 +76,6 @@ async function enforceHardSessionTimeout(session: Session | null): Promise<boole
   return true;
 }
 
-/** Fetch first_name and last_name from custom users table and sync to auth state + sb-auth-token */
 async function syncUserProfileToAuth(session: Session | null): Promise<void> {
   if (typeof window === 'undefined' || !session?.user?.id) {
     if (!session) {
@@ -135,18 +125,13 @@ async function syncUserProfileToAuth(session: Session | null): Promise<void> {
   }
 }
 
-// Create the auth store
 export const auth = writable<AuthState>(initialState);
 
-// Initialize auth state and listen for changes
 export function initAuth() {
-  // Get initial session - this is important for OAuth callbacks
   console.log("initAuth");
   
-  // Handle OAuth callback by checking for hash fragments
   const handleOAuthCallback = async () => {
     try {
-      // Check if we're coming back from an OAuth redirect
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const hasAccessToken = hashParams.get('access_token');
       const hasError = hashParams.get('error');
@@ -158,16 +143,11 @@ export function initAuth() {
           error: hasError
         });
         
-        // Wait longer for Supabase to process the callback
-        // Don't clear hash immediately - let Supabase handle it first
         if (hasAccessToken) {
-          // Wait for Supabase to process the session
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Verify session was created before clearing hash
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            // Clear hash from URL only after session is confirmed
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
           }
         }
@@ -177,12 +157,10 @@ export function initAuth() {
     }
   };
 
-  // Process OAuth callback if needed
   if (typeof window !== 'undefined') {
     handleOAuthCallback();
   }
 
-  // Get session - retry once if no session found (for OAuth callbacks)
   const getSessionWithRetry = async (retryCount = 0) => {
     const { data: { session }, error } = await supabase.auth.getSession();
     
@@ -193,7 +171,6 @@ export function initAuth() {
     console.log("session", session);
     console.log("user", session?.user);
     
-    // If no session but we have OAuth hash params, retry once after a short delay
     if (!session && retryCount === 0 && typeof window !== 'undefined') {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       if (hashParams.get('access_token')) {
@@ -203,7 +180,6 @@ export function initAuth() {
       }
     }
     
-    // If we have a session with a Google user, check if they need registration
     if (session?.user) {
       const isGoogleProvider = 
         session.user.app_metadata?.provider === 'google' ||
@@ -211,7 +187,6 @@ export function initAuth() {
       
       if (isGoogleProvider) {
         console.log('Google OAuth user found in initial session check');
-        // The auth state change listener will handle registration
       }
     }
     
@@ -227,8 +202,6 @@ export function initAuth() {
         }));
         return;
       }
-    } else {
-      clearSessionStartMarker();
     }
 
     auth.update(state => ({
@@ -257,38 +230,57 @@ export function initAuth() {
       auth.update(s => ({ ...s, first_name: null, last_name: null }));
     }
 
-    // If no Supabase session, check for passwordless phone token (Twilio Verify)
     if (!session && typeof window !== 'undefined') {
       const phoneToken = localStorage.getItem(PHONE_TOKEN_STORAGE_KEY);
       if (phoneToken) {
         fetchPhoneSessionUser().then((result) => {
           if (result.success && result.user) {
             const u = result.user as UserWithProfile;
-            ensureSessionStartMarker();
-            auth.update(state => ({
-              ...state,
-              session: { access_token: phoneToken },
-              user: result.user ?? null,
-              loading: false,
-              first_name: u?.first_name ?? null,
-              last_name: u?.last_name ?? null
-            }));
+            enforceHardSessionTimeout({ access_token: phoneToken }).then((timedOut) => {
+              if (timedOut) {
+                return;
+              }
+
+              ensureSessionStartMarker();
+              auth.update(state => ({
+                ...state,
+                session: { access_token: phoneToken },
+                user: result.user ?? null,
+                loading: false,
+                first_name: u?.first_name ?? null,
+                last_name: u?.last_name ?? null
+              }));
+            }).catch(() => {
+              clearPhoneSession();
+              clearSessionStartMarker();
+              auth.update(s => ({ ...s, loading: false }));
+            });
           } else {
             clearPhoneSession();
-            auth.update(s => ({ ...s, loading: false }));
+            clearSessionStartMarker();
+            auth.update(state => ({
+              ...state,
+              session: null,
+              user: null,
+              loading: false,
+              first_name: null,
+              last_name: null
+            }));
           }
         }).catch(() => {
           clearPhoneSession();
+          clearSessionStartMarker();
           auth.update(s => ({ ...s, loading: false }));
         });
         return;
       }
+
+      clearSessionStartMarker();
     }
   };
 
   getSessionWithRetry();
 
-  // When sign out is triggered (e.g. phone-only session), clear auth state
   const onSignOut = () => {
     clearSessionStartMarker();
     auth.update(state => ({
@@ -304,7 +296,6 @@ export function initAuth() {
     window.addEventListener('drawtopia-signout', onSignOut);
   }
 
-  // Listen for auth state changes
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (event, session) => {
       console.log('Auth state changed:', event, session);
@@ -332,7 +323,6 @@ export function initAuth() {
         }
       }
       
-      // Update auth state for ALL events (including INITIAL_SESSION on page refresh)
       auth.update(state => ({
         ...state,
         session,
@@ -346,7 +336,6 @@ export function initAuth() {
         auth.update(s => ({ ...s, first_name: null, last_name: null }));
       }
       
-      // On actual sign-in, update last_login and possibly reset daily upload_cnt
       if (event === 'SIGNED_IN' && session?.user?.id) {
         updateUserLastLogin(session.user.id).catch((err) =>
           console.warn('Failed to update last_login:', err)
@@ -363,16 +352,13 @@ export function initAuth() {
         }
       }
 
-      // Handle both SIGNED_IN and TOKEN_REFRESHED events
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         const user = session.user;
-        // Check if this is a Google OAuth sign-in
         const isGoogleProvider = 
           user.app_metadata?.provider === 'google' ||
           user.identities?.some(identity => identity.provider === 'google');
         
         if (isGoogleProvider && event === 'SIGNED_IN') {
-          // Only register on SIGNED_IN, not on TOKEN_REFRESHED
           console.log('Google OAuth user detected, registering to database...');
           console.log('User metadata:', {
             app_metadata: user.app_metadata,
@@ -381,12 +367,10 @@ export function initAuth() {
           });
           
           try {
-            // Check for pending signup data from sessionStorage
             const pendingSignupData = sessionStorage.getItem('pendingGoogleSignup');
             let result;
 
             if (pendingSignupData) {
-              // User came from signup page with form data
               const formData = JSON.parse(pendingSignupData);
               const userData = {
                 id: user.id,
@@ -400,14 +384,11 @@ export function initAuth() {
                 updated_at: new Date()
               };
               
-              // Clear the pending data
               sessionStorage.removeItem('pendingGoogleSignup');
               
               console.log('Registering user with signup form data:', userData);
               result = await registerUser(userData);
             } else {
-              // No pending signup data - user signed in directly with Google
-              // Register them using data from Google OAuth response
               console.log('No pending signup data found - registering with Google OAuth data');
               result = await registerGoogleOAuthUser(user);
             }
@@ -433,7 +414,8 @@ export function initAuth() {
       hardTimeoutCheckInterval = null;
     }
     hardTimeoutCheckInterval = setInterval(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const state = get(auth);
+      const session = state.session;
       if (!session) {
         clearSessionStartMarker();
         return;
@@ -442,7 +424,6 @@ export function initAuth() {
     }, 60 * 1000);
   }
 
-  // Return unsubscribe function
   return () => {
     subscription.unsubscribe();
     if (typeof window !== 'undefined') {
@@ -455,8 +436,6 @@ export function initAuth() {
   };
 }
 
-// Derived stores for convenience
-/** User with first_name/last_name from custom users table - use this for display name */
 export const user = derived(auth, ($auth): UserWithProfile | null => {
   if (!$auth.user) return null;
   return {
@@ -469,7 +448,6 @@ export const session = writable<AppSession>(null);
 export const isAuthenticated = writable<boolean>(false);
 export const authLoading = writable<boolean>(true);
 
-// Subscribe to main auth store and update derived stores
 auth.subscribe(state => {
   console.log("state", state);
   session.set(state.session);

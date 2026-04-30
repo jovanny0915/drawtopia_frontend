@@ -6,10 +6,8 @@
   import CharacterCard from "./CharacterCard.svelte";
   import whitePlus from "../assets/Plus.svg";
 
-  // Only keep event handler as prop - component manages its own data
   export let handleCharacterPreview: (event: CustomEvent) => void;
 
-  // Internal state for characters and loading
   let characters: any[] = [];
   let loading: boolean = false;
   let error: string = "";
@@ -18,7 +16,6 @@
   let searchQuery: string = "";
   let selectedFilter: string = "all";
 
-  // Filter options
   const filterOptions = [
     { value: "all", label: "All" },
     { value: "person", label: "Person" },
@@ -26,7 +23,6 @@
     { value: "magical", label: "Magical" }
   ];
 
-  // Filter characters based on search query and filter
   $: filteredCharacters = (() => {
     if (!characters || characters.length === 0) {
       return [];
@@ -36,18 +32,15 @@
     const hasSearch = normalizedQuery.length > 0;
     const hasFilter = selectedFilter !== "all";
     
-    // If no filters applied, return all characters
     if (!hasSearch && !hasFilter) {
       return characters;
     }
     
     return characters.filter((character) => {
-      // Filter by search query
       const matchesSearch = hasSearch
         ? (character.character_name?.toLowerCase().includes(normalizedQuery) ?? false)
         : true;
 
-      // Filter by character type
       const matchesFilter = hasFilter
         ? character.character_type === selectedFilter
         : true;
@@ -56,7 +49,6 @@
     });
   })();
 
-  // Fetch characters from API and calculate books count
   const fetchCharacters = async (userId: string) => {
     if (!userId || loading) return;
     
@@ -65,7 +57,6 @@
     error = "";
     
     try {
-      // Fetch characters from API
       const result = await getAllCharacters(userId);
       if (!result.success || !result.data) {
         error = result.error || "Failed to fetch characters";
@@ -75,7 +66,6 @@
         return;
       }
 
-      // Fetch all stories to calculate books count
       const storiesResult = await getAllStoriesForParent(userId);
       let storiesData: any[] = [];
       
@@ -84,7 +74,6 @@
         console.log('[CharacterLibraryView] Fetched stories:', storiesData.length);
       }
 
-      // Calculate books count for each character
       const characterBookCounts = new Map<string, number>();
       
       storiesData.forEach((story: any) => {
@@ -94,7 +83,6 @@
         }
       });
 
-      // Add booksCount to each character
       characters = result.data.map((character: any) => ({
         ...character,
         booksCount: characterBookCounts.get(character.character_name?.toLowerCase() || '') || 0
@@ -110,7 +98,6 @@
     }
   };
 
-  // Fetch characters when component mounts
   onMount(() => {
     const unsubscribe = user.subscribe(($user) => {
       if ($user?.id && !charactersFetched) {
@@ -124,7 +111,6 @@
     };
   });
 
-  // Reactive statement to handle user changes
   $: if ($user?.id && !charactersFetched) {
     console.log('[CharacterLibraryView] User available, fetching characters:', $user.id);
     fetchCharacters($user.id);
@@ -454,7 +440,6 @@
     grid-template-columns: 1fr 1fr 1fr;
   }
 
-  /* Loading, Error, and Empty States */
   .loading-state,
   .error-state,
   .empty-state {
@@ -531,7 +516,6 @@
     margin: 0 0 8px 0;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 800px) {
     .frame-1410104150_01 {
       padding: 12px;

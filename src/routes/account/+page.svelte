@@ -22,9 +22,8 @@
     let isEditing = false;
     let showEditProfileModal = false;
     
-    // User data state
-    let userName = "Alex Smith";
-    let userEmail = "drawtopia@gmail.com";
+    let userName = "Account";
+    let userEmail = "";
     let userLanguage = "English";
     let userAvatarUrl = "https://placehold.co/40x40";
     let userProfilePicture = "https://placehold.co/120x120";
@@ -35,11 +34,9 @@
     let isSubscriptionActive = false;
     let lastFetchedUserId: string | null = null;
     
-    // Email preferences state
     let onboardingEmailsEnabled = true;
     let productUpdatesEnabled = false;
 
-    // Format subscription status for display
     function formatSubscriptionStatus(status: string | null | undefined): string {
         if (!status) return "Free Plan";
         
@@ -54,30 +51,28 @@
         return statusMap[normalizedStatus] || status.charAt(0).toUpperCase() + status.slice(1) + ' Plan';
     }
 
-    // Get name and email from auth session (stored in localStorage by Supabase)
     function getAuthInfo() {
         if (!browser) return;
         
         const authState = get(auth);
         if (authState.user) {
-            // Get email from auth user
             userEmail = authState.user.email || "";
-            
-            // Get name from user_metadata or construct from metadata
-            if (authState.user.user_metadata?.full_name) {
+
+            const profileName = [authState.first_name, authState.last_name].filter(Boolean).join(" ").trim();
+            if (profileName) {
+                userName = profileName;
+            } else if (authState.user.user_metadata?.full_name) {
                 userName = authState.user.user_metadata.full_name;
             } else if (authState.user.user_metadata?.name) {
                 userName = authState.user.user_metadata.name;
             } else if (authState.user.user_metadata?.first_name || authState.user.user_metadata?.last_name) {
                 userName = `${authState.user.user_metadata.first_name || ''} ${authState.user.user_metadata.last_name || ''}`.trim();
             } else {
-                // Fallback to email username if no name available
-                userName = authState.user.email?.split('@')[0] || "Singh Smith";
+                userName = authState.user.email?.split('@')[0] || "Account";
             }
         }
     }
 
-    // Fetch user data from users table (avatar_url, subscription_status, etc.)
     async function fetchUserData() {
         if (!browser) return;
 
@@ -87,13 +82,16 @@
             try {
                 const result = await getUserProfile(authState.user.id);
                 if (result.success && result.profile) {
-                    // Handle both array and single object responses
                     const profile = Array.isArray(result.profile) 
                         ? result.profile[0] 
                         : result.profile;
                     
                     if (profile) {
-                        // Get avatar URL from users table or user metadata
+                        const profileName = [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
+                        if (profileName) {
+                            userName = profileName;
+                        }
+
                         if (authState.user.user_metadata?.avatar_url) {
                             userAvatarUrl = authState.user.user_metadata.avatar_url;
                             userProfilePicture = authState.user.user_metadata.avatar_url;
@@ -101,14 +99,12 @@
                             userAvatarUrl = authState.user.user_metadata.picture;
                             userProfilePicture = authState.user.user_metadata.picture;
                         } else {
-                            // If avatar_url is in users table, you can add it here
                             userAvatarUrl = "https://placehold.co/40x40";
                             userProfilePicture = "https://placehold.co/120x120";
                         }
                     }
                 }
                 
-                // Fetch subscription details - this handles all subscription logic
                 await fetchSubscriptionDetails(authState.user.id);
             } catch (error) {
                 console.error("Error fetching user profile:", error);
@@ -116,19 +112,16 @@
         }
     }
     
-    // Fetch subscription details from subscriptions table and users table
     async function fetchSubscriptionDetails(userId: string) {
         try {
             const { supabase } = await import("../../lib/supabase");
             
-            // First, get the user's subscription_status from users table
             const { data: userData, error: userError } = await supabase
                 .from("users")
                 .select("subscription_status")
                 .eq("id", userId)
                 .single();
             
-            // Then, check if there's an active subscription in subscriptions table
             const { data: subscriptionData, error: subscriptionError } = await supabase
                 .from("subscriptions")
                 .select("*")
@@ -139,14 +132,10 @@
             
             console.log('[fetchSubscriptionDetails] subscriptionData:', subscriptionData);
             
-            // Logic: 
-            // - If subscriptions.status = 'active' AND users.subscription_status = 'premium' → Premium Plan
-            // - Otherwise → Free Plan
             const hasActiveSubscription = subscriptionData && !subscriptionError;
             const userIsPremium = userData?.subscription_status === "premium";
             
             if (hasActiveSubscription && userIsPremium) {
-                // Premium Plan - both conditions met
                 isSubscriptionActive = true;
                 subscriptionStatus = "premium";
                 subscriptionPlan = "Premium Plan";
@@ -155,7 +144,6 @@
                     currentPeriodEnd = new Date(subscriptionData.current_period_end);
                 }
             } else {
-                // Free Plan - subscription not active
                 isSubscriptionActive = false;
                 subscriptionStatus = "free";
                 subscriptionPlan = "Free Plan";
@@ -164,14 +152,12 @@
             }
         } catch (error) {
             console.error("Error fetching subscription details:", error);
-            // Default to Free Plan on error
             isSubscriptionActive = false;
             subscriptionStatus = "free";
             subscriptionPlan = "Free Plan";
         }
     }
     
-    // Reactive statement to update user data when auth state changes
     $: if (browser && $auth.user && !$auth.loading) {
         getAuthInfo();
         if ($auth.user.id !== lastFetchedUserId) {
@@ -182,10 +168,8 @@
     onMount(() => {
         if (!browser) return;
         
-        // Get auth info from session (stored in localStorage by Supabase)
         getAuthInfo();
         
-        // Fetch user data from users table (avatar_url, subscription_status, etc.)
         if ($auth.user && !$auth.loading) {
             fetchUserData();
         }
@@ -205,7 +189,6 @@
     function handleSave() {
         isEditing = false;
         showEditProfileModal = false;
-        // Add save logic here
     }
 
     function handleCancel() {
@@ -215,12 +198,10 @@
 
     function toggleOnboardingEmails() {
         onboardingEmailsEnabled = !onboardingEmailsEnabled;
-        // Add save logic here if needed
     }
 
     function toggleProductUpdates() {
         productUpdatesEnabled = !productUpdatesEnabled;
-        // Add save logic here if needed
     }
 </script>
 
@@ -293,7 +274,6 @@
             </div>
         </div>
         
-        <!-- Subscription Plan Section -->
         <div class="frame-1410103889">
             <div class="frame-1410103917_01">
                 <div class="frame-1410103916_02">
@@ -378,7 +358,6 @@
             </div>
         </div>
         
-        <!-- Push Notifications Section -->
         <div class="frame-1410103889">
             <div class="frame-1410103917_01">
                 <PushNotificationSettings />
@@ -1089,7 +1068,6 @@
     border-color: #B0B0B0;
 }
 
-/* Subscription Plan Section Styles */
 .subscriptionplan_span {
     color: black;
     font-size: 20px;
@@ -1227,7 +1205,6 @@
     box-shadow: 0px 6px 16px rgba(67, 139, 255, 0.4);
 }
 
-/* Mobile Responsive Styles */
 @media (max-width: 768px) {
     .account-settings {
         padding-left: 16px;

@@ -35,7 +35,6 @@
   export let fetchStories: (userId: string) => Promise<void>;
   export let fetchChildProfiles: (userId: string) => Promise<void>;
   
-  // Reading statistics props
   export let adventureStoriesCount: number = 0;
   export let searchStoriesCount: number = 0;
   export let adventureReadingTime: number = 0;
@@ -49,7 +48,6 @@
     import { storyCreation } from "$lib/stores/storyCreation";
   const dispatch = createEventDispatcher();
 
-  // Helper function to format reading time
   function formatReadingTime(seconds: number): string {
     if (seconds === 0) return '0 s';
     const h = Math.floor(seconds / 3600);
@@ -62,12 +60,10 @@
     return parts.length > 0 ? parts.join(' ') : '0 s';
   }
 
-  // Handle character preview event
   function handleCharacterPreview(event: CustomEvent) {
     dispatch("characterPreview", event.detail);
   }
 
-  // Handle share event
   function handleShare(event: CustomEvent) {
     const storyInfo = event.detail;
     console.log('Share story:', storyInfo);
@@ -85,16 +81,13 @@
       return;
     }
 
-    // Store child info in sessionStorage
     if (browser) {
       sessionStorage.setItem("selectedChildProfileId", childId);
       sessionStorage.setItem("selectedChildProfileName", childName);
     }
 
-    // Update story creation store
     storyCreation.setSelectedChild(childId, childName);
 
-    // Navigate to create-character/1
     goto("/create-character/1");
   }
 </script>
@@ -1086,7 +1079,6 @@
     display: flex;
   }
 
-  /* Loading, Error, and Empty States */
   .loading-state,
   .error-state,
   .empty-state {
@@ -1164,7 +1156,6 @@
     margin: 0;
   }
 
-  /* Active state for library view buttons */
   .switch .button.active {
     background: white;
   }

@@ -11,40 +11,32 @@
   
   const dispatch = createEventDispatcher();
 
-  // Get child name
   const getChildName = () => {
     return item.first_name || item.name || "Unnamed Child";
   };
 
-  // Get age label
   const getAgeLabel = () => {
     return item.ageLabel || `${item.age_group || "Unknown"} Years Old`;
   };
 
-  // Get avatar URL
   const getAvatarUrl = () => {
     return item.avatarUrl || item.avatar_url || "https://placehold.co/48x48";
   };
 
-  // Get stories created text
   const getStoriesCreatedText = () => {
     return item.storiesCreatedText || `${getChildName()} (Age ${item.age_group || "Unknown"})`;
   };
 
-  // Get last story theme
   const getLastStory = () => {
     return item.lastStory || "Birthday";
   };
 
-  // Handle "Edit" button click
   function handleEdit() {
     dispatch("editChild", { item });
   }
 
-  // Handle "View Story" button click
   async function handleViewStory() {
     try {
-      // Get the child profile ID
       const childProfileId = item.id;
       
       if (!childProfileId) {
@@ -54,16 +46,13 @@
 
       console.log("Fetching stories for child:", childProfileId);
 
-      // Fetch stories for this child (ordered by created_at descending, so most recent first)
       const result = await getStoriesForChild(childProfileId);
 
       if (result.success && result.data && result.data.length > 0) {
-        // Get the most recent story (first in the array since ordered by created_at desc)
         const latestStory = result.data[0];
         
         console.log("Latest story:", latestStory);
 
-        // Navigate to the preview page with the story UID
         if (latestStory.uid) {
           await goto(`/preview/default?storyId=${latestStory.uid}`);
         } else {
@@ -71,17 +60,14 @@
         }
       } else {
         console.log("No stories found for this child");
-        // Optionally show a message to the user that no stories exist yet
       }
     } catch (error) {
       console.error("Error fetching latest story:", error);
     }
   }
 
-  // Handle "New Story" button click
   function handleNewStory() {
     const childName = getChildName();
-    // Emit event for parent to handle (parent may have different navigation logic)
     dispatch("newStory", { name: childName, item });
   }
 </script>

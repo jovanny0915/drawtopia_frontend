@@ -39,7 +39,6 @@
             return;
         }
 
-        // Store selections in sessionStorage
         if (typeof window !== 'undefined') {
             sessionStorage.setItem('intersearch_world', selectedScene);
             sessionStorage.setItem('intersearch_difficulty', selectedDifficulty);
@@ -50,11 +49,9 @@
             } else if (selectedDifficulty === 'hard') {
                 sessionStorage.setItem('ageGroup', '11-12');
             }
-            // Always force re-generation of scenes
             sessionStorage.setItem('intersearch_regenerate', 'true');
         }
 
-        // Navigate to intersearch/1
         goto('/create-character/7');
     }
 </script>
@@ -1872,7 +1869,6 @@
   display: inline-flex;
 }
 
-/* Callout styles (star + speech bubble) */
 .polygon-1 {
   width: 0;
   height: 0;
@@ -1931,7 +1927,6 @@
   width: 100%;
 }
 
-/* Hide desktop progress bar on small screens so only the mobile one shows */
 @media (max-width: 800px) {
   .desktop-progress {
     display: none;
@@ -1946,7 +1941,6 @@
   }
 }
 
-/* ---------- Responsive styles ---------- */
 
 @media (max-width: 1024px) {
   .interactive-search-configuration-default {

@@ -1,6 +1,3 @@
-/**
- * Child Profiles Database Operations
- */
 
 import { supabase } from '../supabase';
 
@@ -20,14 +17,6 @@ export interface DatabaseResult {
   error?: string;
 }
 
-/**
- * Insert a single child profile into the database
- * @param childProfile - The child profile data to insert
- * @param sendConsentEmail - Whether to send parental consent email (default: false)
- * @param parentEmail - Parent email for consent verification
- * @param parentName - Parent name for consent email
- * @returns Promise with operation result
- */
 export async function insertChildProfile(
   childProfile: ChildProfile,
   sendConsentEmail: boolean = false,
@@ -55,7 +44,6 @@ export async function insertChildProfile(
       };
     }
 
-    // Queue parental consent email if requested
     if (sendConsentEmail && parentEmail && parentName) {
       try {
         const { queueParentalConsentEmail } = await import('../emails');
@@ -69,11 +57,9 @@ export async function insertChildProfile(
           console.log('✅ Parental consent email queued');
         } else {
           console.warn('⚠️ Failed to queue parental consent email:', emailResult.error);
-          // Don't fail the profile creation if email fails
         }
       } catch (emailError) {
         console.error('Error queueing parental consent email:', emailError);
-        // Don't fail the profile creation if email fails
       }
     }
 
@@ -91,11 +77,6 @@ export async function insertChildProfile(
   }
 }
 
-/**
- * Insert multiple child profiles into the database
- * @param childProfiles - Array of child profile data to insert
- * @returns Promise with operation result
- */
 export async function insertChildProfiles(childProfiles: ChildProfile[]): Promise<DatabaseResult> {
   try {
     if (childProfiles.length === 0) {
@@ -141,11 +122,6 @@ export async function insertChildProfiles(childProfiles: ChildProfile[]): Promis
   }
 }
 
-/**
- * Get child profiles for a specific parent
- * @param parentId - The parent's user ID
- * @returns Promise with child profiles
- */
 export async function getChildProfiles(parentId: string): Promise<DatabaseResult> {
   try {
     const { data, error } = await supabase
@@ -176,11 +152,6 @@ export async function getChildProfiles(parentId: string): Promise<DatabaseResult
   }
 }
 
-/**
- * Get a single child profile by ID (e.g. for story preview copyright page)
- * @param profileId - Child profile ID (string or number)
- * @returns Promise with child profile data (e.g. first_name)
- */
 export async function getChildProfileById(profileId: string | number): Promise<DatabaseResult> {
   try {
     const id = typeof profileId === 'string' ? parseInt(profileId, 10) : profileId;
@@ -214,18 +185,10 @@ export async function getChildProfileById(profileId: string | number): Promise<D
   }
 }
 
-/**
- * Update a child profile by ID
- * @param profileId - The child profile ID to update
- * @param childProfile - The updated child profile data
- * @param parentId - The parent's user ID (for security)
- * @returns Promise with operation result
- */
 export async function updateChildProfile(profileId: number, childProfile: Partial<ChildProfile>, parentId: string): Promise<DatabaseResult> {
   try {
     const updateData: any = {};
     
-    // Only include fields that are provided
     if (childProfile.first_name !== undefined) updateData.first_name = childProfile.first_name;
     if (childProfile.age_group !== undefined) updateData.age_group = childProfile.age_group;
     if (childProfile.relationship !== undefined) updateData.relationship = childProfile.relationship;
@@ -267,12 +230,6 @@ export async function updateChildProfile(profileId: number, childProfile: Partia
   }
 }
 
-/**
- * Delete a child profile by ID
- * @param profileId - The child profile ID to delete
- * @param parentId - The parent's user ID (for security)
- * @returns Promise with operation result
- */
 export async function deleteChildProfile(profileId: number, parentId: string): Promise<DatabaseResult> {
   try {
     const { data, error } = await supabase
@@ -304,17 +261,10 @@ export async function deleteChildProfile(profileId: number, parentId: string): P
   }
 }
 
-/**
- * Get all children for a parent via backend API
- * @param parentId - The parent's user ID
- * @returns Promise with child profiles
- */
 export async function getChildrenForParent(parentId: string): Promise<DatabaseResult> {
   try {
-    // Determine backend URL
-    let backendUrl = 'https://image-edit-five.vercel.app'; // http://localhost:8000
+    let backendUrl = 'https://image-edit-five.vercel.app';
     
-    // Call Python backend API
     const endpoint = `${backendUrl}/api/users/children?parent_id=${encodeURIComponent(parentId)}`;
     
     const response = await fetch(endpoint, {

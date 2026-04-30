@@ -1,15 +1,9 @@
-/**
- * Story Generation Helper Functions
- * Provides utilities for generating complete story books with templates
- */
 
-import prompt2Data from './prompt1.json';
-import promptImageData from './prompt_image.json';
 import type { BookTemplate } from './database/bookTemplates';
 import { env, LOGO_PATH } from './env';
 import { buildStoryScenePrompt, getAllyNameForStoryWorld } from './promptBuilder';
+import { getPrompt1Data, getPromptImageData, loadRuntimePromptDocuments } from './promptRuntime';
 
-/** Text block for overlay API: text, font_size, color_hex, y_position, alignment, shadow */
 export interface TextBlockOverlay {
   text: string;
   font_size?: number;
@@ -21,9 +15,6 @@ export interface TextBlockOverlay {
   shadow_offset?: number;
 }
 
-/**
- * Replace placeholders in text with actual values
- */
 export function replacePlaceholders(text: string, replacements: { [key: string]: string }): string {
   let result = text;
   for (const [placeholder, value] of Object.entries(replacements)) {
@@ -33,15 +24,17 @@ export function replacePlaceholders(text: string, replacements: { [key: string]:
   return result;
 }
 
-/**
- * Build story page prompt with story text, character action, and scene description
- */
-/** World keys used for story page prompts (forest, outerspace, underwater). */
+function renderCurlyTemplate(text: string, replacements: Record<string, string>): string {
+  return Object.entries(replacements).reduce((result, [key, value]) => {
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), value ?? '');
+  }, text);
+}
+
 type StoryWorldKey = 'forest' | 'outerspace' | 'underwater';
 type StoryStyleKey = '3d' | 'anime' | 'cartoon';
 type StoryFormatKey = 'adventure_story' | 'interactive_story';
 
-/** Temporary fixed prompt for main story page. Set to null to use prompt builder again. */
 interface WorldStoryPagePrompts {
   tempMainStoryPagePrompt: string | null;
   tempMainStoryPageAllyCharacterPrompt?: string | null;
@@ -49,15 +42,20 @@ interface WorldStoryPagePrompts {
   pageMainCharacterPoseActionEmotionPrompts: Record<string, string>;
 }
 
-const STORY_STYLE_WORLD_PAGE_PROMPTS = promptImageData.storyStyleWorldPagePrompts as Record<
-  StoryStyleKey,
-  Record<StoryWorldKey, WorldStoryPagePrompts>
->;
-const INTERACTIVE_STORY_STYLE_WORLD_PAGE_PROMPTS = (
-  promptImageData as {
-    interactiveStoryStyleWorldPagePrompts?: Record<StoryStyleKey, Record<StoryWorldKey, WorldStoryPagePrompts>>;
-  }
-).interactiveStoryStyleWorldPagePrompts;
+function getStoryStyleWorldPagePrompts(): Record<StoryStyleKey, Record<StoryWorldKey, WorldStoryPagePrompts>> {
+  return getPromptImageData().storyStyleWorldPagePrompts as Record<
+    StoryStyleKey,
+    Record<StoryWorldKey, WorldStoryPagePrompts>
+  >;
+}
+
+function getInteractiveStoryStyleWorldPagePrompts():
+  | Record<StoryStyleKey, Record<StoryWorldKey, WorldStoryPagePrompts>>
+  | undefined {
+  return getPromptImageData().interactiveStoryStyleWorldPagePrompts as
+    | Record<StoryStyleKey, Record<StoryWorldKey, WorldStoryPagePrompts>>
+    | undefined;
+}
 
 function normalizeStoryFormatForPrompts(storyFormat?: string): StoryFormatKey {
   const normalized = (storyFormat || '').toLowerCase().trim();
@@ -119,16 +117,17 @@ function getWorldStoryPagePrompts(
   worldKey: StoryWorldKey
 ): WorldStoryPagePrompts {
   const formatKey = normalizeStoryFormatForPrompts(storyFormat);
+  const storyStyleWorldPagePrompts = getStoryStyleWorldPagePrompts();
+  const interactiveStoryStyleWorldPagePrompts = getInteractiveStoryStyleWorldPagePrompts();
   if (
     formatKey === 'interactive_story' &&
-    INTERACTIVE_STORY_STYLE_WORLD_PAGE_PROMPTS?.[styleKey]?.[worldKey]
+    interactiveStoryStyleWorldPagePrompts?.[styleKey]?.[worldKey]
   ) {
-    return INTERACTIVE_STORY_STYLE_WORLD_PAGE_PROMPTS[styleKey][worldKey];
+    return interactiveStoryStyleWorldPagePrompts[styleKey][worldKey];
   }
-  return STORY_STYLE_WORLD_PAGE_PROMPTS[styleKey][worldKey];
+  return storyStyleWorldPagePrompts[styleKey][worldKey];
 }
 
-/** Human / humanoid reference types that should inherit template outfit in two-image story scenes. */
 function shouldApplyTemplateOutfitPrompt(characterType: string): boolean {
   const t = characterType.trim().toLowerCase();
   return t === 'person' || t === 'a person' || t === 'character';
@@ -163,17 +162,10 @@ export function buildStoryPagePrompt(
     ? worldPrompts.tempMainStoryPageAllyCharacterPrompt.replace(/\[ally_name\]/g, allyName)
     : null;
 
-  // TEMPORARY: use fixed base prompt for story page generation on /adventure-story/loading.
-  // Set tempMainStoryPagePrompt to null in a world to use the prompt builder again for that world.
   if (worldPrompts.tempMainStoryPagePrompt != null) {
-    let fixedPrompt = allyReplacementPrompt
-      // ? `${worldPrompts.tempMainStoryPagePrompt}\n\n${allyReplacementPrompt}`
-      ? `${worldPrompts.tempMainStoryPagePrompt}`
-      : worldPrompts.tempMainStoryPagePrompt;
-    // When reference is a person / character (including loading flow's mapCharacterType → "a person"), inherit template outfit.
+    let fixedPrompt = worldPrompts.tempMainStoryPagePrompt;
     if (shouldApplyTemplateOutfitPrompt(options.characterType)) {
-      const costumePrompt =
-        'The replaced reference character must wear the same costumes, clothes, and outfit as the original main character of the template image (including trousers, tops, shoes, and any visible accessories or symbols).';
+      const costumePrompt = getPromptImageData().personTemplateOutfitPrompt;
       fixedPrompt = `${fixedPrompt}\n\n${costumePrompt}`;
     }
     return appendPageSpecificStoryRules(fixedPrompt, pageNumber, worldPrompts, !isInteractiveFormat);
@@ -202,7 +194,13 @@ export function buildStoryPagePrompt(
     characterPlacement: 'left-half'
   });
 
-  const basePromptWithRules = `${prompt}\n\nTEMPLATE LOCK (HIGHEST PRIORITY):\n- Keep the provided template artwork structurally unchanged.\n- Do not redesign background layout, props, perspective, camera, or composition.\n- If any instruction conflicts with template preservation, preserve the template and adapt only character integration.\n- Mood/style updates must be subtle and global (light/tone/color grading), not repainting.\n\nSTORY-TO-SCENE MAPPING (SECOND PRIORITY):\n- Use the exact page story text as the source of truth for action, emotion, and atmosphere.\n- Keep expressions, body language, and lighting aligned with this page's emotional beat.\n- If the story text implies calm or sleep, prefer gentle, natural poses over exaggerated action.\n\nPAGE STORY TEXT (SOURCE OF TRUTH):\n${storyText}\n\nSCENE SIGNALS DERIVED FROM STORY:\n- Character Action: ${characterAction}\n- Character Emotion: ${derivedEmotion}\n- Atmosphere: ${derivedAtmosphere}\n\nPOSE CONSTRAINTS:\n- Avoid static front-facing, T-pose, idle, or reference-sheet poses.\n- Use movement and posture that match the story beat (active, gentle, or sleepy as needed).\n- Body language and facial expression must reinforce the page emotion.\n\nFACIAL CONSISTENCY (CRITICAL ACROSS PAGES 1-5):\n- Keep the same core facial features from the reference in every story scene (face shape, eyes, eyebrows, nose, mouth, ears).\n- Do not add, remove, or swap facial features between pages (example: if the character has a visible nose, it must remain visible in all main story scenes).\n- Maintain recognizable facial proportions and feature placement while only changing expression for the page emotion.\n\nCOMPANION CONSTRAINTS:\n- Always include the ally companion with the main character in every story scene page (1-5).\n- The ally companion should be clearly visible and naturally interacting with the main character.\n\nLAYOUT CONSTRAINTS:\n- Always position the main character on the LEFT HALF of the page scene (for story pages 1-5).\n- Keep the character fully within the left half and preserve template composition.`;
+  const rulesPrompt = renderCurlyTemplate(getPromptImageData().storyPageRulesPrompt, {
+    story_text: storyText,
+    character_action: characterAction,
+    derived_emotion: derivedEmotion,
+    derived_atmosphere: derivedAtmosphere
+  });
+  const basePromptWithRules = `${prompt}\n\n${rulesPrompt}`;
   const promptWithAllyReplacement = allyReplacementPrompt
     ? `${basePromptWithRules}\n\n${allyReplacementPrompt}`
     : basePromptWithRules;
@@ -210,12 +208,8 @@ export function buildStoryPagePrompt(
   return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber, worldPrompts, !isInteractiveFormat);
 }
 
-/**
- * Get back cover text blocks and options for overlay-back-cover API.
- * Layout: title (top), description, then bottom-left tagline/website, bottom-right ISBN/age.
- */
 export function getBackCoverTextBlocks(): TextBlockOverlay[] {
-  const bc = prompt2Data.generateStoryScene.backCover;
+  const bc = getPrompt1Data().generateStoryScene.backCover;
   const titleLine1 = (bc as { titleLine1?: string }).titleLine1 ?? 'Drawtopia Makes';
   const titleLine2 = (bc as { titleLine2?: string }).titleLine2 ?? 'Every Child a';
   const titleLine3 = (bc as { titleLine3?: string }).titleLine3 ?? 'Storyteller';
@@ -239,9 +233,6 @@ export function getBackCoverTextBlocks(): TextBlockOverlay[] {
   ];
 }
 
-/**
- * Call backend overlay-back-cover API (text + optional logo + barcode).
- */
 export async function overlayBackCover(
   imageUrl: string,
   textBlocks: TextBlockOverlay[],
@@ -289,16 +280,10 @@ export async function overlayBackCover(
   }
 }
 
-/**
- * Build back cover prompt (kept for legacy use)
- */
 export function buildBackCoverPrompt(): string {
-  return prompt2Data.generateStoryScene.backCover.basePrompt;
+  return getPrompt1Data().generateStoryScene.backCover.basePrompt;
 }
 
-/**
- * Generate action descriptions based on page number and story context
- */
 export function generateCharacterAction(pageNumber: number, storyWorld: string, storyText?: string): string {
   const worldKey = (storyWorld || '').toLowerCase();
   const worldMotion = worldKey.includes('underwater') ? 'swimming' : worldKey.includes('space') ? 'floating and maneuvering' : 'running';
@@ -316,7 +301,6 @@ export function generateCharacterAction(pageNumber: number, storyWorld: string, 
     return fallback;
   }
 
-  // Prefer a concrete action sentence from the page text when available.
   const actionSentence = storyText
     .split(/[.!?]/)
     .map((s) => s.trim())
@@ -329,9 +313,6 @@ export function generateCharacterAction(pageNumber: number, storyWorld: string, 
   return `${actionSentence}. Use a storytelling pose with clear intent that matches the page mood (active when needed, gentle when sleepy).`;
 }
 
-/**
- * Derive character emotion from the generated story text.
- */
 export function generateCharacterEmotion(pageNumber: number, storyText?: string): string {
   const defaultEmotions: { [key: number]: string } = {
     1: 'curious and emotionally open',
@@ -356,9 +337,6 @@ export function generateCharacterEmotion(pageNumber: number, storyText?: string)
   return fallback;
 }
 
-/**
- * Derive atmosphere and visual mood from the generated story text.
- */
 export function generateAtmosphereDescription(pageNumber: number, storyText?: string): string {
   const defaults: { [key: number]: string } = {
     1: 'soft twilight, gentle cozy lighting, inviting wonder',
@@ -390,9 +368,6 @@ export function generateAtmosphereDescription(pageNumber: number, storyText?: st
   return fallback;
 }
 
-/**
- * Normalize story world to the keys used in worldDescriptions (forest, underwater, outerspace).
- */
 function normalizeStoryWorldForDescriptions(storyWorld: string): string {
   const lower = (storyWorld || '').toLowerCase();
   if (lower.includes('forest') || lower === 'enchanted-forest' || lower === 'enchanted_forest') return 'forest';
@@ -401,39 +376,36 @@ function normalizeStoryWorldForDescriptions(storyWorld: string): string {
   return 'forest';
 }
 
-/**
- * Generate scene descriptions based on page number and story world
- */
 export function generateSceneDescription(pageNumber: number, storyWorld: string, storyText?: string): string {
+  const prompt1 = getPrompt1Data();
   const worldKey = normalizeStoryWorldForDescriptions(storyWorld);
   const worldDescriptions: { [key: string]: { [key: number]: string } } = {
     'forest': {
-      1: prompt2Data.generateStoryScene.worldSpecific.enchantedForest.page1,
-      2: prompt2Data.generateStoryScene.worldSpecific.enchantedForest.page2,
-      3: prompt2Data.generateStoryScene.worldSpecific.enchantedForest.page3,
-      4: prompt2Data.generateStoryScene.worldSpecific.enchantedForest.page4,
-      5: prompt2Data.generateStoryScene.worldSpecific.enchantedForest.page5
+      1: prompt1.generateStoryScene.worldSpecific.enchantedForest.page1,
+      2: prompt1.generateStoryScene.worldSpecific.enchantedForest.page2,
+      3: prompt1.generateStoryScene.worldSpecific.enchantedForest.page3,
+      4: prompt1.generateStoryScene.worldSpecific.enchantedForest.page4,
+      5: prompt1.generateStoryScene.worldSpecific.enchantedForest.page5
     },
     'underwater': {
-      1: prompt2Data.generateStoryScene.worldSpecific.underwaterKingdom.page1,
-      2: prompt2Data.generateStoryScene.worldSpecific.underwaterKingdom.page2,
-      3: prompt2Data.generateStoryScene.worldSpecific.underwaterKingdom.page3,
-      4: prompt2Data.generateStoryScene.worldSpecific.underwaterKingdom.page4,
-      5: prompt2Data.generateStoryScene.worldSpecific.underwaterKingdom.page5
+      1: prompt1.generateStoryScene.worldSpecific.underwaterKingdom.page1,
+      2: prompt1.generateStoryScene.worldSpecific.underwaterKingdom.page2,
+      3: prompt1.generateStoryScene.worldSpecific.underwaterKingdom.page3,
+      4: prompt1.generateStoryScene.worldSpecific.underwaterKingdom.page4,
+      5: prompt1.generateStoryScene.worldSpecific.underwaterKingdom.page5
     },
     'outerspace': {
       1: "A space station or planet entrance with stars and cosmic elements",
       2: "Deep space with planets, asteroids, and cosmic wonders",
-      3: prompt2Data.generateStoryScene.worldSpecific.outerSpace.page3,
-      4: prompt2Data.generateStoryScene.worldSpecific.outerSpace.page4,
-      5: prompt2Data.generateStoryScene.worldSpecific.outerSpace.page5
+      3: prompt1.generateStoryScene.worldSpecific.outerSpace.page3,
+      4: prompt1.generateStoryScene.worldSpecific.outerSpace.page4,
+      5: prompt1.generateStoryScene.worldSpecific.outerSpace.page5
     }
   };
 
   const descriptions = worldDescriptions[worldKey] || worldDescriptions['forest'];
   const baseDescription = descriptions[pageNumber] || `Scene ${pageNumber} in ${worldKey}`;
   
-  // Add story text excerpt if available
   if (storyText && storyText.trim().length > 0) {
     const excerpt = storyText.length > 100 ? storyText.substring(0, 100) + '...' : storyText;
     return `${baseDescription}. Story context: ${excerpt}`;
@@ -442,9 +414,6 @@ export function generateSceneDescription(pageNumber: number, storyWorld: string,
   return baseDescription;
 }
 
-/**
- * Call edit-image endpoint with one image and prompt
- */
 const getImageApiBaseUrl = (): string => {
   const base = env.PUBLIC_BACKEND_URL || '';
   return base.replace(/\/api\/?$/, '').replace(/\/$/, '') || 'https://image-edit-five.vercel.app';
@@ -493,9 +462,6 @@ export async function generateImageWithSingleTemplate(
   }
 }
 
-/**
- * Call generate-cover-image endpoint with two images and prompt
- */
 export async function generateImageWithTwoTemplates(
   templateImageUrl: string,
   characterImageUrl: string,
@@ -521,7 +487,6 @@ export async function generateImageWithTwoTemplates(
     }
     
     const data = await response.json();
-    // Accept both formats: GenerateCoverImageResponse (success, url) or ImageResponse (storage_info.url)
     const url = data.url ?? data.storage_info?.url;
     if (data.success && url) {
       return {
@@ -542,10 +507,8 @@ export async function generateImageWithTwoTemplates(
   }
 }
 
-/** Backend requires exactly five page strings (use empty strings for missing slots). */
 export async function generateStoryPageAudioUrls(options: {
   backendBaseUrl: string;
-  /** One entry per story page; padded/truncated to length 5 for /story/generate-audio */
   pageTexts: string[];
   ageGroup: string;
 }): Promise<(string | null)[]> {
@@ -576,9 +539,6 @@ export async function generateStoryPageAudioUrls(options: {
   }
 }
 
-/**
- * Generate all book pages in sequence
- */
 export interface GenerateBookPagesOptions {
   bookTemplate: BookTemplate;
   characterImageUrl: string;
@@ -595,9 +555,7 @@ export interface GenerateBookPagesOptions {
   storyTitle?: string;
   storyFormat?: string;
   onProgress?: (step: string, progress: number) => void;
-  /** When true, only generate story page images (skip copyright, dedication, last word, back cover). */
   storyPagesOnly?: boolean;
-  /** Optional: when true, abort the generation loop (e.g. user cancelled). */
   shouldAbort?: () => boolean;
 }
 
@@ -637,7 +595,8 @@ export async function generateAllBookPages(
   };
   
   try {
-    // Validate required inputs
+    await loadRuntimePromptDocuments();
+
     if (!bookTemplate) {
       throw new Error('Book template is required');
     }
@@ -650,7 +609,6 @@ export async function generateAllBookPages(
       throw new Error('Story pages are required');
     }
     
-    // Validate story pages have text
     const validPages = storyPages.filter(p => p && p.text && p.text.trim().length > 0);
     if (validPages.length === 0) {
       throw new Error('Story pages must have text content');
@@ -666,11 +624,8 @@ export async function generateAllBookPages(
 
     const logoUrl = env.PUBLIC_APP_URL ? `${env.PUBLIC_APP_URL.replace(/\/$/, '')}${LOGO_PATH}` : undefined;
     
-    // Generate story page images
     if (onProgress) onProgress('Generating story pages...', storyPagesOnly ? 10 : 30);
     const totalPages = validPages.length;
-    // Keep strict page-index alignment (index 0 => page 1, ..., index 4 => page 5)
-    // so a failed page generation never shifts later pages.
     const storyPageImages: string[] = new Array(totalPages).fill('');
     
     for (let i = 0; i < totalPages; i++) {
@@ -690,14 +645,13 @@ export async function generateAllBookPages(
       
       if (!templateImage) {
         console.warn(`No template image for story page ${pageNumber}`);
-        // Fallback to character image so the page slot is never omitted.
         storyPageImages[i] = characterImageUrl;
         continue;
       }
       
       const progress = storyPagesOnly
-        ? 10 + ((i + 1) / totalPages) * 90  // 10-100%
-        : 30 + ((i + 1) / totalPages) * 40; // 30-70%
+        ? 10 + ((i + 1) / totalPages) * 90
+        : 30 + ((i + 1) / totalPages) * 40;
       if (onProgress) onProgress(`Generating story page ${pageNumber}...`, progress);
       
       try {
@@ -722,7 +676,6 @@ export async function generateAllBookPages(
           storyPagePrompt
         );
 
-        // Retry once for transient generation failures.
         if (!(storyPageResult.success && storyPageResult.url)) {
           console.warn(`Retrying story page ${pageNumber} generation once...`);
           storyPageResult = await generateImageWithTwoTemplates(
@@ -737,14 +690,11 @@ export async function generateAllBookPages(
           console.log(`✅ Story page ${pageNumber} generated successfully`);
         } else {
           console.error(`❌ Failed to generate story page ${pageNumber}:`, storyPageResult.error);
-          // Keep page slot populated to avoid omission/shifting.
           storyPageImages[i] = templateImage;
         }
       } catch (error) {
         console.error(`❌ Error generating story page ${pageNumber}:`, error);
-        // Keep page slot populated to avoid omission/shifting.
         storyPageImages[i] = templateImage;
-        // Continue with next page even if one fails
       }
     }
     
@@ -752,7 +702,6 @@ export async function generateAllBookPages(
     const generatedCount = storyPageImages.filter((url) => !!url).length;
     console.log(`Generated ${generatedCount} out of ${totalPages} story page image slots`);
     
-    // Back cover (skipped when storyPagesOnly)
     if (!storyPagesOnly) {
       if (onProgress) onProgress('Creating back cover...', 85);
       if (bookTemplate.back_cover_image) {

@@ -5,7 +5,6 @@
   import PersonInfo from "../../components/PersonInfo.svelte";
   import EditPersonalInfo from "../../components/EditPersonalInfo.svelte";
   import RemoveChildProfile from "../../components/RemoveChildProfile.svelte";
-  // import StoryPreview from "../../components/StoryPreview.svelte";
   import { user, authLoading, isAuthenticated } from "../../lib/stores/auth";
   import { goto } from "$app/navigation";
   import { browser } from "$app/environment";
@@ -26,7 +25,6 @@
     createdAt?: string;
   } | null = null;
 
-  // Remove child profile modal state
   let showRemoveChildModal = false;
   let childToDelete: {
     id: number;
@@ -37,16 +35,13 @@
     createdAt?: string;
   } | null = null;
 
-  // Reactive statements for auth state
   $: currentUser = $user;
   $: loading = $authLoading;
   $: authenticated = $isAuthenticated;
   $: userId = currentUser?.id;
 
-  // Additional safety check for SSR
   $: safeToRedirect = browser && !loading && currentUser !== undefined;
 
-  // Children data - starts empty, populated when user adds children
   let children: Array<{
     id: number;
     name: string;
@@ -56,11 +51,8 @@
     createdAt?: string;
   }> = [];
 
-  // Check authentication on mount (client-side only)
   onMount(() => {
-    // Only run on client side
     if (browser) {
-      // Add a small delay to ensure auth state is fully loaded
       setTimeout(() => {
         if (safeToRedirect && !authenticated) {
           goto("/login");
@@ -69,9 +61,7 @@
     }
   });
 
-  // Reactive redirect when auth state changes (client-side only)
   $: if (safeToRedirect && !authenticated) {
-    // Only redirect if we're sure about the auth state
     goto("/login");
   }
 
@@ -105,23 +95,15 @@
     }
 
     try {
-      // Check if the child being deleted is currently being edited
       const isCurrentlyEditing = editingChild?.id === childToDelete.id;
 
-      // Check if this is a database-saved child (has a numeric ID that's not a timestamp)
-      // Database IDs are typically smaller numbers, while temporary IDs from Date.now() are very large
-      // We'll check if the ID is less than a reasonable threshold (e.g., 1 billion)
-      // This is a heuristic - in production, you might want a better way to distinguish
-      const isDatabaseChild = childToDelete.id < 1000000000; // Threshold for database IDs
+      const isDatabaseChild = childToDelete.id < 1000000000;
 
       if (isDatabaseChild) {
-        // Delete from database
         const result = await deleteChildProfile(childToDelete.id, userId);
         if (result.success) {
-          // Remove from local array
           children = children.filter((child) => child.id !== childToDelete!.id);
           
-          // If the deleted child was being edited, cancel edit mode and switch to PersonInfo
           if (isCurrentlyEditing) {
             isEditingChild = false;
             editingChild = null;
@@ -138,10 +120,8 @@
           });
         }
       } else {
-        // Just remove from local array (not yet saved to database)
         children = children.filter((child) => child.id !== childToDelete!.id);
         
-        // If the deleted child was being edited, cancel edit mode and switch to PersonInfo
         if (isCurrentlyEditing) {
           isEditingChild = false;
           editingChild = null;
@@ -176,14 +156,11 @@
 
   const handleAvatarUploaded = (avatarUrl: string) => {
     console.log("Avatar uploaded successfully:", avatarUrl);
-    // Here you can save the avatar URL to your form state or database
-    // For example, you might want to associate it with the current child profile being created
   };
 
   const handleAddChild = (childData: any) => {
     console.log("Adding new child:", childData);
 
-    // Add the new child to the children array
     children = [
       ...children,
       {
@@ -201,12 +178,6 @@
 
   const handleContinueToStoryCreation = () => {
     console.log("Continuing to story creation with saved profiles");
-    // Here you can navigate to the story creation page
-    // goto('/story-creation') or similar
-    // addNotification({
-    //   type: 'success',
-    //   message: 'Child profiles saved successfully! Redirecting to dashboard...'
-    // });
     goto("/dashboard");
   };
 
@@ -217,7 +188,6 @@
     avatarUrl: string | null;
   }) => {
     if (editingChild) {
-      // Update the child in the children array
       children = children.map((child) =>
         child.id === editingChild!.id
           ? {
@@ -229,7 +199,6 @@
             }
           : child
       );
-      // Exit edit mode
       isEditingChild = false;
       editingChild = null;
       console.log("Child updated successfully:", data);
@@ -335,7 +304,6 @@
             {userId}
           />
         {/if}
-        <!-- <StoryPreview {selectedAgeGroup} /> -->
       </div>
     </div>
   </div>
@@ -603,7 +571,6 @@
     display: inline-flex;
   }
 
-  /* Mobile responsive styles */
   @media (max-width: 768px) {
     .profile-creation-default {
       padding-left: 16px;
@@ -671,7 +638,6 @@
     }
   }
 
-  /* Extra small mobile devices */
   @media (max-width: 480px) {
     .profile-creation-default {
       padding-left: 12px;

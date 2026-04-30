@@ -5,7 +5,6 @@
   import { onMount, onDestroy } from "svelte";
   import floppydisk from "../assets/BlueFloppyDisk.svg";
 
-  // Props
   export let userId: string | undefined = undefined;
   export let initialFirstName: string = "";
   export let initialAgeGroup: string = "";
@@ -19,7 +18,6 @@
   }) => void) | undefined = undefined;
   export let onCancel: (() => void) | undefined = undefined;
 
-  // Form state
   let firstName = initialFirstName;
   let selectedAgeGroup = initialAgeGroup;
   let selectedRelationship = initialRelationship;
@@ -31,14 +29,12 @@
   let uploadError = "";
   let isDragOver = false;
 
-  // Errors
   let errors = {
     firstName: "",
     ageGroup: "",
     relationship: "",
   };
 
-  // Update form when initial values change
   $: firstName = initialFirstName;
   $: selectedAgeGroup = initialAgeGroup;
   $: selectedRelationship = initialRelationship;
@@ -96,14 +92,12 @@
     selectedImage = file;
     uploadError = "";
 
-    // Create preview URL
     const reader = new FileReader();
     reader.onload = (e) => {
       imagePreviewUrl = e.target?.result as string;
     };
     reader.readAsDataURL(file);
 
-    // Upload to Supabase
     if (!userId) {
       uploadError = "User not authenticated. Please log in to upload images.";
       return;
@@ -195,7 +189,6 @@
     }
   };
 
-  // Prevent default drag behavior on the entire window
   const preventDefaultDrag = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -270,7 +263,6 @@
               </div>
             </div>
           {/if}
-          <!-- Hidden file input -->
           <input
             type="file"
             accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -604,7 +596,6 @@
     border-radius: 2px;
   }
 
-  /* Floppy disk icon - create a simple save icon */
   .vector_03::before {
     content: '';
     position: absolute;
@@ -670,8 +661,6 @@
     background: white;
     overflow: hidden;
     border-radius: 12px;
-    /* outline: 1px #DCDCDC solid;
-    outline-offset: -1px; */
     justify-content: flex-start;
     align-items: center;
     gap: 10px;
@@ -1069,7 +1058,6 @@
     word-wrap: break-word;
   }
 
-  /* Fix for AdvancedSelect styling to match input-placeholder */
   .input-placeholder_01 :global(.container),
   .input-placeholder_02 :global(.container) {
     width: 100%;

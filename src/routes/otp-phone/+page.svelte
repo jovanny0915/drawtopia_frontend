@@ -12,16 +12,12 @@
   import languageFlag from '../../assets/langbtnicon.svg';
   import logo from '../../assets/logo.webp';
 
-  // Any Country Code Alpha-2 (ISO 3166)
   let selectedCountry: CountryCode | null = "HU";
 
-  // You must use E164 number format. It's guarantee the parsing and storing consistency.
   let value: E164Number | null = "+36301234567";
 
-  // Validity
   let valid = true;
 
-  // Optional - Extended details about the parsed phone number
   let detailedValue: DetailedValue | null = null;
   let email = "";
   let phoneNumber = "";
@@ -31,15 +27,12 @@
   let errors: { [key: string]: string } = {};
   let loginMethod: "phone" | "email" = "phone";
 
-  // OTP related variables
   let otpValues: string[] = ["", "", "", "", "", ""];
   let otpInputs: HTMLInputElement[] = [];
   let isResendingOTP = false;
   let phoneFromStorage = "";
 
-  // Get phone number from localStorage or URL params
   onMount(() => {
-    // Try to get phone from URL params first
     const urlParams = new URLSearchParams(window.location.search);
     const phoneParam = urlParams.get('phone');
     
@@ -47,7 +40,6 @@
       phoneFromStorage = phoneParam;
       value = phoneParam as E164Number;
     } else {
-      // Fallback to localStorage if available
       const storedPhone = localStorage.getItem('pendingPhoneVerification');
       if (storedPhone) {
         phoneFromStorage = storedPhone;
@@ -55,7 +47,6 @@
       }
     }
   });
-  // let selectedCountry = { name: 'United States', code: '+1', flag: '🇺🇸' };
   let showCountryDropdown = false;
 
   const countries = [
@@ -74,12 +65,10 @@
 
   const switchLoginMethod = (method: "phone" | "email") => {
     loginMethod = method;
-    errors = {}; // Clear errors when switching
+    errors = {};
   };
 
   const selectCountry = (country: (typeof countries)[0]) => {
-    // selectedCountry = country;
-    // showCountryDropdown = false;
   };
 
   const validateForm = () => {
@@ -108,38 +97,32 @@
     return Object.keys(errors).length === 0;
   };
 
-  // Handle OTP input changes
   const handleOTPInput = (index: number, event: Event) => {
     const target = event.target as HTMLInputElement;
     const value = target.value;
     
-    // Only allow single digit
     if (value.length > 1) {
       target.value = value.slice(-1);
     }
     
     otpValues[index] = target.value;
     
-    // Move to next input if current is filled
     if (target.value && index < 5) {
       otpInputs[index + 1]?.focus();
     }
     
-    // Clear errors when user types
     if (errors.otp) {
       errors.otp = "";
     }
   };
 
-  // Handle paste event for automatic OTP filling
   const handleOTPPaste = (index: number, event: ClipboardEvent) => {
     event.preventDefault();
     
     const pastedData = event.clipboardData?.getData('text') || '';
-    const cleanedData = pastedData.replace(/\D/g, ''); // Remove non-digits
+    const cleanedData = pastedData.replace(/\D/g, '');
     
     if (cleanedData.length === 6) {
-      // Fill all 6 inputs with the pasted digits
       for (let i = 0; i < 6; i++) {
         otpValues[i] = cleanedData[i];
         if (otpInputs[i]) {
@@ -147,15 +130,12 @@
         }
       }
       
-      // Focus the last input
       otpInputs[5]?.focus();
       
-      // Clear any existing errors
       if (errors.otp) {
         errors.otp = "";
       }
     } else if (cleanedData.length > 0) {
-      // If partial digits, fill from current position
       const remainingSlots = 6 - index;
       const digitsToFill = Math.min(cleanedData.length, remainingSlots);
       
@@ -168,13 +148,11 @@
         }
       }
       
-      // Focus the next empty input or last filled input
       const nextIndex = Math.min(index + digitsToFill, 5);
       otpInputs[nextIndex]?.focus();
     }
   };
 
-  // Handle backspace in OTP inputs
   const handleOTPKeydown = (index: number, event: KeyboardEvent) => {
     if (event.key === 'Backspace' && !otpValues[index] && index > 0) {
       otpInputs[index - 1]?.focus();
@@ -184,7 +162,6 @@
   const handleSubmit = async (event: Event) => {
     event.preventDefault();
     
-    // Validate OTP
     const otpCode = otpValues.join('');
     if (otpCode.length !== 6) {
       errors.otp = "Please enter the complete 6-digit code";
@@ -215,7 +192,6 @@
       if (result.success) {
         console.log('Phone verification successful');
         
-        // Clear any stored pending verification data
         localStorage.removeItem('pendingPhoneVerification');
         
         addNotification({
@@ -223,11 +199,9 @@
           message: 'Phone verified successfully! Redirecting to dashboard...'
         });
         
-        // Get redirect path from sessionStorage or default to dashboard
         const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/dashboard';
-        sessionStorage.removeItem('redirectAfterLogin'); // Clean up
+        sessionStorage.removeItem('redirectAfterLogin');
         
-        // Redirect to intended destination or dashboard
         goto(redirectPath);
       } else {
         console.error('Phone verification failed:', result.error);
@@ -241,7 +215,6 @@
     }
   };
 
-  // Function to get country flag emoji from ISO code
   const getCountryFlag = (iso2: string): string => {
     const flagEmojis: { [key: string]: string } = {
       US: "🇺🇸",
@@ -336,12 +309,10 @@
     return flagEmojis[iso2] || "🏳️";
   };
 
-  // Handle back button
   const handleBack = () => {
     goto('/signup');
   };
 
-  // Resend OTP function
   const handleResendOTP = async () => {
     const phoneToUse = phoneFromStorage || value || phoneNumber;
     
@@ -372,7 +343,6 @@
     }
   };
 
-  // Close dropdown when clicking outside
   const handleClickOutside = (event: MouseEvent) => {
     const target = event.target as Element;
     if (!target.closest(".country-selector")) {
@@ -795,7 +765,6 @@
     box-shadow: 0 4px 8px rgba(67, 139, 255, 0.3);
   }
 
-  /* Back button styles (upgraded) */
   .button {
     width: 100%;
     height: 100%;

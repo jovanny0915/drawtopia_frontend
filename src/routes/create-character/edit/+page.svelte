@@ -38,7 +38,6 @@
   let showErrorNotification = false;
   let errorNotificationMessage = "";
 
-  // Form state
   let character: Character | null = null;
   let isLoading = true;
   let loadError = "";
@@ -54,10 +53,8 @@
   let customSpecialAbility = "";
   let selectedCharacterStyle = "3d";
 
-  // Get characterId from URL query params
   $: characterId = $page.url.searchParams.get('characterId');
 
-  // Special ability options
   const specialAbilityOptions = [
     { value: "healing-powers", label: "Healing Powers" },
     { value: "flying", label: "Flying" },
@@ -68,10 +65,8 @@
     { value: "shape-shifting", label: "Shape-Shifting" },
   ];
 
-  // Load character data and child profiles
   onMount(async () => {
     if (browser) {
-      // Load character data
       if (!characterId) {
         loadError = "No character ID provided";
         isLoading = false;
@@ -80,7 +75,6 @@
 
       isLoading = true;
       try {
-        // Fetch character
         const result = await getCharacterById(parseInt(characterId, 10));
         
         if (!result.success || !result.data) {
@@ -92,27 +86,22 @@
 
         character = result.data as Character;
 
-        // Pre-fill form with character data
         characterName = character.character_name || "";
         
-        // Handle character type (map magical_creature to magical for UI)
         if (character.character_type === "magical_creature") {
           selectedCharacterType = "magical";
         } else {
           selectedCharacterType = character.character_type || "person";
         }
 
-        // Handle special ability
         const specialAbility = character.special_ability || "";
         let matchingOption = null;
         
         if (specialAbility) {
-          // Try to find matching option by value first
           matchingOption = specialAbilityOptions.find(
             opt => opt.value === specialAbility
           );
           
-          // If not found by value, try matching by label (case-insensitive)
           if (!matchingOption) {
             matchingOption = specialAbilityOptions.find(
               opt => opt.label.toLowerCase().trim() === specialAbility.toLowerCase().trim()
@@ -120,24 +109,19 @@
           }
           
           if (matchingOption) {
-            // It's a predefined option - use the value
             selectedSpecialAbility = matchingOption.value;
             customSpecialAbility = "";
           } else {
-            // It's a custom ability
             customSpecialAbility = specialAbility;
             selectedSpecialAbility = "";
           }
         } else {
-          // No special ability set
           selectedSpecialAbility = "";
           customSpecialAbility = "";
         }
 
-        // Handle character style
         selectedCharacterStyle = character.character_style || "3d";
 
-        // Handle image URL (prefer enhanced, fallback to original)
         if (character.enhanced_images) {
           if (Array.isArray(character.enhanced_images) && character.enhanced_images.length > 0) {
             uploadedImageUrl = character.enhanced_images[0];
@@ -149,12 +133,10 @@
           uploadedImageUrl = character.original_image_url;
         }
 
-        // Handle child profile
         if (character.child_profile_id) {
           selectedChildProfileId = character.child_profile_id.toString();
         }
 
-        // Fetch child profiles for the dropdown
         if ($user?.id) {
           const childResult = await getChildProfiles($user.id);
           if (childResult.success && childResult.data) {
@@ -175,7 +157,6 @@
     }
   });
 
-  // Handle file selection from input
   const handleFileSelect = (event: Event) => {
     const target = event.target as HTMLInputElement;
     const files = target.files;
@@ -184,7 +165,6 @@
     }
   };
 
-  // Handle drag events
   const handleDragOver = (event: DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -214,7 +194,6 @@
     }
   };
 
-  // Helper function to show error notification
   const showError = (message: string) => {
     showErrorNotification = true;
     errorNotificationMessage = message;
@@ -225,7 +204,6 @@
     }, 5000);
   };
 
-  // Process and upload image file
   const processImageFile = async (file: File) => {
     showErrorNotification = false;
     showUploadNotification = false;
@@ -276,47 +254,39 @@
     }
   };
 
-  // Handle character type selection
   const selectCharacterType = (type: string) => {
     selectedCharacterType = type;
   };
 
-  // Handle character style selection
   const selectCharacterStyle = (style: string) => {
     selectedCharacterStyle = style;
   };
 
-  // Handle child profile selection
   const handleChildProfileChange = (event: Event) => {
     const target = event.target as HTMLSelectElement;
     selectedChildProfileId = target.value;
   };
 
-  // Validation: Check if all required fields are filled
   $: isFormValid =
     !!uploadedImageUrl &&
     !!characterName.trim() &&
     (!!selectedSpecialAbility || !!customSpecialAbility.trim()) &&
     !!selectedCharacterStyle;
 
-  // Handle cancel - navigate to dashboard
   const handleCancel = () => {
     goto('/dashboard');
   };
 
-  // Handle go to dashboard
   const goToDashboard = () => {
     goto('/dashboard');
   };
 
-  // Handle save character
   const handleSave = async () => {
     if (!character || !characterId) {
       showError("Character data not loaded");
       return;
     }
 
-    // Validate required fields
     if (!uploadedImageUrl) {
       showError("Please upload a character image");
       return;
@@ -334,16 +304,13 @@
         return;
       }
 
-      // Prepare special ability value
       const specialAbilityValue = customSpecialAbility.trim() || selectedSpecialAbility || undefined;
 
-      // Map character_type: "magical" -> "magical_creature" for database
       let characterTypeForDB = selectedCharacterType;
       if (characterTypeForDB === "magical") {
         characterTypeForDB = "magical_creature";
       }
 
-      // Prepare character data for update
       const characterData: Partial<Character> = {
         child_profile_id: selectedChildProfileId ? parseInt(selectedChildProfileId) : null,
         character_name: characterName.trim(),
@@ -353,15 +320,12 @@
         original_image_url: uploadedImageUrl,
       };
 
-      // Update character
       const result = await updateCharacter(parseInt(characterId, 10), characterData);
       
       if (result.success) {
-        // Show success and navigate back
         showUploadNotification = true;
         showErrorNotification = false;
         
-        // Navigate to dashboard after a short delay
         setTimeout(() => {
           goto('/dashboard');
         }, 1500);
@@ -399,9 +363,7 @@
         </div>
 
         <div class="form-sections">
-          <!-- Left Column: Upload Character and Helper Tips -->
           <div class="left-column-container">
-            <!-- Upload Character Card -->
             <div class="frame-10">
               <div class="frame-1410103935">
                 <div class="upload-character">
@@ -491,7 +453,6 @@
               </div>
             </div>
 
-            <!-- Helper Tips Card -->
             <div class="frame-1410104032">
               <div class="heading_01">
                 <div class="helper-tips">
@@ -529,9 +490,7 @@
             </div>
           </div>
 
-          <!-- Right Column: Form Fields -->
           <div class="frame-1410104032-right">
-            <!-- List of Children Card -->
             <div class="right-column-container">
               <div class="list-of-children">
                 <span class="listofchildren_span">List of Children</span>
@@ -545,7 +504,6 @@
               />
             </div>
 
-            <!-- Information Character Card -->
             <div class="heading_01">
               <div class="information-character">
                 <span class="informationcharacter_span">Information Character</span>
@@ -575,7 +533,6 @@
                     <span class="whattypeofcharacteristhis_span">What type of character is this?</span>
                   </div>
                   <div class="frame-1410103942">
-                    <!-- Person Character Type -->
                     <button
                       class="character-option {selectedCharacterType === 'person' ? 'selected' : 'unselected'}"
                       on:click={() => selectCharacterType("person")}
@@ -597,7 +554,6 @@
                       </div>
                     </button>
 
-                    <!-- Animal Character Type -->
                     <button
                       class="character-option {selectedCharacterType === 'animal' ? 'selected' : 'unselected'}"
                       on:click={() => selectCharacterType("animal")}
@@ -617,7 +573,6 @@
                       </div>
                     </button>
 
-                    <!-- Magical Character Type -->
                     <button
                       class="character-option {selectedCharacterType === 'magical' ? 'selected' : 'unselected'}"
                       on:click={() => selectCharacterType("magical")}
@@ -640,7 +595,6 @@
                 </div>
               </div>
 
-              <!-- Special Ability Card -->
               <div class="heading_02">
                 <div class="frame-1410104039" style="width: 100%;">
                   <div class="what-special-ability-does-your-character-have">
@@ -652,7 +606,6 @@
                     onChange={(e) => {
                       const value = (e.target as HTMLInputElement).value;
                       selectedSpecialAbility = value;
-                      // Clear custom ability when a predefined option is selected
                       if (value) {
                         customSpecialAbility = "";
                       }
@@ -672,7 +625,6 @@
                       class="input-placeholder_02 exampleafriendlyspacealienwithsixarmsandbigeyes_span"
                       maxlength="200"
                       on:input={(e) => {
-                        // Clear selected predefined option when typing custom ability
                         if ((e.target as HTMLTextAreaElement).value.trim()) {
                           selectedSpecialAbility = "";
                         }
@@ -685,7 +637,6 @@
                 </div>
               </div>
 
-              <!-- Select Character Style Card -->
               <div class="heading_02">
                 <div class="select-character-style">
                   <span class="selectcharacterstyle_span">Select Character Style</span>
@@ -736,7 +687,6 @@
           </div>
         </div>
 
-        <!-- Action Buttons -->
         <div class="action-buttons">
           <button class="button_01" on:click={handleCancel}>
             <div class="arrowleft">
@@ -770,10 +720,8 @@
   </div>
 </div>
 
-<!-- All styles included below -->
 <style>
   
-  /* Additional edit-specific styles */
   .character-edit-container {
     width: 100%;
     min-height: 100vh;
@@ -972,8 +920,6 @@
     text-decoration: underline;
   }
 
-  /* Import all styles from step 1 - copying key styles here instead */
-  /* Character creation form styles from step 1 */
   .uploadcharacter_span {
     color: #121212;
     font-size: 20px;
@@ -1727,7 +1673,6 @@
     display: flex;
   }
 
-  /* Image upload styles */
   .image {
     align-self: stretch;
     min-height: 254px;
@@ -1846,7 +1791,6 @@
     font-weight: 600;
   }
 
-  /* Notification styles */
   .yourcharacterlooksamazing_span {
     color: #40c4aa;
     font-size: 16px;
@@ -1882,7 +1826,6 @@
     display: flex;
   }
 
-  /* Notifications from right with animation */
   @keyframes slideInFromRight {
     from {
       opacity: 0;

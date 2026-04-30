@@ -1,6 +1,6 @@
 import { browser } from "$app/environment";
 import { env } from "$lib/env";
-import prompt1Data from "./prompt1.json";
+import { getPrompt1Data, loadRuntimePromptDocuments } from "./promptRuntime";
 import {
   buildEnhancementPrompt,
   buildIntersearchCoverPrompt,
@@ -8,6 +8,25 @@ import {
   buildTemplateCompositeCoverPrompt,
   type StoryAdventureCoverPromptOptions
 } from "./promptBuilder";
+
+function renderImageTemplate(template: string, replacements: Record<string, string>): string {
+  return Object.entries(replacements).reduce((result, [key, value]) => {
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), value ?? '');
+  }, template);
+}
+
+function getImageGenerationPrompts(): Record<string, any> {
+  return (getPrompt1Data().imageGeneration || {}) as Record<string, any>;
+}
+
+function getImageGenerationTemplate(key: string, replacements: Record<string, string> = {}): string {
+  const template = getImageGenerationPrompts()[key];
+  if (typeof template !== 'string' || template.trim().length === 0) {
+    throw new Error(`imageGeneration.${key} not found in prompt1.json`);
+  }
+  return renderImageTemplate(template, replacements);
+}
 
 export interface ImageGenerationResult {
   success: boolean;
@@ -21,16 +40,12 @@ export interface ImageGenerationOptions {
   quality?: 'initial' | 'minimal' | 'normal' | 'high' | 'forest' | 'underwater' | 'outerspace' | string;
   saveToStorage?: boolean;
   storageKey?: string;
-  // Optional character details for enhancement prompts
   characterName?: string;
   characterType?: 'person' | 'animal' | 'magical';
   specialAbility?: string;
   ageGroup?: string;
 }
 
-/**
- * Generate a styled image using the image editing API
- */
 export async function generateStyledImage(options: ImageGenerationOptions): Promise<ImageGenerationResult> {
   const { 
     imageUrl, 
@@ -49,26 +64,22 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
   }
 
   try {
+    await loadRuntimePromptDocuments();
     let prompt: string;
     
-    // Check if this is a character enhancement (minimal/normal/high with 3d/cartoon/anime style)
     const isCharacterEnhancement = 
       (quality === 'minimal' || quality === 'normal' || quality === 'high') &&
       (style === '3d' || style === 'cartoon' || style === 'anime');
     
     if (isCharacterEnhancement) {
-      // Use prompt1.json for character enhancements
-      // Get character details from options or sessionStorage
       let charName = characterName;
       let charType = characterType;
       let ability = specialAbility;
       let targetAgeGroup = ageGroup;
       
       if (browser && (!charName || !charType || !ability || !targetAgeGroup)) {
-        // Try to load from sessionStorage if not provided
         charName = charName || sessionStorage.getItem('characterName') || 'Character';
         const storedType = characterType || sessionStorage.getItem('selectedCharacterType') || 'person';
-        // Map stored type to prompt1.json format (handle both 'magical' and 'magical_creature')
         if (storedType === 'magical_creature' || storedType === 'magical') {
           charType = 'magical';
         } else if (storedType === 'animal') {
@@ -80,7 +91,6 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
         targetAgeGroup = targetAgeGroup || sessionStorage.getItem('ageGroup') || '7-10';
       }
       
-      // Build prompt using prompt1.json
       prompt = buildEnhancementPrompt({
         characterName: charName || 'Character',
         characterType: charType || 'person',
@@ -91,20 +101,12 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
         ageGroup: targetAgeGroup || '7-10'
       });
     } else if (style === 'environment') {
-      // Handle environment prompts - create simple prompts based on world
       const world = quality as string;
-      const worldMapping: { [key: string]: string } = {
-        'forest': 'Enhance the sketch into a colorful illustration set in an enchanted forest. Keep the character\'s original style and quality intact while placing them in a magical woodland filled with glowing plants, talking animals, and hidden treasures. Preserve the hand-drawn charm and enhanced level of the character while making the background vibrant and storybook-like.',
-        'underwater': 'Enhance the sketch into a lively underwater kingdom setting. Keep the character\'s original style and enhancement level while surrounding them with coral reefs, shimmering fish, and mysterious underwater ruins. Maintain the character\'s look while enriching the background with magical aquatic details.',
-        'outerspace': 'Enhance the sketch into a vibrant illustration set in outer space. Keep the character\'s style and quality unchanged while placing them among distant planets, glowing stars, and friendly alien creatures. The character should retain its enhanced level while the environment is expanded with cosmic colors and a sense of exploration.'
-      };
+      const worldMapping = getImageGenerationPrompts().environment || {};
       prompt = worldMapping[world] || worldMapping.forest;
     } else if (style === 'adventure') {
-      // Single-image adventure cover generation removed; use template composite flow (generate-cover-image) instead.
       return { success: false, error: 'Single-image adventure cover is no longer supported. Use the template composite cover flow instead.' };
     } else if (style === 'intersearch') {
-      // Use the interactive search book cover prompt from prompt1.json
-      // Get character details from options or sessionStorage
       let charName = characterName;
       let charStyle = '';
       let storyWorld = '';
@@ -114,14 +116,11 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
       let ability = specialAbility || '';
       
       if (browser) {
-        // Get character name
         if (!charName) {
           charName = sessionStorage.getItem('characterName') || 'Character';
         }
         
-        // Get character type
         const storedCharType = sessionStorage.getItem('selectedCharacterType') || 'person';
-        // Map to prompt format
         if (storedCharType === 'magical_creature' || storedCharType === 'magical') {
           charType = 'magical';
         } else if (storedCharType === 'animal') {
@@ -130,22 +129,17 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
           charType = 'person';
         }
         
-        // Get character style (3d, cartoon, or anime)
         const storedStyle = sessionStorage.getItem('selectedStyle') || '';
         if (storedStyle === '3d' || storedStyle === 'cartoon' || storedStyle === 'anime') {
           charStyle = storedStyle;
         } else {
-          // Default to cartoon if not found
           charStyle = 'cartoon';
         }
         
-        // Get story title
         storyTitle = sessionStorage.getItem('storyTitle') || 'Adventure Story';
         
-        // Get story world from quality parameter or sessionStorage
         const world = (quality as string) || sessionStorage.getItem('selectedWorld') || 'forest';
         
-        // Map world names to prompt1.json format
         const worldMapping: { [key: string]: string } = {
           'forest': 'enchanted-forest',
           'outerspace': 'outer-space',
@@ -154,15 +148,12 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
         
         storyWorld = worldMapping[world] || 'enchanted-forest';
         
-        // Get age group
         ageGroup = sessionStorage.getItem('ageGroup') || '7-10';
         
-        // Get special ability
         if (!ability) {
           ability = sessionStorage.getItem('specialAbility') || '';
         }
       } else {
-        // Fallback values for SSR
         charName = characterName || 'Character';
         charType = 'person';
         charStyle = 'cartoon';
@@ -171,7 +162,6 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
         ageGroup = '7-10';
       }
       
-      // Build the interactive search cover prompt
       prompt = buildIntersearchCoverPrompt({
         characterName: charName,
         characterType: charType,
@@ -184,9 +174,10 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
         characterReferenceImage: imageUrl
       });
     } else {
-      // Handle other style prompts - use enhancement prompt builder if applicable
-      // For styles that aren't character enhancements, create a simple fallback
-      prompt = `Enhance this character image with a ${style} style at ${quality} quality level. Keep the character's original features and personality intact while applying the requested style.`;
+      prompt = getImageGenerationTemplate('fallbackStylePrompt', {
+        style,
+        quality: String(quality)
+      });
     }
 
     const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
@@ -206,7 +197,6 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
     if (data.storage_info.uploaded) {
       const cleanUrl = data.storage_info.url.split('?')[0];
       
-      // Save to sessionStorage if requested
       if (saveToStorage && browser) {
         const key = storageKey || `generatedImage_${style}`;
         sessionStorage.setItem(key, data.storage_info.url);
@@ -223,9 +213,6 @@ export async function generateStyledImage(options: ImageGenerationOptions): Prom
   }
 }
 
-/**
- * Generate multiple styled images simultaneously
- */
 export async function generateMultipleStyledImages(
   imageUrl: string, 
   styles: string[], 
@@ -256,9 +243,6 @@ export async function generateMultipleStyledImages(
   return output;
 }
 
-/**
- * Load previously generated images from sessionStorage
- */
 export function loadGeneratedImages(styles: string[]): { [style: string]: string } {
   if (!browser) return {};
   
@@ -274,9 +258,6 @@ export function loadGeneratedImages(styles: string[]): { [style: string]: string
   return generatedImages;
 }
 
-/**
- * Clear generated images from sessionStorage
- */
 export function clearGeneratedImages(styles: string[]): void {
   if (!browser) return;
   
@@ -285,9 +266,6 @@ export function clearGeneratedImages(styles: string[]): void {
   });
 }
 
-/**
- * Check if the original image URL has changed and clear cache if needed
- */
 export function handleImageUrlChange(newImageUrl: string, styles: string[]): boolean {
   if (!browser) return false;
   
@@ -295,14 +273,10 @@ export function handleImageUrlChange(newImageUrl: string, styles: string[]): boo
   const imageUrlChanged = storedLastProcessedUrl && storedLastProcessedUrl !== newImageUrl;
   
   if (imageUrlChanged) {
-    // Clear old generated images
     clearGeneratedImages(styles);
-    
-    // Update the last processed image URL
     sessionStorage.setItem('lastProcessedImageUrl', newImageUrl);
     return true;
   } else if (!storedLastProcessedUrl) {
-    // First time processing this image
     sessionStorage.setItem('lastProcessedImageUrl', newImageUrl);
     return false;
   }
@@ -310,25 +284,16 @@ export function handleImageUrlChange(newImageUrl: string, styles: string[]): boo
   return false;
 }
 
-/**
- * Save selected image URL for a specific step
- */
 export function saveSelectedImageUrl(step: string, imageUrl: string): void {
   if (!browser) return;
   sessionStorage.setItem(`selectedImage_step${step}`, imageUrl);
 }
 
-/**
- * Get selected image URL for a specific step
- */
 export function getSelectedImageUrl(step: string): string | null {
   if (!browser) return null;
   return sessionStorage.getItem(`selectedImage_step${step}`);
 }
 
-/**
- * Check if selected image from previous step has changed
- */
 export function hasSelectedImageChanged(step: string, currentImageUrl: string): boolean {
   if (!browser) return false;
   
@@ -336,10 +301,6 @@ export function hasSelectedImageChanged(step: string, currentImageUrl: string): 
   return previousImageUrl !== null && previousImageUrl !== currentImageUrl;
 }
 
-/**
- * Generate character image with special ability
- * This generates the base character image before enhancement
- */
 export interface CharacterGenerationOptions {
   imageUrl: string;
   characterType?: string;
@@ -366,14 +327,13 @@ export async function generateCharacterWithSpecialAbility(
   }
 
   try {
-    // Map character type to readable format
+    await loadRuntimePromptDocuments();
     const characterTypeMapping: { [key: string]: string } = {
       'person': 'a person',
       'animal': 'an animal',
       'magical_creature': 'a magical creature'
     };
 
-    // Map special ability values to prompt1.json keys
     const specialAbilityMapping: { [key: string]: string } = {
       'healing-powers': 'healingPower',
       'flying': 'flying',
@@ -394,32 +354,28 @@ export async function generateCharacterWithSpecialAbility(
 
     let specialAbilityPrompt = '';
     
-    // Get special ability prompt from prompt1.json if it's a predefined one
     if (specialAbility) {
       const mappedKey = specialAbilityMapping[specialAbility.toLowerCase()] || 'custom';
-      const enhanceCharacter = (prompt1Data as any).enhanceCharacter;
+      const enhanceCharacter = getPrompt1Data().enhanceCharacter;
       if (enhanceCharacter && enhanceCharacter.specialAbility && enhanceCharacter.specialAbility[mappedKey]) {
         specialAbilityPrompt = enhanceCharacter.specialAbility[mappedKey];
       } else {
-        // Use custom special ability text
         specialAbilityPrompt = specialAbility;
       }
     }
 
-    // Combine prompts: character type + special ability + description
     let combinedPrompt = '';
     
-    // Add character type context if available
     if (characterTypeText) {
-      combinedPrompt = `The character is ${characterTypeText}. `;
+      combinedPrompt = `${getImageGenerationTemplate('characterTypeContext', {
+        character_type: characterTypeText
+      })} `;
     }
     
-    // Add special ability prompt
     if (specialAbilityPrompt) {
       combinedPrompt += specialAbilityPrompt;
     }
     
-    // Add description if it exists
     if (description && description.trim()) {
       if (combinedPrompt) {
         combinedPrompt += ' ' + description.trim();
@@ -428,16 +384,10 @@ export async function generateCharacterWithSpecialAbility(
       }
     }
     
-    // Trim any extra whitespace
     combinedPrompt = combinedPrompt.trim();
 
-    // Add negative prompts/instructions to preserve character features
-    const negativePrompts = [
-      'Don\'t add any other character except the input character.',
-      'Keep the appearance features of the input character.'
-    ];
+    const negativePrompts = getImageGenerationPrompts().characterGenerationNegativePrompts || [];
     
-    // Append negative prompts to the main prompt
     if (combinedPrompt) {
       combinedPrompt += ' ' + negativePrompts.join(' ');
     } else {
@@ -465,7 +415,6 @@ export async function generateCharacterWithSpecialAbility(
     if (data.storage_info.uploaded) {
       const cleanUrl = data.storage_info.url.split('?')[0];
       
-      // Save to sessionStorage if requested
       if (saveToStorage && browser) {
         sessionStorage.setItem(`characterWithAbility_${style}`, data.storage_info.url);
       }
@@ -481,30 +430,23 @@ export async function generateCharacterWithSpecialAbility(
   }
 }
 
-/**
- * Clear all cached images for regeneration
- */
 export function clearAllCachedImages(): void {
   if (!browser) return;
   
-  // Clear style images
   ['3d', 'cartoon', 'anime'].forEach(style => {
     sessionStorage.removeItem(`generatedImage_${style}`);
   });
   
-  // Clear character with ability images
   ['3d', 'cartoon', 'anime'].forEach(style => {
     sessionStorage.removeItem(`characterWithAbility_${style}`);
   });
   
-  // Clear enhancement images
   ['3d', 'cartoon', 'anime'].forEach(style => {
     ['minimal', 'normal', 'high'].forEach(enhancement => {
       sessionStorage.removeItem(`enhancementImage_${style}_${enhancement}`);
     });
   });
   
-  // Clear environment images
   ['3d', 'cartoon', 'anime'].forEach(style => {
     ['minimal', 'normal', 'high'].forEach(enhancement => {
       ['forest', 'underwater', 'outerspace'].forEach(env => {
@@ -513,7 +455,6 @@ export function clearAllCachedImages(): void {
     });
   });
   
-  // Clear adventure images
   ['forest', 'underwater', 'outerspace'].forEach(world => {
     ['treasure', 'helping'].forEach(adventure => {
       sessionStorage.removeItem(`adventureImage_${world}_${adventure}`);
@@ -521,9 +462,6 @@ export function clearAllCachedImages(): void {
   });
 }
 
-/**
- * Interface for story adventure cover generation options
- */
 export interface StoryAdventureCoverOptions {
   characterImageUrl: string
   characterName?: string
@@ -537,11 +475,6 @@ export interface StoryAdventureCoverOptions {
   storageKey?: string
 }
 
-/**
- * Generate story adventure cover image
- * Uses the character image and a random book template cover image
- * The character is inserted into the template cover using AI prompts
- */
 export async function generateStoryAdventureCover(
   options: StoryAdventureCoverOptions
 ): Promise<ImageGenerationResult> {
@@ -550,6 +483,7 @@ export async function generateStoryAdventureCover(
   }
 
   try {
+    await loadRuntimePromptDocuments();
     const {
       characterImageUrl,
       characterName,
@@ -567,7 +501,6 @@ export async function generateStoryAdventureCover(
       return { success: false, error: 'No character image URL provided' };
     }
 
-    // Get character details from options or sessionStorage
     let charName = characterName;
     let charType: 'person' | 'animal' | 'magical' = 'person';
     let charStyle: '3d' | 'cartoon' | 'anime' = 'cartoon';
@@ -576,12 +509,10 @@ export async function generateStoryAdventureCover(
     let age = ageGroup || '';
     let title = storyTitle || '';
 
-    // Get character name
     if (!charName) {
       charName = sessionStorage.getItem('characterName') || 'Character';
     }
 
-    // Get character type
     if (characterType) {
       if (characterType === 'magical') {
         charType = 'magical';
@@ -601,7 +532,6 @@ export async function generateStoryAdventureCover(
       }
     }
 
-    // Get character style
     if (characterStyle) {
       charStyle = characterStyle;
     } else {
@@ -611,12 +541,10 @@ export async function generateStoryAdventureCover(
       }
     }
 
-    // Get story world
     if (!world) {
       world = sessionStorage.getItem('selectedWorld') || 'forest';
     }
 
-    // Map world names to match book_templates.story_world format
     const worldMapping: { [key: string]: 'forest' | 'underwater' | 'outerspace' } = {
       'forest': 'forest',
       'outerspace': 'outerspace',
@@ -624,31 +552,24 @@ export async function generateStoryAdventureCover(
     };
     const mappedWorld = worldMapping[world.toLowerCase()] || 'forest';
 
-    // Get adventure type
     if (!adventure) {
       adventure = sessionStorage.getItem('selectedAdventure') || 'treasure';
     }
 
-    // Get age group
     if (!age) {
       age = sessionStorage.getItem('ageGroup') || '7-10';
     }
 
-    // Get story title
     if (!title) {
       title = sessionStorage.getItem('storyTitle') || 'Adventure Story';
     }
 
-    // Import the function to get random template
     const { getRandomTemplateByStoryWorld } = await import('./database/bookTemplates');
-    
-    // Get a random book template for the story world
     const templateResult = await getRandomTemplateByStoryWorld(mappedWorld);
     
     if (templateResult.error || !templateResult.data?.cover_image) {
       console.warn(`No template found for ${mappedWorld}, falling back to direct generation`);
       
-      // Fallback: Generate cover without template (original behavior)
       const worldMappingPrompt: { [key: string]: string } = {
         'forest': 'enchantedForest',
         'outerspace': 'outerSpace',
@@ -698,17 +619,15 @@ export async function generateStoryAdventureCover(
       }
     }
 
-    // Use the template cover image as the base
     const templateCoverUrl = templateResult.data.cover_image;
     
-    // Build a prompt to insert the character into the template cover
-    const baseInsertCharacterPrompt = `Replace the character of the template with the character of  reference image as the same size and scale as the character of the template image keeping the appearance (especially facial features) of the reference character of reference character image. The character stands in an template scene environment. The character's arms are relaxed at her sides. She is looking directly at us with a slight smile. The character stands in the center and bottom of the image (No need to be full-body). The ratio of image will be generated must be (2:3=width:height).`;
+    const baseInsertCharacterPrompt = getImageGenerationTemplate('coverTemplateBasePrompt');
     const shouldAddPersonSuitPrompt = charType === 'person';
+    const personSuitPrompt = getImageGenerationTemplate('personSuitPrompt');
     const insertCharacterPrompt = shouldAddPersonSuitPrompt
-      ? `${baseInsertCharacterPrompt} And the replaced character should wear suits as the same as the original character of template background.`
+      ? `${baseInsertCharacterPrompt} ${personSuitPrompt}`
       : baseInsertCharacterPrompt;
 
-    // Call the image editing API with the template as base and character as reference
     const response = await fetch('https://image-edit-five.vercel.app/edit-image', {
       method: 'POST',
       headers: {
@@ -717,7 +636,7 @@ export async function generateStoryAdventureCover(
       body: JSON.stringify({
         image_url: templateCoverUrl,
         prompt: insertCharacterPrompt,
-        reference_image_url: characterImageUrl // Pass character as reference
+        reference_image_url: characterImageUrl
       })
     });
 
@@ -730,7 +649,6 @@ export async function generateStoryAdventureCover(
     if (data.storage_info?.uploaded && data.storage_info?.url) {
       const cleanUrl = data.storage_info.url.split('?')[0];
 
-      // Save to sessionStorage if requested
       if (saveToStorage) {
         const key = storageKey || 'storyCover';
         sessionStorage.setItem(key, data.storage_info.url);
@@ -747,10 +665,6 @@ export async function generateStoryAdventureCover(
   }
 }
 
-/**
- * Generate cover image using template and character image via backend API
- * This function is used on create-character/7 page to generate the final cover
- */
 export async function generateCoverImageWithTemplate(options: {
   templateCoverUrl: string;
   characterImageUrl: string;
@@ -770,6 +684,7 @@ export async function generateCoverImageWithTemplate(options: {
   }
 
   try {
+    await loadRuntimePromptDocuments();
     const {
       templateCoverUrl,
       characterImageUrl,
@@ -784,7 +699,6 @@ export async function generateCoverImageWithTemplate(options: {
       storageKey
     } = options;
 
-    // Get values from sessionStorage if not provided
     const charName = characterName || sessionStorage.getItem('characterName') || 'Character';
     const charType = characterType || sessionStorage.getItem('selectedCharacterType') || 'person';
     const charStyle = characterStyle || sessionStorage.getItem('selectedStyle') || 'cartoon';
@@ -794,9 +708,8 @@ export async function generateCoverImageWithTemplate(options: {
     const sanitizedStyle = (charStyle === '3d' || charStyle === 'cartoon' || charStyle === 'anime') ? charStyle : 'cartoon';
     const normalizedTitle = title.trim();
     const shouldAddPersonSuitPrompt = charType.trim().toLowerCase() === 'person';
-    const personSuitPrompt = 'And the replaced character should wear suits as the same as the original character of template background.';
+    const personSuitPrompt = getImageGenerationTemplate('personSuitPrompt');
 
-    // Step 7 uses one adventure-style prompt flow for all formats, including interactive.
     const templateCompositePrompt = buildTemplateCompositeCoverPrompt({
       characterName: charName,
       characterType: charType,
@@ -807,16 +720,13 @@ export async function generateCoverImageWithTemplate(options: {
       storyTitle: normalizedTitle || 'Adventure Story'
     });
 
-    // For step 7 we intentionally support generation without title text on the image.
-    // Interactive and adventure formats share this same base prompt logic.
     const baseCoverPrompt = (includeTitleInPrompt && normalizedTitle.length > 0)
       ? templateCompositePrompt
-      : `Replace the character of the template with the character of  reference image as the same size and scale as the character of the template image keeping the apperance (especially facial features) of the reference character of reference character image. The character stands in an template scene environment. The character's arms are relaxed at her sides. She is looking directly at us with a slight smile. The character stands in the center and bottom of the image (No need to be full-body). The ratio of image will be generated must be (2:3=width:height).`;
+      : getImageGenerationTemplate('coverTemplateBasePrompt');
     const coverPrompt = shouldAddPersonSuitPrompt
       ? `${baseCoverPrompt} ${personSuitPrompt}`
       : baseCoverPrompt;
 
-    // Call the backend API endpoint with three parts: prompt, character image URL, and template cover URL
     const response = await fetch('https://image-edit-five.vercel.app/generate-cover-image', {
       method: 'POST',
       headers: {
@@ -838,7 +748,6 @@ export async function generateCoverImageWithTemplate(options: {
     if (data.success && data.url) {
       const cleanUrl = data.url.split('?')[0];
 
-      // Save to sessionStorage if requested
       if (saveToStorage) {
         const key = storageKey || 'storyCover';
         sessionStorage.setItem(key, data.url);
@@ -855,9 +764,6 @@ export async function generateCoverImageWithTemplate(options: {
   }
 }
 
-/**
- * Overlay a selected title onto an existing cover image using backend PIL rendering (non-AI).
- */
 export async function overlayCoverTitleOnImage(options: {
   coverImageUrl: string;
   title: string;
@@ -918,24 +824,17 @@ export async function overlayCoverTitleOnImage(options: {
   }
 }
 
-/**
- * Generate interactive search story cover image
- * Uses the selectedCharacterEnhancedImage from sessionStorage and builds a prompt
- * using the intersearchCoverPromptBuilder function
- */
 export async function generateIntersearchCover(): Promise<ImageGenerationResult> {
   if (!browser) {
     return { success: false, error: 'Browser environment required' };
   }
 
   try {
-    // Get selectedCharacterEnhancedImage from sessionStorage
     const selectedCharacterEnhancedImage = sessionStorage.getItem('selectedCharacterEnhancedImage');
     if (!selectedCharacterEnhancedImage) {
       return { success: false, error: 'No selected character enhanced image found in sessionStorage' };
     }
 
-    // Get character details from sessionStorage
     const characterName = sessionStorage.getItem('characterName') || 'Character';
     const storedCharType = sessionStorage.getItem('selectedCharacterType') || 'person';
     const storedStyle = sessionStorage.getItem('selectedStyle') || 'cartoon';
@@ -944,7 +843,6 @@ export async function generateIntersearchCover(): Promise<ImageGenerationResult>
     const ageGroup = sessionStorage.getItem('ageGroup') || '7-10';
     const specialAbility = sessionStorage.getItem('specialAbility') || '';
 
-    // Map character type
     let charType: 'person' | 'animal' | 'magical' = 'person';
     if (storedCharType === 'magical_creature' || storedCharType === 'magical') {
       charType = 'magical';
@@ -952,13 +850,11 @@ export async function generateIntersearchCover(): Promise<ImageGenerationResult>
       charType = 'animal';
     }
 
-    // Map character style
     let charStyle: '3d' | 'cartoon' | 'anime' = 'cartoon';
     if (storedStyle === '3d' || storedStyle === 'cartoon' || storedStyle === 'anime') {
       charStyle = storedStyle as '3d' | 'cartoon' | 'anime';
     }
 
-    // Map world names to prompt1.json format
     const worldMapping: { [key: string]: string } = {
       'forest': 'enchanted-forest',
       'outerspace': 'outer-space',
@@ -966,7 +862,6 @@ export async function generateIntersearchCover(): Promise<ImageGenerationResult>
     };
     const storyWorld = worldMapping[selectedWorld] || 'enchanted-forest';
 
-    // Build the interactive search cover prompt using promptBuilder
     const prompt = buildIntersearchCoverPrompt({
       characterName: characterName,
       characterType: charType,
@@ -979,7 +874,6 @@ export async function generateIntersearchCover(): Promise<ImageGenerationResult>
       characterReferenceImage: selectedCharacterEnhancedImage.split('?')[0]
     });
 
-    // Call the /edit-image/ endpoint
     const response = await fetch('https://image-edit-five.vercel.app/edit-image/', {
       method: 'POST',
       headers: {
@@ -1000,7 +894,6 @@ export async function generateIntersearchCover(): Promise<ImageGenerationResult>
     if (data.storage_info?.uploaded && data.storage_info?.url) {
       const cleanUrl = data.storage_info.url.split('?')[0];
       
-      // Save to sessionStorage
       sessionStorage.setItem('intersearchCover', cleanUrl);
       
       return { success: true, url: cleanUrl };

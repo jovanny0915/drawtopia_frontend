@@ -1,12 +1,7 @@
-/**
- * Authentication service
- * This module provides authentication functions using Supabase
- */
 
-import { supabase, supabaseAdmin } from './supabase';
+import { supabase, supabaseAdmin, AUTH_STORAGE_KEY } from './supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
-/** Fetch/session teardown (navigation, duplicate sign-out, Supabase aborting in-flight requests). */
 export function isAuthAbortError(err: unknown): boolean {
   if (err == null) return false;
   if (typeof err === 'object' && err !== null && 'name' in err && (err as { name?: string }).name === 'AbortError') {
@@ -37,10 +32,9 @@ export interface AuthResponse {
   error?: string;
 }
 
-/** Storage key for passwordless phone JWT (backend-issued). */
 export const PHONE_TOKEN_STORAGE_KEY = 'drawtopia_phone_token';
+const SESSION_STARTED_AT_KEY = 'drawtopia_session_started_at';
 
-/** Result from backend /api/auth/verify-otp (passwordless phone). */
 export interface PhoneAuthUser {
   id: string;
   email?: string | null;
@@ -50,7 +44,6 @@ export interface PhoneAuthUser {
   role?: string;
 }
 
-/** Session-like object for passwordless phone auth (has access_token for API calls). */
 export interface PhoneSession {
   access_token: string;
 }
@@ -83,12 +76,8 @@ export async function logUserLoginHistory(userId: string, authProvider: string):
   await logUserAuthHistory(userId, 'login', authProvider);
 }
 
-/**
- * Sign up a new user with email
- */
 export async function signUpWithEmail(email: string, password: string, firstName?: string, lastName?: string): Promise<AuthResponse> {
   try {
-    // Check if user already exists before attempting signup
     const normalizedEmail = email.toLowerCase().trim();
     const userCheck = await checkUserExists(normalizedEmail);
     
@@ -106,11 +95,9 @@ export async function signUpWithEmail(email: string, password: string, firstName
       };
     }
 
-    // Create auth user - only authentication credentials, NO user data in metadata
     const { data, error } = await supabase.auth.signUp({
       email,
       password
-      // Removed options.data - user information should NOT be stored in auth table
     });
 
     if (error) {
@@ -120,7 +107,6 @@ export async function signUpWithEmail(email: string, password: string, firstName
       };
     }
     
-    // Store ALL user information in custom users table
     console.log('✅ Auth user created, now storing profile in custom users table');
     const userData = {
       id: data.user?.id,
@@ -140,13 +126,10 @@ export async function signUpWithEmail(email: string, password: string, firstName
     
     if (profileError) {
       console.error('Error creating user profile:', profileError);
-      // If profile creation fails, we should delete the auth user to keep data consistent
-      // Note: This requires proper error handling in production
     }
     
     console.log('✅ User profile created in custom users table:', userProfile?.id);
     
-    // Send welcome email immediately after user registration
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://app.drawtopia.ai/';
       const customerName = firstName && lastName ? `${firstName} ${lastName}` : firstName || null;
@@ -163,7 +146,6 @@ export async function signUpWithEmail(email: string, password: string, firstName
       });
       console.log('✅ Welcome email sent during signup');
     } catch (emailError) {
-      // Don't fail signup if welcome email fails
       console.error('Failed to send welcome email:', emailError);
     }
     
@@ -178,8 +160,6 @@ export async function signUpWithEmail(email: string, password: string, firstName
       await logUserAuthHistory(data.user.id, 'register', 'email_password');
     }
 
-    // console.log('OTP data:', otpData);
-    // console.log('OTP error:', otpError);
     return {
       success: true,
       user: data.user || undefined,
@@ -193,12 +173,8 @@ export async function signUpWithEmail(email: string, password: string, firstName
   }
 }
 
-/**
- * Sign up a new user with phone
- */
 export async function signUpWithPhone(phone: string, password: string, firstName?: string, lastName?: string): Promise<AuthResponse> {
   try {
-    // Check if user already exists before attempting signup
     const normalizedPhone = phone.trim();
     const userCheck = await checkUserExistsByPhone(normalizedPhone);
     
@@ -216,11 +192,9 @@ export async function signUpWithPhone(phone: string, password: string, firstName
       };
     }
 
-    // Create auth user - only authentication credentials, NO user data in metadata
     const { data, error } = await supabase.auth.signUp({
       phone,
       password
-      // Removed options.data - user information should NOT be stored in auth table
     });
 
     if (error) {
@@ -230,7 +204,6 @@ export async function signUpWithPhone(phone: string, password: string, firstName
       };
     }
     
-    // Store ALL user information in custom users table
     console.log('✅ Auth user created, now storing profile in custom users table');
     const userData = {
       id: data.user?.id,
@@ -250,13 +223,10 @@ export async function signUpWithPhone(phone: string, password: string, firstName
     
     if (profileError) {
       console.error('Error creating user profile:', profileError);
-      // If profile creation fails, we should delete the auth user to keep data consistent
-      // Note: This requires proper error handling in production
     }
     
     console.log('✅ User profile created in custom users table:', userProfile?.id);
     
-    // Send welcome email if user has email in the database
     if (userProfile?.email) {
       try {
         const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://app.drawtopia.ai/';
@@ -274,7 +244,6 @@ export async function signUpWithPhone(phone: string, password: string, firstName
         });
         console.log('✅ Welcome email sent during phone signup');
       } catch (emailError) {
-        // Don't fail signup if welcome email fails
         console.error('Failed to send welcome email:', emailError);
       }
     }
@@ -285,7 +254,6 @@ export async function signUpWithPhone(phone: string, password: string, firstName
       }
     });
     
-    // Handle rate limiting error specifically
     if (otpError && (otpError.message.includes('over_sms_send_rate_limit') || otpError.message.includes('rate limit'))) {
       return {
         success: false,
@@ -297,8 +265,6 @@ export async function signUpWithPhone(phone: string, password: string, firstName
       await logUserAuthHistory(data.user.id, 'register', 'phone_password');
     }
     
-    // console.log('OTP data:', otpData);
-    // console.log('OTP error:', otpError);
     return {
       success: true,
       user: data.user || undefined,
@@ -312,13 +278,9 @@ export async function signUpWithPhone(phone: string, password: string, firstName
   }
 }
 
-/**
- * Update last_login (as text YYYY-MM-DD) and reset upload_cnt to 10 if last login was a previous day.
- * Call this when a user logs in.
- */
 export async function updateUserLastLogin(userId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD" text
+    const today = new Date().toISOString().slice(0, 10);
 
     const { data: row, error: fetchError } = await supabase
       .from('users')
@@ -358,9 +320,6 @@ export async function updateUserLastLogin(userId: string): Promise<{ success: bo
   }
 }
 
-/**
- * Decrement user's upload_cnt by 1 (e.g. after a successful character upload).
- */
 export async function decrementUserUploadCount(userId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { data: row, error: fetchError } = await supabase
@@ -396,9 +355,6 @@ export async function decrementUserUploadCount(userId: string): Promise<{ succes
   }
 }
 
-/**
- * Sign in with email OTP (passwordless)
- */
 export async function signInWithEmail(email: string): Promise<AuthResponse> {
   try {
     const { data, error } = await supabase.auth.signInWithOtp({
@@ -423,8 +379,8 @@ export async function signInWithEmail(email: string): Promise<AuthResponse> {
 
     return {
       success: true,
-      user: data.user,
-      session: data.session
+      user: data.user || undefined,
+      session: data.session || undefined
     };
   } catch (error) {
     if (isAuthAbortError(error)) {
@@ -440,9 +396,6 @@ export async function signInWithEmail(email: string): Promise<AuthResponse> {
   }
 }
 
-/**
- * Sign in with phone and password
- */
 export async function signInWithPhone(phone: string, password: string): Promise<AuthResponse> {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -470,8 +423,8 @@ export async function signInWithPhone(phone: string, password: string): Promise<
 
     return {
       success: true,
-      user: data.user,
-      session: data.session
+      user: data.user || undefined,
+      session: data.session || undefined
     };
   } catch (error) {
     if (isAuthAbortError(error)) {
@@ -487,9 +440,6 @@ export async function signInWithPhone(phone: string, password: string): Promise<
   }
 }
 
-/**
- * Sign out the current user (works for all auth providers including Google OAuth)
- */
 export async function signOut(): Promise<{ success: boolean; error?: string }> {
   const dispatchSignOutUi = () => {
     if (typeof window !== 'undefined') {
@@ -497,9 +447,18 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
     }
   };
 
+  const clearLocalAuthState = () => {
+    if (typeof window === 'undefined') return;
+    clearPhoneSession();
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(SESSION_STARTED_AT_KEY);
+    sessionStorage.removeItem('pendingGoogleSignup');
+  };
+
   const finishIfSessionCleared = async (): Promise<{ success: boolean; error?: string } | null> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
+      clearLocalAuthState();
       dispatchSignOutUi();
       return { success: true };
     }
@@ -510,8 +469,6 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
     console.log('Signing out user...');
     clearPhoneSession();
 
-    // Run Supabase sign-out before dispatching drawtopia-signout so we do not clear UI state
-    // while in-flight auth requests are still torn down (avoids AbortError noise).
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -522,13 +479,13 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
           return resolved;
         }
       }
-      console.error('Sign out error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      console.warn('Remote sign out failed; clearing local session anyway:', error);
+      clearLocalAuthState();
+      dispatchSignOutUi();
+      return { success: true };
     }
 
+    clearLocalAuthState();
     dispatchSignOutUi();
     console.log('User signed out successfully');
     return { success: true };
@@ -541,42 +498,31 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
         return resolved;
       }
     }
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred'
-    };
+    console.warn('Unexpected sign out error; clearing local session anyway:', error);
+    clearLocalAuthState();
+    dispatchSignOutUi();
+    return { success: true };
   }
 }
 
-/**
- * Get the current user
- */
 export async function getCurrentUser(): Promise<User | null> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     return user;
   } catch (error) {
-    // console.error('Error getting current user:', error);
     return null;
   }
 }
 
-/**
- * Get the current session
- */
 export async function getCurrentSession(): Promise<Session | null> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     return session;
   } catch (error) {
-    // console.error('Error getting current session:', error);
     return null;
   }
 }
 
-/**
- * Reset password via email
- */
 export async function resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email);
@@ -597,9 +543,6 @@ export async function resetPassword(email: string): Promise<{ success: boolean; 
   }
 }
 
-/**
- * Sign in with Google OAuth
- */
 export async function signInWithGoogle(): Promise<AuthResponse> {
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -611,7 +554,6 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
           prompt: 'consent',
         },
         redirectTo: `${window.location.origin}/dashboard`,
-        // flow : 'popup'
       }
     });
 
@@ -629,8 +571,6 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
       };
     }
 
-    // For OAuth, the authentication happens via redirect
-    // The user and session will be available after redirect
     return {
       success: true,
       user: undefined,
@@ -650,19 +590,15 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
   }
 }
 
-/**
- * Register Google OAuth user to database
- */
 export async function registerGoogleOAuthUser(user: User): Promise<{ success: boolean; error?: string }> {
   try {
-    // Check if user already exists in our database
 
     const { data: existingUser, error: checkError } = await supabaseAdmin.from('users')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
+    if (checkError && checkError.code !== 'PGRST116') {
       console.error('Error checking existing user:', checkError);
       return {
         success: false,
@@ -670,7 +606,6 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
       };
     }
 
-    // Extract user data from Google OAuth response
     const googleId = user.user_metadata?.provider_id || user.id;
     const firstName = user.user_metadata?.given_name || user.user_metadata?.full_name?.split(' ')[0] || '';
     const lastName = user.user_metadata?.family_name || user.user_metadata?.full_name?.split(' ')[1] || '';
@@ -686,10 +621,7 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
       user_metadata: user.user_metadata
     });
 
-    // DO NOT store user information in auth.users table
-    // All user profile data should be in custom users table only
 
-    // If user already exists in our custom users table, update it
     if (existingUser) {
       const { error: updateError } = await supabaseAdmin
         .from('users')
@@ -715,7 +647,6 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
       return { success: true };
     }
 
-    // Create user data object for new user
     const userData = {
       id: user.id,
       google_id: googleId,
@@ -728,7 +659,6 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
       updated_at: new Date()
     };
 
-    // Insert user data into database
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .insert([userData])
@@ -755,22 +685,17 @@ export async function registerGoogleOAuthUser(user: User): Promise<{ success: bo
   }
 }
 
-/**
- * Check if user exists by email or Gmail
- */
 export async function checkUserExists(email: string): Promise<{ exists: boolean; user?: any; error?: string }> {
   try {
     console.log("normalizedEmail", email);
     const normalizedEmail = email.toLowerCase().trim();
     
-    // Check in users table by email
     const { data: emailUser, error: emailError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('email', normalizedEmail)
       .single();
 
-    // If found by email, return user
     if (emailUser && !emailError) {
       return {
         exists: true,
@@ -778,7 +703,6 @@ export async function checkUserExists(email: string): Promise<{ exists: boolean;
       };
     }
 
-    // Also check Supabase auth users to handle cases where user might exist in auth but not in our users table
     const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (authError) {
@@ -789,7 +713,6 @@ export async function checkUserExists(email: string): Promise<{ exists: boolean;
       };
     }
 
-    // Check if user exists in Supabase auth
     const authUser = authUsers.users.find(user => user.email?.toLowerCase() === normalizedEmail);
     
     if (authUser) {
@@ -799,7 +722,6 @@ export async function checkUserExists(email: string): Promise<{ exists: boolean;
       };
     }
 
-    // User doesn't exist
     return {
       exists: false
     };
@@ -813,19 +735,14 @@ export async function checkUserExists(email: string): Promise<{ exists: boolean;
   }
 }
 
-/**
- * Check if user exists by phone number
- */
 export async function checkUserExistsByPhone(phone: string): Promise<{ exists: boolean; user?: any; error?: string }> {
   try {
-    // Check in users table by phone
     const { data: phoneUser, error: phoneError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('phone', phone)
       .single();
 
-    // If found by phone, return user
     if (phoneUser && !phoneError) {
       return {
         exists: true,
@@ -833,7 +750,6 @@ export async function checkUserExistsByPhone(phone: string): Promise<{ exists: b
       };
     }
 
-    // Also check Supabase auth users for phone
     const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (authError) {
@@ -844,7 +760,6 @@ export async function checkUserExistsByPhone(phone: string): Promise<{ exists: b
       };
     }
 
-    // Check if user exists in Supabase auth by phone
     const authUser = authUsers.users.find(user => user.phone === phone);
     
     if (authUser) {
@@ -854,7 +769,6 @@ export async function checkUserExistsByPhone(phone: string): Promise<{ exists: b
       };
     }
 
-    // User doesn't exist
     return {
       exists: false
     };
@@ -868,9 +782,6 @@ export async function checkUserExistsByPhone(phone: string): Promise<{ exists: b
   }
 }
 
-/**
- * Get user profile from database
- */
 export async function getUserProfile(userId: string): Promise<{ success: boolean; profile?: any; error?: string }> {
   try {
     const { data: profile, error } = await supabase
@@ -899,9 +810,6 @@ export async function getUserProfile(userId: string): Promise<{ success: boolean
   }
 }
 
-/**
- * Listen to auth state changes
- */
 export function onAuthStateChange(callback: (event: string, session: Session | null) => void) {
   return supabase.auth.onAuthStateChange(callback);
 }
@@ -918,8 +826,6 @@ export async function verifyEmail(email: string, token: string): Promise<{ succe
         error: error.message
       };
     }
-    // console.log('Verify email data:', data);
-    // console.log('Verify email error:', error);
     
     return { success: true };
   } catch (error) {
@@ -930,9 +836,6 @@ export async function verifyEmail(email: string, token: string): Promise<{ succe
   }
 }
 
-/**
- * Resend OTP for email verification
- */
 export async function resendEmailOTP(email: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { data, error } = await supabase.auth.signInWithOtp({
@@ -949,7 +852,6 @@ export async function resendEmailOTP(email: string): Promise<{ success: boolean;
       };
     }
 
-    // console.log('Resend OTP data:', data);
     return { success: true };
   } catch (error) {
     return {
@@ -959,9 +861,6 @@ export async function resendEmailOTP(email: string): Promise<{ success: boolean;
   }
 }
 
-/**
- * Resend OTP for phone verification
- */
 export async function resendPhoneOTP(phone: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { data, error } = await supabase.auth.signInWithOtp({
@@ -970,7 +869,6 @@ export async function resendPhoneOTP(phone: string): Promise<{ success: boolean;
     });
 
     if (error) {
-      // Handle rate limiting error specifically
       if (error.message.includes('over_sms_send_rate_limit') || error.message.includes('rate limit')) {
         return {
           success: false,
@@ -984,7 +882,6 @@ export async function resendPhoneOTP(phone: string): Promise<{ success: boolean;
       };
     }
 
-    // console.log('Resend Phone OTP data:', data);
     return { success: true };
   } catch (error) {
     return {
@@ -994,9 +891,6 @@ export async function resendPhoneOTP(phone: string): Promise<{ success: boolean;
   }
 }
 
-/**
- * Verify phone OTP
- */
 export async function verifyPhone(phone: string, token: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { data, error } = await supabase.auth.verifyOtp({
@@ -1012,7 +906,6 @@ export async function verifyPhone(phone: string, token: string): Promise<{ succe
       };
     }
     
-    // console.log('Verify phone data:', data);
     
     return { success: true };
   } catch (error) {
@@ -1023,16 +916,12 @@ export async function verifyPhone(phone: string, token: string): Promise<{ succe
   }
 }
 
-// --- Passwordless phone auth (Twilio Verify via backend) ---
 
 function getAuthApiBase(): string {
   const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   return base.replace(/\/$/, '');
 }
 
-/**
- * Request SMS verification code (Twilio Verify). No password required.
- */
 export async function requestPhoneOtp(phone: string): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch(`${getAuthApiBase()}/api/auth/request-otp`, {
@@ -1056,9 +945,6 @@ export async function requestPhoneOtp(phone: string): Promise<{ success: boolean
   }
 }
 
-/**
- * Verify SMS code and sign in (passwordless). On success, stores token and returns user + session.
- */
 export async function verifyPhoneOtp(
   phone: string,
   code: string
@@ -1106,9 +992,6 @@ export async function verifyPhoneOtp(
   }
 }
 
-/**
- * Fetch current user for passwordless phone session (Bearer token).
- */
 export async function fetchPhoneSessionUser(): Promise<{
   success: boolean;
   user?: User;
@@ -1152,17 +1035,11 @@ export async function fetchPhoneSessionUser(): Promise<{
   }
 }
 
-/**
- * Clear passwordless phone session (remove stored token).
- */
 export function clearPhoneSession(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(PHONE_TOKEN_STORAGE_KEY);
 }
 
-/**
- * Format Google OAuth user data for database insertion
- */
 export function formatGoogleUserData(user: any): any {
   const googleId = user.user_metadata?.provider_id || user.id;
   const firstName = user.user_metadata?.given_name || user.user_metadata?.full_name?.split(' ')[0] || '';
@@ -1183,21 +1060,17 @@ export function formatGoogleUserData(user: any): any {
   };
 }
 
-/**
- * Register user to database
- */
 export async function registerUser(userData: any): Promise<{ success: boolean; profile?: any; error?: string }> {
   try {
     console.log('Attempting to register user:', userData);
     
-    // Check if user already exists in our database
     const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', userData.id)
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
+    if (checkError && checkError.code !== 'PGRST116') {
       console.error('Error checking existing user:', checkError);
       return {
         success: false,
@@ -1205,10 +1078,7 @@ export async function registerUser(userData: any): Promise<{ success: boolean; p
       };
     }
 
-    // DO NOT store user information in auth.users table
-    // All user profile data should be in custom users table only
     
-    // If user already exists in custom users table, update it
     if (existingUser) {
       const { error: updateError } = await supabaseAdmin
         .from('users')
@@ -1238,7 +1108,6 @@ export async function registerUser(userData: any): Promise<{ success: boolean; p
       };
     }
 
-    // Insert new user data into database
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .insert([userData])
