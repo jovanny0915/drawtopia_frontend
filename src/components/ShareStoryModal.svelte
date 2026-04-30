@@ -19,7 +19,7 @@
 
   function getShareUrl(): string {
     if (!storyId) return "";
-    return `${typeof window !== "undefined" ? window.location.origin : ""}/share?${storyId}`;
+    return `${typeof window !== "undefined" ? window.location.origin : ""}/share?uid=${encodeURIComponent(storyId)}`;
   }
 
   function openShare(platform: "facebook" | "twitter" | "linkedin" | "pinterest" | "whatsapp" | "tiktok" | "instagram") {
@@ -90,7 +90,7 @@
     console.log('++++++++++++++++++++++++++++++++++++++++++++++');
 
     try {
-      const shareUrl = `${window.location.origin}/share?${storyId}`;
+      const shareUrl = getShareUrl();
       
       await navigator.clipboard.writeText(shareUrl);
       

@@ -1,4 +1,5 @@
 
+import { env } from '../env';
 import { supabase } from '../supabase';
 
 export interface Story {
@@ -448,6 +449,40 @@ export async function getStoryById(storyId: string): Promise<DatabaseResult> {
     return {
       success: false,
       error: 'An unexpected error occurred while fetching the story'
+    };
+  }
+}
+
+export async function getPublicStoryById(storyId: string): Promise<DatabaseResult> {
+  try {
+    const normalizedStoryId = storyId.trim();
+    if (!normalizedStoryId) {
+      return { success: false, error: 'Story ID is required' };
+    }
+
+    const response = await fetch(`${env.API_BASE_URL}/books/${encodeURIComponent(normalizedStoryId)}/preview`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.message || errorMessage;
+      } catch (_) {}
+
+      return { success: false, error: errorMessage };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('Unexpected error fetching public story:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching the story'
     };
   }
 }

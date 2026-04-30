@@ -14,7 +14,7 @@
   import Link from "../../assets/Link.svg";
   import logo from "../../assets/white-logo.webp";
   import ISBNBarcode from "../../assets/ISBNBarcode.svg";
-  import { getStoryById } from "../../lib/database/stories";
+  import { getPublicStoryById, getStoryById } from "../../lib/database/stories";
   import { supabase } from "../../lib/supabase";
   import BookShareFooter from "../../components/BookShareFooter.svelte";
 
@@ -87,9 +87,25 @@
   let audioCurrentTime = 0;
   let shareAudioIndex = -1;
 
+  function getShareStoryUid(): string {
+    const dataUid = typeof data?.uid === 'string' ? data.uid.trim() : '';
+    if (dataUid) return dataUid;
+
+    const params = $page.url.searchParams;
+    const namedUid = params.get('uid') || params.get('storyId') || params.get('id');
+    if (namedUid?.trim()) return namedUid.trim();
+
+    // Keep old copied links like /share?<uid> working.
+    return $page.url.search ? decodeURIComponent($page.url.search.substring(1)).trim() : '';
+  }
+
+  function hasStoryData(story: any): boolean {
+    return Array.isArray(story) ? story.length > 0 : !!story;
+  }
+
   onMount(async () => {
     if (!browser) return;
-    const uid = data?.uid ?? ($page.url.search ? $page.url.search.substring(1) : '');
+    const uid = getShareStoryUid();
     if (!uid) {
       loadError = "No story UID provided. Please check the share link.";
       isLoading = false;
@@ -98,8 +114,11 @@
     let story = data?.story;
     if (!story) {
       try {
-        const result = await getStoryById(uid);
-        if (!result.success || !result.data) {
+        let result = await getPublicStoryById(uid);
+        if (!result.success || !hasStoryData(result.data)) {
+          result = await getStoryById(uid);
+        }
+        if (!result.success || !hasStoryData(result.data)) {
           loadError = result.error || "Story not found. The story may have been deleted.";
           isLoading = false;
           return;
@@ -116,6 +135,11 @@
         console.log("Loaded shared story:", story);
         
         const storyData = Array.isArray(story) ? story[0] : story;
+        if (!storyData) {
+          loadError = "Story not found. The story may have been deleted.";
+          isLoading = false;
+          return;
+        }
         storyTitle = storyData.story_title || "Untitled Story";
         storyWorld = storyData.story_world || '';
         backCoverAgeText = formatAgeGroupLabel(storyData.age_group);
