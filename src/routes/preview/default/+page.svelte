@@ -214,6 +214,8 @@
   }
 
   $: canAccessLockedPages = isPurchased || !isFreePlan || hasTemporaryStoryUnlock;
+  $: canGoPrevious = currentSceneIndex > 0 && storyScenes.length > 0;
+  $: canGoNext = storyScenes.length > 0;
 
   function formatBackCoverAge(ageGroup?: string | null): string {
     const normalized = (ageGroup || '').trim();
@@ -775,6 +777,24 @@
     
     currentAudio.currentTime = newTime;
     audioProgress = percentage;
+  }
+
+  function seekAudioBySeconds(deltaSeconds: number) {
+    if (!currentAudio || !isAudioAvailable || duration <= 0) return;
+
+    const newTime = Math.min(duration, Math.max(0, currentAudio.currentTime + deltaSeconds));
+    currentAudio.currentTime = newTime;
+    audioProgress = (newTime / duration) * 100;
+  }
+
+  function handleSeekAudioKeydown(event: KeyboardEvent) {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      seekAudioBySeconds(-5);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      seekAudioBySeconds(5);
+    }
   }
   
   function changePlaybackSpeed(speed: number) {
@@ -1425,11 +1445,15 @@
                     <div 
                       class="rectangle-36-bg"
                       class:clickable={isAudioAvailable && duration > 0}
-                      role="progressbar"
+                      role="slider"
+                      aria-label="Audio progress"
                       aria-valuenow={audioProgress}
                       aria-valuemin="0"
                       aria-valuemax="100"
+                      aria-disabled={!isAudioAvailable || duration <= 0}
+                      tabindex={isAudioAvailable && duration > 0 ? 0 : -1}
                       on:click={seekAudio}
+                      on:keydown={handleSeekAudioKeydown}
                     >
                       <div class="rectangle-36" style="width: {audioProgress}%"></div>
                     </div>
@@ -1458,7 +1482,15 @@
           </div>
 
           <div class="frame-1410103860">
-            <div class="button_02" on:click={previousScene} class:disabled={currentSceneIndex === 0 || storyScenes.length === 0}>
+            <div
+              class="button_02"
+              role="button"
+              tabindex={canGoPrevious ? 0 : -1}
+              aria-disabled={!canGoPrevious}
+              on:click={() => canGoPrevious && previousScene()}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && canGoPrevious && previousScene()}
+              class:disabled={!canGoPrevious}
+            >
               <div class="arrowleft">
                 <img src={ArrowLeft} alt="arrow" />
               </div>
@@ -1562,7 +1594,15 @@
                 </div>
               {/if}
             </div>
-            <div class="button_03" on:click={nextScene} class:disabled={storyScenes.length === 0}>
+            <div
+              class="button_03"
+              role="button"
+              tabindex={canGoNext ? 0 : -1}
+              aria-disabled={!canGoNext}
+              on:click={() => canGoNext && nextScene()}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && canGoNext && nextScene()}
+              class:disabled={!canGoNext}
+            >
               <div class="next"><span class="next_span">Next</span></div>
               <div class="arrowleft_01">
                 <img src={ArrowRight} alt="arrow" />
@@ -1570,7 +1610,15 @@
             </div>
           </div>
           <div class="mobile-button-container">
-            <div class="mobile-button_02" on:click={previousScene} class:disabled={currentSceneIndex === 0 || storyScenes.length === 0}>
+            <div
+              class="mobile-button_02"
+              role="button"
+              tabindex={canGoPrevious ? 0 : -1}
+              aria-disabled={!canGoPrevious}
+              on:click={() => canGoPrevious && previousScene()}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && canGoPrevious && previousScene()}
+              class:disabled={!canGoPrevious}
+            >
               <div class="arrowleft">
                 <img src={ArrowLeft} alt="arrow" />
               </div>
@@ -1578,7 +1626,15 @@
                 <span class="previous_span">Previous</span>
               </div>
             </div>
-            <div class="mobile-button_03" on:click={nextScene} class:disabled={storyScenes.length === 0}>
+            <div
+              class="mobile-button_03"
+              role="button"
+              tabindex={canGoNext ? 0 : -1}
+              aria-disabled={!canGoNext}
+              on:click={() => canGoNext && nextScene()}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && canGoNext && nextScene()}
+              class:disabled={!canGoNext}
+            >
               <div class="next"><span class="next_span">Next</span></div>
               <div class="arrowleft_01">
                 <img src={ArrowRight} alt="arrow" />
@@ -1647,7 +1703,7 @@
       on:keydown={(e) => e.key === "Escape" && handleCloseStoryPreviewEnd()}
       tabindex="-1"
     >
-      <div class="modal-container" on:click|stopPropagation>
+      <div class="modal-container" role="presentation" on:click|stopPropagation on:keydown|stopPropagation>
         <StoryPreviewEnd
           {storyTitle}
           {pagesRead}
@@ -2641,7 +2697,6 @@
     );
     overflow: hidden;
     border-radius: 8px;
-    background-image: url(https:
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-end;
@@ -2661,7 +2716,6 @@
     );
     overflow: hidden;
     border-radius: 8px;
-    background-image: url(https:
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-end;

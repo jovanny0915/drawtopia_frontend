@@ -1,12 +1,14 @@
 type AgeGroupKey = '3-6' | '7-10' | '11-12';
 type StoryWorldKey = 'enchanted-forest' | 'outer-space' | 'underwater-kingdom';
 type LearningThemeKey = 'courage' | 'kindness' | 'connection' | 'patience' | 'bedtime';
+type CharacterGender = 'male' | 'female' | 'non_binary';
 
 interface AdventureStoryTemplateInput {
   storyWorld?: string;
   ageGroup?: string;
   learningTheme?: string;
   characterName: string;
+  characterGender?: string;
   specialAbility: string;
 }
 
@@ -383,6 +385,88 @@ function normalizeLearningThemeKey(learningTheme?: string): LearningThemeKey {
   return 'kindness';
 }
 
+function normalizeCharacterGender(gender?: string): CharacterGender {
+  const normalized = (gender || '').toLowerCase().trim();
+  if (normalized === 'male') return 'male';
+  if (normalized === 'non_binary' || normalized === 'non-binary' || normalized === 'nonbinary') return 'non_binary';
+  return 'female';
+}
+
+function adaptPronounsInCharacterSentence(text: string, gender: CharacterGender): string {
+  if (gender === 'female') return text;
+
+  if (gender === 'male') {
+    return text
+      .replace(/\bherself\b/g, 'himself')
+      .replace(/\bHerself\b/g, 'Himself')
+      .replace(/\bhers\b/g, 'his')
+      .replace(/\bHers\b/g, 'His')
+      .replace(/\b(made|found|told|asked|helped|noticed|watched|called|followed|beside|around|behind|before) her\b/gi, (match, prefix) => `${prefix} ${/^[A-Z]/.test(match) ? 'Him' : 'him'}`)
+      .replace(/\b(at|to|with|from|for|near|toward|towards|against) her\b(?!\s+[a-z])/gi, (match, prefix) => `${prefix} ${/^[A-Z]/.test(match) ? 'Him' : 'him'}`)
+      .replace(/\bher\b/g, 'his')
+      .replace(/\bHer\b/g, 'His')
+      .replace(/\bshe\b/g, 'he')
+      .replace(/\bShe\b/g, 'He');
+  }
+
+  return text
+    .replace(/\bherself\b/g, 'themself')
+    .replace(/\bHerself\b/g, 'Themself')
+    .replace(/\bhers\b/g, 'theirs')
+    .replace(/\bHers\b/g, 'Theirs')
+    .replace(/\bshe was\b/g, 'they were')
+    .replace(/\bShe was\b/g, 'They were')
+    .replace(/\bshe wasn't\b/g, "they weren't")
+    .replace(/\bShe wasn't\b/g, "They weren't")
+    .replace(/\bshe is\b/g, 'they are')
+    .replace(/\bShe is\b/g, 'They are')
+    .replace(/\bshe's\b/g, "they're")
+    .replace(/\bShe's\b/g, "They're")
+    .replace(/\bshe has\b/g, 'they have')
+    .replace(/\bShe has\b/g, 'They have')
+    .replace(/\bshe doesn't\b/g, "they don't")
+    .replace(/\bShe doesn't\b/g, "They don't")
+    .replace(/\b(made|found|told|asked|helped|noticed|watched|called|followed|beside|around|behind|before) her\b/gi, (match, prefix) => `${prefix} ${/^[A-Z]/.test(match) ? 'Them' : 'them'}`)
+    .replace(/\b(at|to|with|from|for|near|toward|towards|against) her\b(?!\s+[a-z])/gi, (match, prefix) => `${prefix} ${/^[A-Z]/.test(match) ? 'Them' : 'them'}`)
+    .replace(/\bher\b/g, 'their')
+    .replace(/\bHer\b/g, 'Their')
+    .replace(/\bshe\b/g, 'they')
+    .replace(/\bShe\b/g, 'They');
+}
+
+function adaptCharacterPronouns(text: string, gender: CharacterGender, storyWorld: StoryWorldKey): string {
+  if (gender === 'female') return text;
+
+  const companionName = storyWorld === 'outer-space'
+    ? 'Nova'
+    : storyWorld === 'underwater-kingdom'
+      ? 'Coral'
+      : 'Fern';
+  let activeSubject: 'character' | 'companion' | null = null;
+
+  return text.replace(/[^.!?]+[.!?"]*\s*|[^.!?]+$/g, (sentence) => {
+    const trimmed = sentence.trimStart();
+    const hasCharacter = sentence.includes('[CHARACTER_NAME]');
+    const hasCompanion = sentence.includes(companionName);
+    const startsWithCharacterPronoun = /^(She|she|Her|her)\b/.test(trimmed);
+    const startsWithCompanion = trimmed.startsWith(companionName);
+    const referencesCharacterAsObject = /\bmade her brave\b/i.test(sentence);
+    const shouldTreatPronounAsCharacter =
+      startsWithCharacterPronoun &&
+      (activeSubject === 'character' || storyWorld !== 'underwater-kingdom' || hasCompanion);
+
+    if (hasCharacter || referencesCharacterAsObject || shouldTreatPronounAsCharacter) {
+      activeSubject = 'character';
+    } else if (startsWithCompanion || hasCompanion) {
+      activeSubject = 'companion';
+    }
+
+    return activeSubject === 'character'
+      ? adaptPronounsInCharacterSentence(sentence, gender)
+      : sentence;
+  });
+}
+
 function replaceTemplateVariables(text: string, input: AdventureStoryTemplateInput): string {
   const characterName = input.characterName?.trim() || 'Character';
   const specialAbility = input.specialAbility?.trim() || 'their special ability';
@@ -396,8 +480,9 @@ export function getAdventureStoryTemplatePages(input: AdventureStoryTemplateInpu
   const storyWorld = normalizeStoryWorldKey(input.storyWorld);
   const ageGroup = normalizeAgeGroupKey(input.ageGroup);
   const learningTheme = normalizeLearningThemeKey(input.learningTheme);
+  const characterGender = normalizeCharacterGender(input.characterGender);
 
   return adventureStoryTemplates[storyWorld][ageGroup][learningTheme].map((page) =>
-    replaceTemplateVariables(page, input)
+    replaceTemplateVariables(adaptCharacterPronouns(page, characterGender, storyWorld), input)
   );
 }

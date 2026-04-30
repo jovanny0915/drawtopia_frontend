@@ -34,6 +34,7 @@ function renderCurlyTemplate(text: string, replacements: Record<string, string>)
 type StoryWorldKey = 'forest' | 'outerspace' | 'underwater';
 type StoryStyleKey = '3d' | 'anime' | 'cartoon';
 type StoryFormatKey = 'adventure_story' | 'interactive_story';
+type CharacterGenderKey = 'male' | 'female' | 'neutral';
 
 interface WorldStoryPagePrompts {
   tempMainStoryPagePrompt: string | null;
@@ -99,13 +100,13 @@ function appendPageSpecificStoryRules(
   const pageKey = String(pageNumber);
   const allyPrompt = includeAllyRule ? worldPrompts.pageAllyCharacterPrompts?.[pageKey] : null;
   const posePrompt = worldPrompts.pageMainCharacterPoseActionEmotionPrompts[pageKey];
-  const sections: string[] = [basePrompt];
+  const sections: string[] = [normalizeTemplateCharacterLanguage(basePrompt)];
 
   if (allyPrompt) {
-    sections.push(`PAGE-SPECIFIC ALLY CHARACTER RULE:\n- ${allyPrompt}`);
+    sections.push(`PAGE-SPECIFIC ALLY CHARACTER RULE:\n- ${normalizeTemplateCharacterLanguage(allyPrompt)}`);
   }
   if (posePrompt) {
-    sections.push(`PAGE-SPECIFIC MAIN CHARACTER POSE/ACTION/EMOTION RULE:\n- ${posePrompt}`);
+    sections.push(`PAGE-SPECIFIC MAIN CHARACTER POSE/ACTION/EMOTION RULE:\n- ${normalizeTemplateCharacterLanguage(posePrompt)}`);
   }
 
   return sections.join('\n\n');
@@ -133,6 +134,82 @@ function shouldApplyTemplateOutfitPrompt(characterType: string): boolean {
   return t === 'person' || t === 'a person' || t === 'character';
 }
 
+function normalizeCharacterGenderForPrompts(gender?: string): CharacterGenderKey {
+  const normalized = (gender || '').toLowerCase().trim();
+  if (normalized === 'male' || normalized === 'boy' || normalized === 'man') return 'male';
+  if (normalized === 'female' || normalized === 'girl' || normalized === 'woman') return 'female';
+  return 'neutral';
+}
+
+function getPersonGenderAppearancePrompt(gender?: string): string {
+  const genderKey = normalizeCharacterGenderForPrompts(gender);
+  const prompts = getPromptImageData().personGenderAppearancePrompts as Partial<Record<CharacterGenderKey, string>> | undefined;
+  const configuredPrompt = prompts?.[genderKey] || prompts?.neutral;
+
+  if (typeof configuredPrompt === 'string' && configuredPrompt.trim().length > 0) {
+    return configuredPrompt;
+  }
+
+  return 'GENDER AND CLOTHING RULE: Preserve the reference character identity, body proportions, age impression, and gender presentation. Do not copy the template character clothing, costume, body shape, hairstyle, accessories, or gender presentation. Use child-friendly adventure clothing that matches the story world and remains consistent across pages.';
+}
+
+function normalizeTemplateCharacterLanguage(prompt: string): string {
+  return prompt
+    .replace(/\bmain girl\/boy character\b/gi, 'main character')
+    .replace(/\bmain boy character\b/gi, 'main character')
+    .replace(/\bmain girl character\b/gi, 'main character')
+    .replace(/\bgirl main character\b/gi, 'main character')
+    .replace(/\bboy main character\b/gi, 'main character')
+    .replace(/\boriginal girl\/boy main character\b/gi, 'original main character')
+    .replace(/\boriginal girl main character\b/gi, 'original main character')
+    .replace(/\boriginal boy main character\b/gi, 'original main character')
+    .replace(/\boriginal girl character\b/gi, 'original main character')
+    .replace(/\boriginal boy character\b/gi, 'original main character')
+    .replace(/\bThe same boy\b/g, 'The same main character')
+    .replace(/\bthe same boy\b/g, 'the same main character')
+    .replace(/\bThe same girl\b/g, 'The same main character')
+    .replace(/\bthe same girl\b/g, 'the same main character')
+    .replace(/\bhis right hand\b/gi, "the character's right hand")
+    .replace(/\bhis left hand\b/gi, "the character's left hand")
+    .replace(/\bhis hand\b/gi, "the character's hand")
+    .replace(/\bhis face\b/gi, "the character's face");
+}
+
+function getAllyDescriptorForStoryWorld(storyWorld: string): string {
+  const lower = (storyWorld || '').toLowerCase();
+  if (lower.includes('underwater') || lower.includes('kingdom')) return 'Coral, the dolphin ally';
+  if (lower.includes('space') || lower.includes('outer')) return 'Nova, the space ally';
+  return 'Fern, the fox ally';
+}
+
+function resolveTemplateAllyPrompt(
+  configuredPrompt: string | null | undefined,
+  storyWorld: string,
+  allyName: string
+): string {
+  const allyDescriptor = getAllyDescriptorForStoryWorld(storyWorld);
+  const fallback = `Keep the existing ${allyDescriptor} from the template image. Do not remove, replace, or redesign the ally character.`;
+
+  if (!configuredPrompt || configuredPrompt.trim().length === 0) {
+    return fallback;
+  }
+
+  const prompt = configuredPrompt
+    .replace(/\[ally_name\]/gi, allyName)
+    .replace(/\{ally_name\}/gi, allyName);
+
+  const lower = prompt.toLowerCase();
+  const hasWrongDolphin = allyName !== 'Coral' && lower.includes('dolphin');
+  const hasWrongFox = allyName !== 'Fern' && lower.includes('fox');
+  const hasWrongRobot = allyName !== 'Nova' && lower.includes('robot');
+
+  if (hasWrongDolphin || hasWrongFox || hasWrongRobot) {
+    return fallback;
+  }
+
+  return prompt;
+}
+
 export function buildStoryPagePrompt(
   pageNumber: number,
   storyText: string,
@@ -150,6 +227,7 @@ export function buildStoryPagePrompt(
     storyTitle: string;
     characterImageUrl: string;
     storyFormat?: string;
+    characterGender?: string;
   }
 ): string {
   const isInteractiveFormat = normalizeStoryFormatForPrompts(options.storyFormat) === 'interactive_story';
@@ -158,21 +236,32 @@ export function buildStoryPagePrompt(
   const worldPrompts = getWorldStoryPagePrompts(options.storyFormat, styleKey, worldKey);
 
   const allyName = getAllyNameForStoryWorld(options.storyWorld);
+  const derivedEmotion = generateCharacterEmotion(pageNumber, storyText);
+  const derivedAtmosphere = generateAtmosphereDescription(pageNumber, storyText);
   const allyReplacementPrompt = !isInteractiveFormat && worldPrompts.tempMainStoryPageAllyCharacterPrompt
-    ? worldPrompts.tempMainStoryPageAllyCharacterPrompt.replace(/\[ally_name\]/g, allyName)
+    ? resolveTemplateAllyPrompt(worldPrompts.tempMainStoryPageAllyCharacterPrompt, options.storyWorld, allyName)
     : null;
+  const rulesPrompt = renderCurlyTemplate(getPromptImageData().storyPageRulesPrompt, {
+    story_text: storyText,
+    character_action: characterAction,
+    derived_emotion: derivedEmotion,
+    derived_atmosphere: derivedAtmosphere
+  });
 
   if (worldPrompts.tempMainStoryPagePrompt != null) {
     let fixedPrompt = worldPrompts.tempMainStoryPagePrompt;
     if (shouldApplyTemplateOutfitPrompt(options.characterType)) {
-      const costumePrompt = getPromptImageData().personTemplateOutfitPrompt;
-      fixedPrompt = `${fixedPrompt}\n\n${costumePrompt}`;
+      fixedPrompt = `${fixedPrompt}\n\n${getPersonGenderAppearancePrompt(options.characterGender)}`;
     }
-    return appendPageSpecificStoryRules(fixedPrompt, pageNumber, worldPrompts, !isInteractiveFormat);
+
+    const fixedPromptWithRules = `${fixedPrompt}\n\n${rulesPrompt}`;
+    const promptWithAllyReplacement = allyReplacementPrompt
+      ? `${fixedPromptWithRules}\n\n${allyReplacementPrompt}`
+      : fixedPromptWithRules;
+
+    return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber, worldPrompts, !isInteractiveFormat);
   }
 
-  const derivedEmotion = generateCharacterEmotion(pageNumber, storyText);
-  const derivedAtmosphere = generateAtmosphereDescription(pageNumber, storyText);
   const enrichedSceneDescription = `${sceneDescription}. Atmosphere: ${derivedAtmosphere}`;
 
   const prompt = buildStoryScenePrompt({
@@ -194,13 +283,10 @@ export function buildStoryPagePrompt(
     characterPlacement: 'left-half'
   });
 
-  const rulesPrompt = renderCurlyTemplate(getPromptImageData().storyPageRulesPrompt, {
-    story_text: storyText,
-    character_action: characterAction,
-    derived_emotion: derivedEmotion,
-    derived_atmosphere: derivedAtmosphere
-  });
-  const basePromptWithRules = `${prompt}\n\n${rulesPrompt}`;
+  const genderAppearancePrompt = shouldApplyTemplateOutfitPrompt(options.characterType)
+    ? `\n\n${getPersonGenderAppearancePrompt(options.characterGender)}`
+    : '';
+  const basePromptWithRules = `${prompt}\n\n${rulesPrompt}${genderAppearancePrompt}`;
   const promptWithAllyReplacement = allyReplacementPrompt
     ? `${basePromptWithRules}\n\n${allyReplacementPrompt}`
     : basePromptWithRules;
@@ -554,6 +640,7 @@ export interface GenerateBookPagesOptions {
   ageGroup?: string;
   storyTitle?: string;
   storyFormat?: string;
+  characterGender?: string;
   onProgress?: (step: string, progress: number) => void;
   storyPagesOnly?: boolean;
   shouldAbort?: () => boolean;
@@ -584,6 +671,7 @@ export async function generateAllBookPages(
     ageGroup = '7-10',
     storyTitle = 'Adventure Story',
     storyFormat,
+    characterGender,
     onProgress,
     storyPagesOnly = false,
     shouldAbort
@@ -667,7 +755,8 @@ export async function generateAllBookPages(
           ageGroup,
           storyTitle,
           characterImageUrl,
-          storyFormat
+          storyFormat,
+          characterGender
         });
         
         let storyPageResult = await generateImageWithTwoTemplates(

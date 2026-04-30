@@ -24,11 +24,27 @@ function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergePromptDefaults<T>(fallback: T, incoming: unknown): T {
+  if (!isPlainObject(fallback) || !isPlainObject(incoming)) {
+    return (incoming === undefined ? cloneValue(fallback) : incoming) as T;
+  }
+
+  const merged: Record<string, unknown> = cloneValue(fallback);
+  for (const [key, value] of Object.entries(incoming)) {
+    merged[key] = key in merged ? mergePromptDefaults(merged[key], value) : value;
+  }
+  return merged as T;
+}
+
 export function setRuntimePromptDocuments(documents: Partial<Record<PromptFileKey, unknown>>): void {
   runtimeDocuments = {
     ...runtimeDocuments,
-    ...(documents.prompt1 ? { prompt1: documents.prompt1 } : {}),
-    ...(documents.prompt_image ? { prompt_image: documents.prompt_image } : {}),
+    ...(documents.prompt1 ? { prompt1: mergePromptDefaults(fallbackDocuments.prompt1, documents.prompt1) } : {}),
+    ...(documents.prompt_image ? { prompt_image: mergePromptDefaults(fallbackDocuments.prompt_image, documents.prompt_image) } : {}),
     ...(documents.backend_prompts ? { backend_prompts: documents.backend_prompts } : {})
   };
 }

@@ -877,7 +877,7 @@
                     on:change={() => selectCharacterGender("non_binary")}
                   />
                   <span class="gender-radio-control"></span>
-                  <span class="gender-radio-label">Non-binary</span>
+                  <span class="gender-radio-label">Prefer not to say</span>
                 </label>
               </div>
             </div>

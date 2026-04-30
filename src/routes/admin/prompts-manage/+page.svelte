@@ -5,11 +5,14 @@
   import { MessageSquareText } from 'lucide-svelte';
   import {
     buildEnhancementPrompt,
-    buildIntersearchScenePrompt,
-    buildIntersearchSearchAdventurePrompt,
-    buildStoryScenePrompt,
     buildTemplateCompositeCoverPrompt
   } from '$lib/promptBuilder';
+  import {
+    buildStoryPagePrompt,
+    generateCharacterAction,
+    generateSceneDescription
+  } from '$lib/storyGenerationHelpers';
+  import { buildStoryTitlePrompt } from '$lib/api/storyTitles';
   import {
     getAdminPrompts,
     resetAdminPrompt,
@@ -32,9 +35,9 @@
     | 'story-image'
     | 'interactive-character';
   type CharacterStyle = '3d' | 'cartoon' | 'anime';
+  type CharacterGender = 'female' | 'male' | 'neutral';
   type EnhancementLevel = 'minimal' | 'normal' | 'high';
   type StoryWorld = 'enchanted-forest' | 'outer-space' | 'underwater-kingdom';
-  type StoryImagePlacement = 'left-half' | 'center' | 'right-half';
   type Difficulty = 'easy' | 'medium' | 'hard';
 
   type SourcePrompt = {
@@ -88,6 +91,12 @@
     { value: '3d', label: '3D' },
     { value: 'cartoon', label: 'Cartoon' },
     { value: 'anime', label: 'Anime' }
+  ];
+
+  const characterGenders: { value: CharacterGender; label: string }[] = [
+    { value: 'female', label: 'Female' },
+    { value: 'male', label: 'Male' },
+    { value: 'neutral', label: 'Neutral / Unspecified' }
   ];
 
   const enhancementLevels: { value: EnhancementLevel; label: string }[] = [
@@ -166,10 +175,11 @@
   let activeSection: PromptSection = normalizePromptSection($page.url.searchParams.get('tab'));
   let selectedStoryTitle = sampleStoryTitles[0];
   let selectedCharacterStyle: CharacterStyle = 'cartoon';
+  let selectedCharacterGender: CharacterGender = 'female';
   let selectedEnhancementLevel: EnhancementLevel = 'normal';
+  let selectedCoverWorld: StoryWorld = 'enchanted-forest';
   let selectedStoryImageWorld: StoryWorld = 'enchanted-forest';
   let selectedStoryImagePageNumber = 1;
-  let selectedStoryImagePlacement: StoryImagePlacement = 'left-half';
   let selectedInteractiveWorld: StoryWorld = 'enchanted-forest';
   let selectedInteractiveSceneNumber = 1;
   let selectedInteractiveDifficulty: Difficulty = 'medium';
@@ -210,6 +220,22 @@
     return JSON.parse(JSON.stringify(value)) as T;
   }
 
+  function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function mergePromptDefaults<T>(fallback: T, incoming: unknown): T {
+    if (!isPlainObject(fallback) || !isPlainObject(incoming)) {
+      return (incoming === undefined ? cloneValue(fallback) : incoming) as T;
+    }
+
+    const merged: Record<string, unknown> = cloneValue(fallback);
+    for (const [key, value] of Object.entries(incoming)) {
+      merged[key] = key in merged ? mergePromptDefaults(merged[key], value) : value;
+    }
+    return merged as T;
+  }
+
   function getNestedValue(source: any, keyPath: string[]): unknown {
     return keyPath.reduce<unknown>((current, key) => {
       if (current && typeof current === 'object' && key in (current as Record<string, unknown>)) {
@@ -230,9 +256,39 @@
     return next;
   }
 
+  function applyPromptDraftsToDocuments(): Partial<Record<PromptFileKey, any>> {
+    let documents = cloneValue(promptDocuments);
+    const editablePrompts = Object.values(getSourcePromptGroups({}, documents)).flat();
+
+    for (const item of editablePrompts) {
+      if (!(item.editKey in promptDrafts)) continue;
+      const draftValue = promptDrafts[item.editKey];
+      const parsedValue = item.editorMode === 'text' ? draftValue : JSON.parse(draftValue);
+      documents = {
+        ...documents,
+        [item.fileKey]: setNestedValue(getPromptDocument(item.fileKey, documents), item.keyPath, parsedValue)
+      };
+    }
+
+    return documents;
+  }
+
+  function withPreviewPromptDocuments<T>(buildPreview: () => T): T {
+    const previewDocuments = applyPromptDraftsToDocuments();
+    setRuntimePromptDocuments(previewDocuments);
+    return buildPreview();
+  }
+
+  function formatPreviewSections(sections: Array<{ title: string; prompt: string }>): string {
+    return sections
+      .filter((section) => section.prompt && section.prompt.trim().length > 0)
+      .map((section) => `### ${section.title}\n\n${section.prompt}`)
+      .join('\n\n---\n\n');
+  }
+
   function getPromptDocument(fileKey: PromptFileKey, documents = promptDocuments): any {
-    if (fileKey === 'prompt1') return documents.prompt1 || getPrompt1Data();
-    if (fileKey === 'prompt_image') return documents.prompt_image || getPromptImageData();
+    if (fileKey === 'prompt1') return mergePromptDefaults(getFallbackPromptDocument('prompt1') || getPrompt1Data(), documents.prompt1);
+    if (fileKey === 'prompt_image') return mergePromptDefaults(getFallbackPromptDocument('prompt_image') || getPromptImageData(), documents.prompt_image);
     return documents.backend_prompts || {};
   }
 
@@ -400,88 +456,143 @@
     return '7-10';
   }
 
+  function getPersonSuitPrompt(): string {
+    const imageGeneration = getPrompt1Data().imageGeneration || {};
+    return typeof imageGeneration.personSuitPrompt === 'string' ? imageGeneration.personSuitPrompt : '';
+  }
+
   function buildCharacterEnhancementPreview(): string {
-    return buildEnhancementPrompt({
+    const enhancementPrompt = buildEnhancementPrompt({
       characterName: 'Luna',
       characterType: 'person',
       characterStyle: selectedCharacterStyle,
       specialAbility: 'magic casting',
       enhancementLevel: selectedEnhancementLevel,
       ageGroup: '7-10',
-      uploadedImageUrl: '[uploaded child drawing]',
-      originalColors: 'blue, gold, and soft pink',
-      distinctiveFeatures: 'large smiling eyes, star mark on shirt, curly hair',
-      facialExpression: 'happy and curious',
-      proportions: 'large head with small friendly body'
+      uploadedImageUrl: '[uploaded child drawing]'
     });
+
+    return formatPreviewSections([
+      {
+        title: 'Character Enhancement Image Generation Prompt',
+        prompt: enhancementPrompt
+      }
+    ]);
   }
 
   function buildCoverImagePreview(): string {
-    return buildTemplateCompositeCoverPrompt({
+    const titlePromptOptions = {
+      characterName: 'Luna',
+      specialAbility: 'magic casting',
+      storyWorld: selectedCoverWorld,
+      adventureType: 'Treasure Hunt',
+      characterType: 'person',
+      characterStyle: selectedCharacterStyle,
+      ageGroup: '7-10',
+      learningTheme: 'kindness and courage'
+    };
+    const adventureTitlePrompt = buildStoryTitlePrompt({
+      ...titlePromptOptions,
+      storyFormat: 'adventure_story'
+    });
+    const interactiveTitlePrompt = buildStoryTitlePrompt({
+      ...titlePromptOptions,
+      storyFormat: 'interactive_story'
+    });
+    const templateCompositePrompt = buildTemplateCompositeCoverPrompt({
       characterName: 'Luna',
       characterType: 'person',
       characterStyle: selectedCharacterStyle,
-      storyWorld: 'enchantedForest',
+      storyWorld: selectedCoverWorld,
       adventureType: 'Treasure Hunt',
       ageGroup: '7-10',
       storyTitle: selectedStoryTitle
     });
+    const personSuitPrompt = getPersonSuitPrompt();
+    const coverPrompt = personSuitPrompt ? `${templateCompositePrompt} ${personSuitPrompt}` : templateCompositePrompt;
+
+    return formatPreviewSections([
+      {
+        title: 'Adventure Story Title Generation Prompt',
+        prompt: adventureTitlePrompt
+      },
+      {
+        title: 'Interactive Story Title Generation Prompt',
+        prompt: interactiveTitlePrompt
+      },
+      {
+        title: 'Cover Image Generation Prompt',
+        prompt: coverPrompt
+      }
+    ]);
   }
 
   function buildStoryImagePreview(): string {
     const sample = sceneSamples[selectedStoryImagePageNumber] || sceneSamples[1];
-    return buildStoryScenePrompt({
-      characterName: 'Luna',
-      characterType: 'person',
-      specialAbility: 'magic casting',
-      characterStyle: selectedCharacterStyle,
-      storyWorld: toBuilderWorld(selectedStoryImageWorld),
-      adventureType: 'Treasure Hunt',
-      ageGroup: '7-10',
-      storyTitle: selectedStoryTitle,
-      pageNumber: selectedStoryImagePageNumber,
-      pageText: sample.text,
-      pageSceneDescription: sample.description,
-      pageCharacterAction: sample.action,
-      pageEmotion: sample.emotion,
-      companionCharacters: 'Fox',
-      characterImageUrl: '[reference character image]',
-      characterPlacement: selectedStoryImagePlacement
-    });
+    const characterAction = generateCharacterAction(selectedStoryImagePageNumber, selectedStoryImageWorld, sample.text);
+    const sceneDescription = generateSceneDescription(selectedStoryImagePageNumber, selectedStoryImageWorld, sample.text);
+
+    const storyPagePrompt = buildStoryPagePrompt(
+      selectedStoryImagePageNumber,
+      sample.text,
+      characterAction,
+      sceneDescription,
+      {
+        characterName: 'Luna',
+        characterType: 'person',
+        specialAbility: 'magic casting',
+        characterStyle: selectedCharacterStyle,
+        storyWorld: toBuilderWorld(selectedStoryImageWorld),
+        adventureType: 'Treasure Hunt',
+        ageGroup: '7-10',
+        storyTitle: selectedStoryTitle,
+        characterImageUrl: '[reference character image]',
+        storyFormat: 'adventure_story',
+        characterGender: selectedCharacterGender
+      }
+    );
+
+    return formatPreviewSections([
+      {
+        title: 'Story Page Image Generation Prompt',
+        prompt: storyPagePrompt
+      }
+    ]);
   }
 
   function buildInteractiveCharacterPreview(): string {
     const scene = interactiveSceneSamples[selectedInteractiveSceneNumber] || interactiveSceneSamples[1];
     const ageGroup = getAgeGroupFromDifficulty(selectedInteractiveDifficulty);
-    const scenePrompt = buildIntersearchScenePrompt({
-      sceneNumber: selectedInteractiveSceneNumber,
-      storyTitle: selectedStoryTitle,
-      storyWorld: selectedInteractiveWorld,
-      characterName: 'Luna',
-      characterType: 'person',
-      characterStyle: selectedCharacterStyle,
-      specialAbility: 'magic casting',
-      ageGroup,
-      sceneTitle: scene.title,
-      sceneDescription: scene.description,
-      characterActionForScene: scene.action,
-      characterEmotionForScene: scene.emotion,
-      storyContinuationForThisScene: scene.context
-    });
-    const searchPrompt = buildIntersearchSearchAdventurePrompt({
-      characterName: 'Luna',
-      characterType: 'person',
-      characterDescription: 'magic casting',
-      characterStyle: selectedCharacterStyle,
-      storyWorld: selectedInteractiveWorld,
-      storyTitle: selectedStoryTitle,
-      ageGroup,
-      specialAbility: 'magic casting',
-      difficulty: selectedInteractiveDifficulty,
-      sceneNumber: selectedInteractiveSceneNumber
-    });
+    const storyPagePrompt = buildStoryPagePrompt(
+      selectedInteractiveSceneNumber,
+      scene.context,
+      scene.action,
+      scene.description,
+      {
+        characterName: 'Luna',
+        characterType: 'person',
+        specialAbility: 'magic casting',
+        characterStyle: selectedCharacterStyle,
+        storyWorld: selectedInteractiveWorld,
+        adventureType: 'Search Adventure',
+        ageGroup,
+        storyTitle: selectedStoryTitle,
+        characterImageUrl: '[reference character image]',
+        storyFormat: 'interactive',
+        characterGender: selectedCharacterGender
+      }
+    );
     const replacementPrompt = getPromptImageData().interactiveCharacterReplacementPrompt || '';
-    return [scenePrompt, searchPrompt, replacementPrompt].filter(Boolean).join('\n\n');
+    return formatPreviewSections([
+      {
+        title: 'Interactive Story Page Image Generation Prompt',
+        prompt: storyPagePrompt
+      },
+      {
+        title: 'Interactive Character Replacement Prompt',
+        prompt: replacementPrompt
+      }
+    ]);
   }
 
   function getSourcePromptGroups(
@@ -494,36 +605,35 @@
         sourcePrompt('Character Style Prompts', 'prompt1.json -> enhanceCharacter.characterStyle', 'prompt1', ['enhanceCharacter', 'characterStyle'], drafts, documents),
         sourcePrompt('Special Ability Prompts', 'prompt1.json -> enhanceCharacter.specialAbility', 'prompt1', ['enhanceCharacter', 'specialAbility'], drafts, documents),
         sourcePrompt('Enhancement Level Prompts', 'prompt1.json -> enhanceCharacter.enhancementLevel', 'prompt1', ['enhanceCharacter', 'enhancementLevel'], drafts, documents),
+        sourcePrompt('Additional Enhancement Prompts', 'prompt1.json -> enhanceCharacter.additionalEnhancement', 'prompt1', ['enhanceCharacter', 'additionalEnhancement'], drafts, documents),
         sourcePrompt('Reference Preservation Prompts', 'prompt1.json -> enhanceCharacter.referencePreservation', 'prompt1', ['enhanceCharacter', 'referencePreservation'], drafts, documents),
-        sourcePrompt('Enhancement Assembly Templates', 'prompt1.json -> promptBuilderTemplates', 'prompt1', ['promptBuilderTemplates'], drafts, documents),
-        sourcePrompt('Generic Image Generation Prompts', 'prompt1.json -> imageGeneration', 'prompt1', ['imageGeneration'], drafts, documents)
+        sourcePrompt('Additional Guidance Prompts', 'prompt1.json -> enhanceCharacter.additionalGuidance', 'prompt1', ['enhanceCharacter', 'additionalGuidance'], drafts, documents),
+        sourcePrompt('Reference Preservation Section Template', 'prompt1.json -> promptBuilderTemplates.referencePreservationSection', 'prompt1', ['promptBuilderTemplates', 'referencePreservationSection'], drafts, documents),
+        sourcePrompt('Additional Guidance Section Template', 'prompt1.json -> promptBuilderTemplates.additionalGuidanceSection', 'prompt1', ['promptBuilderTemplates', 'additionalGuidanceSection'], drafts, documents),
+        sourcePrompt('Custom Special Ability Template', 'prompt1.json -> promptBuilderTemplates.customSpecialAbility', 'prompt1', ['promptBuilderTemplates', 'customSpecialAbility'], drafts, documents),
+        sourcePrompt('Character Type Section Template', 'prompt1.json -> promptBuilderTemplates.characterTypeSpecificationsSection', 'prompt1', ['promptBuilderTemplates', 'characterTypeSpecificationsSection'], drafts, documents),
+        sourcePrompt('Character Style Section Template', 'prompt1.json -> promptBuilderTemplates.characterStyleSpecificationsSection', 'prompt1', ['promptBuilderTemplates', 'characterStyleSpecificationsSection'], drafts, documents),
+        sourcePrompt('Special Ability Section Template', 'prompt1.json -> promptBuilderTemplates.specialAbilitySpecificationsSection', 'prompt1', ['promptBuilderTemplates', 'specialAbilitySpecificationsSection'], drafts, documents),
+        sourcePrompt('Additional Character Type Section Template', 'prompt1.json -> promptBuilderTemplates.additionalCharacterTypeEnhancementSection', 'prompt1', ['promptBuilderTemplates', 'additionalCharacterTypeEnhancementSection'], drafts, documents),
+        sourcePrompt('Additional Style Section Template', 'prompt1.json -> promptBuilderTemplates.additionalStyleEnhancementSection', 'prompt1', ['promptBuilderTemplates', 'additionalStyleEnhancementSection'], drafts, documents),
+        sourcePrompt('Additional Special Ability Section Template', 'prompt1.json -> promptBuilderTemplates.additionalSpecialAbilityEnhancementSection', 'prompt1', ['promptBuilderTemplates', 'additionalSpecialAbilityEnhancementSection'], drafts, documents),
+        sourcePrompt('Final Enhancement Enforcement Template', 'prompt1.json -> promptBuilderTemplates.finalEnhancementEnforcement', 'prompt1', ['promptBuilderTemplates', 'finalEnhancementEnforcement'], drafts, documents)
       ],
       'cover-image': [
-        sourcePrompt('Story Title Text Prompts', 'prompt1.json -> storyTitlePrompts', 'prompt1', ['storyTitlePrompts'], drafts, documents),
+        sourcePrompt('Adventure Story Title Generation Prompt', 'prompt1.json -> storyTitlePrompts.story', 'prompt1', ['storyTitlePrompts', 'story'], drafts, documents),
+        sourcePrompt('Interactive Story Title Generation Prompt', 'prompt1.json -> storyTitlePrompts.interactive', 'prompt1', ['storyTitlePrompts', 'interactive'], drafts, documents),
         sourcePrompt('Template Composite Cover Prompt', 'prompt1.json -> generateStoryScene.cover.templateCompositePrompt', 'prompt1', ['generateStoryScene', 'cover', 'templateCompositePrompt'], drafts, documents),
-        sourcePrompt('Cover Base Prompt', 'prompt1.json -> generateStoryScene.cover.basePrompt', 'prompt1', ['generateStoryScene', 'cover', 'basePrompt'], drafts, documents),
-        sourcePrompt('Cover Environment Prompts', 'prompt1.json -> generateStoryScene.cover.coverEnvironment', 'prompt1', ['generateStoryScene', 'cover', 'coverEnvironment'], drafts, documents),
-        sourcePrompt('Cover Style Prompts', 'prompt1.json -> generateStoryScene.cover.characterStyleSpecifications', 'prompt1', ['generateStoryScene', 'cover', 'characterStyleSpecifications'], drafts, documents),
-        sourcePrompt('Cover Insert Fallbacks', 'prompt1.json -> imageGeneration', 'prompt1', ['imageGeneration'], drafts, documents),
-        sourcePrompt('Cover Assembly Templates', 'prompt1.json -> promptBuilderTemplates cover sections', 'prompt1', ['promptBuilderTemplates'], drafts, documents)
+        sourcePrompt('Cover Template Base Prompt', 'prompt1.json -> imageGeneration.coverTemplateBasePrompt', 'prompt1', ['imageGeneration', 'coverTemplateBasePrompt'], drafts, documents),
+        sourcePrompt('Person Cover Outfit Prompt', 'prompt1.json -> imageGeneration.personSuitPrompt', 'prompt1', ['imageGeneration', 'personSuitPrompt'], drafts, documents)
       ],
       'story-image': [
-        sourcePrompt('Story Text Generation Prompts', 'prompt1.json -> generateStoryText', 'prompt1', ['generateStoryText'], drafts, documents),
-        sourcePrompt('Story Scene Base Prompt', 'prompt1.json -> generateStoryScene.basePrompt', 'prompt1', ['generateStoryScene', 'basePrompt'], drafts, documents),
-        sourcePrompt('Story Scene Consistency Prompts', 'prompt1.json -> generateStoryScene', 'prompt1', ['generateStoryScene'], drafts, documents),
-        sourcePrompt('Story Scene Style Prompts', 'prompt1.json -> generateStoryScene.characterStyleSpecifications', 'prompt1', ['generateStoryScene', 'characterStyleSpecifications'], drafts, documents),
-        sourcePrompt('Story Scene World/Page Prompts', 'prompt1.json -> generateStoryScene.worldSpecific', 'prompt1', ['generateStoryScene', 'worldSpecific'], drafts, documents),
-        sourcePrompt('Story Scene Assembly Templates', 'prompt1.json -> promptBuilderTemplates story scene sections', 'prompt1', ['promptBuilderTemplates'], drafts, documents),
-        sourcePrompt('Template Story Page Rules', 'prompt_image.json -> storyPageRulesPrompt', 'prompt_image', ['storyPageRulesPrompt'], drafts, documents),
-        sourcePrompt('Template Outfit Prompt', 'prompt_image.json -> personTemplateOutfitPrompt', 'prompt_image', ['personTemplateOutfitPrompt'], drafts, documents)
+        sourcePrompt('Adventure Story Template Page Prompts', 'prompt_image.json -> storyStyleWorldPagePrompts', 'prompt_image', ['storyStyleWorldPagePrompts'], drafts, documents),
+        sourcePrompt('Gender Appearance Prompts', 'prompt_image.json -> personGenderAppearancePrompts', 'prompt_image', ['personGenderAppearancePrompts'], drafts, documents),
+        sourcePrompt('Legacy Template Outfit Fallback', 'prompt_image.json -> personTemplateOutfitPrompt', 'prompt_image', ['personTemplateOutfitPrompt'], drafts, documents)
       ],
       'interactive-character': [
-        sourcePrompt('Interactive Cover Prompt', 'prompt1.json -> generateSearchAdventure.cover', 'prompt1', ['generateSearchAdventure', 'cover'], drafts, documents),
-        sourcePrompt('Interactive Style Prompts', 'prompt1.json -> generateSearchAdventure.styleSpecifications', 'prompt1', ['generateSearchAdventure', 'styleSpecifications'], drafts, documents),
-        sourcePrompt('Interactive Difficulty Prompts', 'prompt1.json -> generateSearchAdventure.complexityRequirements', 'prompt1', ['generateSearchAdventure', 'complexityRequirements'], drafts, documents),
-        sourcePrompt('Interactive Character Action Prompts', 'prompt1.json -> generateSearchAdventure.characterActions', 'prompt1', ['generateSearchAdventure', 'characterActions'], drafts, documents),
-        sourcePrompt('Interactive World Prompts', 'prompt1.json -> generateSearchAdventure.worldSpecific', 'prompt1', ['generateSearchAdventure', 'worldSpecific'], drafts, documents),
-        sourcePrompt('Interactive Assembly Templates', 'prompt1.json -> promptBuilderTemplates interactive sections', 'prompt1', ['promptBuilderTemplates'], drafts, documents),
+        sourcePrompt('Interactive Story Template Page Prompts', 'prompt_image.json -> interactiveStoryStyleWorldPagePrompts', 'prompt_image', ['interactiveStoryStyleWorldPagePrompts'], drafts, documents),
+        sourcePrompt('Template Outfit Prompt', 'prompt_image.json -> personTemplateOutfitPrompt', 'prompt_image', ['personTemplateOutfitPrompt'], drafts, documents),
         sourcePrompt('Interactive Character Replacement Prompt', 'prompt_image.json -> interactiveCharacterReplacementPrompt', 'prompt_image', ['interactiveCharacterReplacementPrompt'], drafts, documents)
       ]
     };
@@ -541,16 +651,28 @@
 
   $: {
     promptDocuments;
+    promptDrafts;
+    selectedStoryTitle;
+    selectedCharacterStyle;
+    selectedCharacterGender;
+    selectedEnhancementLevel;
+    selectedCoverWorld;
+    selectedStoryImageWorld;
+    selectedStoryImagePageNumber;
+    selectedInteractiveWorld;
+    selectedInteractiveSceneNumber;
+    selectedInteractiveDifficulty;
     try {
-      if (activeSection === 'character-enhancement') {
-        activePromptPreview = buildCharacterEnhancementPreview();
-      } else if (activeSection === 'cover-image') {
-        activePromptPreview = buildCoverImagePreview();
-      } else if (activeSection === 'story-image') {
-        activePromptPreview = buildStoryImagePreview();
-      } else {
-        activePromptPreview = buildInteractiveCharacterPreview();
-      }
+      activePromptPreview = withPreviewPromptDocuments(() => {
+        if (activeSection === 'character-enhancement') {
+          return buildCharacterEnhancementPreview();
+        } else if (activeSection === 'cover-image') {
+          return buildCoverImagePreview();
+        } else if (activeSection === 'story-image') {
+          return buildStoryImagePreview();
+        }
+        return buildInteractiveCharacterPreview();
+      });
       activePromptError = null;
     } catch (error) {
       activePromptPreview = '';
@@ -622,7 +744,28 @@
         </div>
       {:else if activeSection === 'cover-image'}
         <div class="story-title-container">
-          <p class="content-title">Sample Story Titles</p>
+          <p class="content-title">Preview Variables</p>
+          <div class="story-prompt-controls">
+            <label class="control-field">
+              <span>Character Style</span>
+              <select bind:value={selectedCharacterStyle}>
+                {#each characterStyles as styleOption}
+                  <option value={styleOption.value}>{styleOption.label}</option>
+                {/each}
+              </select>
+            </label>
+            <label class="control-field">
+              <span>World</span>
+              <select bind:value={selectedCoverWorld}>
+                {#each worldOptions as worldOption}
+                  <option value={worldOption.value}>{worldOption.label}</option>
+                {/each}
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="story-title-container">
+          <p class="content-title">Sample Story Title</p>
           <div class="title-options">
             {#each sampleStoryTitles as storyTitle}
               <button
@@ -658,11 +801,11 @@
               </select>
             </label>
             <label class="control-field">
-              <span>Character Placement</span>
-              <select bind:value={selectedStoryImagePlacement}>
-                <option value="left-half">Left Half</option>
-                <option value="center">Center</option>
-                <option value="right-half">Right Half</option>
+              <span>Character Gender</span>
+              <select bind:value={selectedCharacterGender}>
+                {#each characterGenders as genderOption}
+                  <option value={genderOption.value}>{genderOption.label}</option>
+                {/each}
               </select>
             </label>
           </div>
@@ -694,6 +837,14 @@
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
+              </select>
+            </label>
+            <label class="control-field">
+              <span>Character Gender</span>
+              <select bind:value={selectedCharacterGender}>
+                {#each characterGenders as genderOption}
+                  <option value={genderOption.value}>{genderOption.label}</option>
+                {/each}
               </select>
             </label>
           </div>

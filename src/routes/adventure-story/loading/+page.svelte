@@ -408,6 +408,7 @@
             const characterType = storyState.characterType || sessionStorage.getItem('selectedCharacterType') || 'person';
             const specialAbility = storyState.specialAbility || sessionStorage.getItem('specialAbility') || '';
             const characterStyle = storyState.characterStyle || sessionStorage.getItem('selectedStyle') || 'cartoon';
+            const characterGender = storyState.characterGender || sessionStorage.getItem('characterGender') || 'neutral';
             const storyTitle = storyState.storyTitle || sessionStorage.getItem('storyTitle') || `${characterName}'s Search Adventure`;
             
             const selectedDifficulty = browser ? (sessionStorage.getItem('intersearch_difficulty') || 'medium') : 'medium';
@@ -600,7 +601,8 @@
                         storyTheme,
                         storyTitle: storyTitle || `${characterName}'s Search Adventure`,
                         characterImageUrl: characterImageUrl,
-                        storyFormat: 'interactive'
+                        storyFormat: 'interactive',
+                        characterGender
                     }
                 );
 
@@ -1137,6 +1139,7 @@
 
             const rawThemeName = sessionStorage.getItem("storyTheme") || storyTheme;
             const rawWorldName = sessionStorage.getItem("selectedWorld") || storyWorld;
+            const characterGender = storyState.characterGender || sessionStorage.getItem('characterGender') || 'female';
             const themeName = getThemeDisplayName(rawThemeName) || rawThemeName;
             if (!themeName || !ageGroup) {
                 showToastrError('Missing required variables for story text generation.');
@@ -1153,6 +1156,7 @@
                 ageGroup,
                 learningTheme: themeName,
                 characterName,
+                characterGender,
                 specialAbility
             });
 
@@ -1226,7 +1230,8 @@
                         storyTheme,
                         storyTitle: storyTitle || 'The Great Adventure',
                         characterImageUrl: cleanCharacterImageUrl,
-                        storyFormat: selectedFormat
+                        storyFormat: selectedFormat,
+                        characterGender
                     });
                     let result = await generateImageWithTwoTemplates(templateSceneImage, cleanCharacterImageUrl, storyPagePrompt);
                     if (!(result.success && result.url)) {

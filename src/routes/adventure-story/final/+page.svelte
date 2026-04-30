@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import purple_check from "../../../assets/purple-check.svg";
   import ArrowLeft from "../../../assets/ArrowLeft.svg";
   import DevicePermissionModal from "../../../components/DevicePermissionModal.svelte";
@@ -15,12 +15,18 @@
 
   let isMobile = false;
   let showDevicePermissionModal = false;
-  let selectedOption = 'record';
+  type ExperienceOption = 'record' | 'preview';
+
+  let selectedOption: ExperienceOption = 'record';
 
   $: buttonText = selectedOption === 'record' ? 'Choose Record Video' : 'Preview a Story';
 
   function goToDashboard() {
     goto('/dashboard');
+  }
+
+  function goBackToStoryPreview() {
+    goto('/adventure-story/story-preview');
   }
 
   function handleChooseRecordVideo() {
@@ -50,7 +56,7 @@
     goto('/record/reaction');
   }
 
-  function selectOption(option) {
+  function selectOption(option: ExperienceOption) {
     selectedOption = option;
   }
 
@@ -195,7 +201,13 @@
     </div>
     <div class="frame-1410103860">
       <div class="frame-1410103870">
-        <div class="button">
+        <div
+          class="button"
+          role="button"
+          tabindex="0"
+          on:click={goBackToStoryPreview}
+          on:keydown={(e) => e.key === 'Enter' && goBackToStoryPreview()}
+        >
           <img src={ArrowLeft} alt="arrow" />
           <div class="back"><span class="back_span">Back</span></div>
         </div>
@@ -381,19 +393,6 @@
     background: #ededed;
   }
 
-  .privacypolicy_span {
-    color: #141414;
-    font-size: 18px;
-    font-family: Nunito;
-    font-weight: 400;
-    line-height: 25.2px;
-    word-wrap: break-word;
-  }
-
-  .privacy-policy {
-    text-align: center;
-  }
-
   .termsofservice_span {
     color: #141414;
     font-size: 18px;
@@ -535,7 +534,6 @@
     border-left: 1px #d3d3d3 solid;
     border-top: 1px #d3d3d3 solid;
     border-right: 1px #d3d3d3 solid;
-    background-image: url(https:
     transition: border-color 0.2s;
   }
 
@@ -840,7 +838,6 @@
     }
 
     .contactushellodrawtopiacom_span,
-    .privacypolicy_span,
     .termsofservice_span {
       font-size: 14px;
       line-height: 19.60px;
