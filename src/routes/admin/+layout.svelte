@@ -166,6 +166,12 @@
           match: (path, tab) => path === '/admin/prompts-manage' && tab === 'story-image'
         },
         {
+          label: 'Adventure Story Template Text',
+          description: 'Narrative page templates',
+          href: '/admin/prompts-manage?tab=story-template-text',
+          match: (path, tab) => path === '/admin/prompts-manage' && tab === 'story-template-text'
+        },
+        {
           label: 'Interactive Character Prompts',
           description: 'Search story character prompts',
           href: '/admin/prompts-manage?tab=interactive-character',

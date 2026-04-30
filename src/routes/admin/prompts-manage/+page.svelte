@@ -7,6 +7,7 @@
     buildEnhancementPrompt,
     buildTemplateCompositeCoverPrompt
   } from '$lib/promptBuilder';
+  import { buildStoryTextPrompt } from '$lib/storyPromptBuilder';
   import {
     buildStoryPagePrompt,
     generateCharacterAction,
@@ -23,6 +24,7 @@
   import {
     getPrompt1Data,
     getPromptImageData,
+    getPromptStoryData,
     getFallbackPromptDocument,
     getPromptDocumentsSnapshot,
     setRuntimePromptDocument,
@@ -33,6 +35,7 @@
     | 'character-enhancement'
     | 'cover-image'
     | 'story-image'
+    | 'story-template-text'
     | 'interactive-character';
   type CharacterStyle = '3d' | 'cartoon' | 'anime';
   type CharacterGender = 'female' | 'male' | 'neutral';
@@ -67,6 +70,11 @@
       key: 'story-image',
       label: 'Story Image Prompts',
       description: 'Prompts used on /adventure-story/loading for story scene images.'
+    },
+    {
+      key: 'story-template-text',
+      label: 'Adventure Story Template Text',
+      description: 'Template text used to generate the five-page adventure story narrative.'
     },
     {
       key: 'interactive-character',
@@ -180,6 +188,9 @@
   let selectedCoverWorld: StoryWorld = 'enchanted-forest';
   let selectedStoryImageWorld: StoryWorld = 'enchanted-forest';
   let selectedStoryImagePageNumber = 1;
+  let selectedStoryTemplateTheme = 'kindnessEmpathy';
+  let selectedStoryTemplateAgeGroup = '7-10';
+  let selectedStoryTemplateWorld: StoryWorld = 'enchanted-forest';
   let selectedInteractiveWorld: StoryWorld = 'enchanted-forest';
   let selectedInteractiveSceneNumber = 1;
   let selectedInteractiveDifficulty: Difficulty = 'medium';
@@ -202,6 +213,7 @@
     if (
       value === 'cover-image' ||
       value === 'story-image' ||
+      value === 'story-template-text' ||
       value === 'interactive-character' ||
       value === 'character-enhancement'
     ) {
@@ -289,6 +301,7 @@
   function getPromptDocument(fileKey: PromptFileKey, documents = promptDocuments): any {
     if (fileKey === 'prompt1') return mergePromptDefaults(getFallbackPromptDocument('prompt1') || getPrompt1Data(), documents.prompt1);
     if (fileKey === 'prompt_image') return mergePromptDefaults(getFallbackPromptDocument('prompt_image') || getPromptImageData(), documents.prompt_image);
+    if (fileKey === 'prompt_story') return mergePromptDefaults(getFallbackPromptDocument('prompt_story') || getPromptStoryData(), documents.prompt_story);
     return documents.backend_prompts || {};
   }
 
@@ -456,6 +469,18 @@
     return '7-10';
   }
 
+  function getStoryTemplateThemeOptions(
+    _documents: Partial<Record<PromptFileKey, any>>
+  ): Array<{ value: string; label: string }> {
+    return [
+      { value: 'kindnessEmpathy', label: 'Kindness & Empathy' },
+      { value: 'bedtimeRoutineSleepHygiene', label: 'Bedtime Routine & Sleep Hygiene' },
+      { value: 'courage', label: 'Courage' },
+      { value: 'connection', label: 'Connection' },
+      { value: 'patienceEndurance', label: 'Patience & Endurance' }
+    ];
+  }
+
   function getPersonSuitPrompt(): string {
     const imageGeneration = getPrompt1Data().imageGeneration || {};
     return typeof imageGeneration.personSuitPrompt === 'string' ? imageGeneration.personSuitPrompt : '';
@@ -560,6 +585,30 @@
     ]);
   }
 
+  function buildStoryTemplateTextPreview(): string {
+    const storyTextPrompt = buildStoryTextPrompt({
+      characterName: 'Luna',
+      characterType: 'person',
+      specialAbility: 'magic casting',
+      characterStyle: selectedCharacterStyle,
+      storyWorld: selectedStoryTemplateWorld,
+      adventureType: 'Treasure Hunt',
+      occasionTheme: 'general',
+      ageGroup: selectedStoryTemplateAgeGroup,
+      readingLevel: selectedStoryTemplateAgeGroup,
+      storyTitle: selectedStoryTitle,
+      pageNumber: 1,
+      storyTheme: selectedStoryTemplateTheme
+    });
+
+    return formatPreviewSections([
+      {
+        title: 'Adventure Story Text Generation Prompt',
+        prompt: storyTextPrompt
+      }
+    ]);
+  }
+
   function buildInteractiveCharacterPreview(): string {
     const scene = interactiveSceneSamples[selectedInteractiveSceneNumber] || interactiveSceneSamples[1];
     const ageGroup = getAgeGroupFromDifficulty(selectedInteractiveDifficulty);
@@ -599,6 +648,63 @@
     drafts: Record<string, string>,
     documents: Partial<Record<PromptFileKey, any>>
   ): Record<PromptSection, SourcePrompt[]> {
+    const storyTemplateTextPrompts = [
+      sourcePrompt(
+        'Adventure Story Text Prompt Document',
+        'prompt_story.json',
+        'prompt_story',
+        [],
+        drafts,
+        documents
+      ),
+      sourcePrompt(
+        'Ally Names by Story World',
+        'prompt_story.json -> ally_name_by_story_world',
+        'prompt_story',
+        ['ally_name_by_story_world'],
+        drafts,
+        documents
+      ),
+      sourcePrompt(
+        'Master Story Architecture',
+        'prompt_story.json -> master_story_architecture',
+        'prompt_story',
+        ['master_story_architecture'],
+        drafts,
+        documents
+      )
+    ];
+
+    const promptStoryAgeGroups = getPromptDocument('prompt_story', documents).age_groups || {};
+    for (const ageGroup of Object.keys(promptStoryAgeGroups).sort()) {
+      storyTemplateTextPrompts.push(
+        sourcePrompt(
+          `Ages ${ageGroup} Story Text Prompt`,
+          `prompt_story.json -> age_groups.${ageGroup}`,
+          'prompt_story',
+          ['age_groups', ageGroup],
+          drafts,
+          documents
+        ),
+        sourcePrompt(
+          `Ages ${ageGroup} Generation Instructions`,
+          `prompt_story.json -> age_groups.${ageGroup}.generation_prompt_template.instructions`,
+          'prompt_story',
+          ['age_groups', ageGroup, 'generation_prompt_template', 'instructions'],
+          drafts,
+          documents
+        ),
+        sourcePrompt(
+          `Ages ${ageGroup} Act Templates`,
+          `prompt_story.json -> age_groups.${ageGroup}.acts`,
+          'prompt_story',
+          ['age_groups', ageGroup, 'acts'],
+          drafts,
+          documents
+        )
+      );
+    }
+
     return {
       'character-enhancement': [
         sourcePrompt('Character Type Prompts', 'prompt1.json -> enhanceCharacter.characterType', 'prompt1', ['enhanceCharacter', 'characterType'], drafts, documents),
@@ -631,6 +737,7 @@
         sourcePrompt('Gender Appearance Prompts', 'prompt_image.json -> personGenderAppearancePrompts', 'prompt_image', ['personGenderAppearancePrompts'], drafts, documents),
         sourcePrompt('Legacy Template Outfit Fallback', 'prompt_image.json -> personTemplateOutfitPrompt', 'prompt_image', ['personTemplateOutfitPrompt'], drafts, documents)
       ],
+      'story-template-text': storyTemplateTextPrompts,
       'interactive-character': [
         sourcePrompt('Interactive Story Template Page Prompts', 'prompt_image.json -> interactiveStoryStyleWorldPagePrompts', 'prompt_image', ['interactiveStoryStyleWorldPagePrompts'], drafts, documents),
         sourcePrompt('Template Outfit Prompt', 'prompt_image.json -> personTemplateOutfitPrompt', 'prompt_image', ['personTemplateOutfitPrompt'], drafts, documents),
@@ -646,6 +753,13 @@
 
   $: activeSectionMeta =
     sections.find((section) => section.key === activeSection) || sections[0];
+  $: storyTemplateThemeOptions = getStoryTemplateThemeOptions(promptDocuments);
+  $: if (
+    storyTemplateThemeOptions.length > 0 &&
+    !storyTemplateThemeOptions.some((option) => option.value === selectedStoryTemplateTheme)
+  ) {
+    selectedStoryTemplateTheme = storyTemplateThemeOptions[0].value;
+  }
   $: sourcePromptGroups = getSourcePromptGroups(promptDrafts, promptDocuments);
   $: activeSourcePrompts = sourcePromptGroups[activeSection] ?? [];
 
@@ -659,6 +773,9 @@
     selectedCoverWorld;
     selectedStoryImageWorld;
     selectedStoryImagePageNumber;
+    selectedStoryTemplateTheme;
+    selectedStoryTemplateAgeGroup;
+    selectedStoryTemplateWorld;
     selectedInteractiveWorld;
     selectedInteractiveSceneNumber;
     selectedInteractiveDifficulty;
@@ -670,6 +787,8 @@
           return buildCoverImagePreview();
         } else if (activeSection === 'story-image') {
           return buildStoryImagePreview();
+        } else if (activeSection === 'story-template-text') {
+          return buildStoryTemplateTextPreview();
         }
         return buildInteractiveCharacterPreview();
       });
@@ -805,6 +924,44 @@
               <select bind:value={selectedCharacterGender}>
                 {#each characterGenders as genderOption}
                   <option value={genderOption.value}>{genderOption.label}</option>
+                {/each}
+              </select>
+            </label>
+          </div>
+        </div>
+      {:else if activeSection === 'story-template-text'}
+        <div class="story-title-container">
+          <p class="content-title">Preview Variables</p>
+          <div class="story-prompt-controls">
+            <label class="control-field">
+              <span>Story Theme</span>
+              <select bind:value={selectedStoryTemplateTheme}>
+                {#each storyTemplateThemeOptions as themeOption}
+                  <option value={themeOption.value}>{themeOption.label}</option>
+                {/each}
+              </select>
+            </label>
+            <label class="control-field">
+              <span>World</span>
+              <select bind:value={selectedStoryTemplateWorld}>
+                {#each worldOptions as worldOption}
+                  <option value={worldOption.value}>{worldOption.label}</option>
+                {/each}
+              </select>
+            </label>
+            <label class="control-field">
+              <span>Age Group</span>
+              <select bind:value={selectedStoryTemplateAgeGroup}>
+                <option value="3-6">Ages 3-6</option>
+                <option value="7-10">Ages 7-10</option>
+                <option value="11-12">Ages 11-12</option>
+              </select>
+            </label>
+            <label class="control-field">
+              <span>Character Style</span>
+              <select bind:value={selectedCharacterStyle}>
+                {#each characterStyles as styleOption}
+                  <option value={styleOption.value}>{styleOption.label}</option>
                 {/each}
               </select>
             </label>

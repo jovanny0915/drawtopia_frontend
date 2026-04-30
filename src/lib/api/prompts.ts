@@ -2,7 +2,7 @@ import { env } from '$lib/env';
 
 const API_URL = env.API_BASE_URL;
 
-export type PromptFileKey = 'prompt1' | 'prompt_image' | 'backend_prompts';
+export type PromptFileKey = 'prompt1' | 'prompt_image' | 'prompt_story' | 'backend_prompts';
 
 export interface PromptDocument {
   file_key: PromptFileKey;

@@ -1,17 +1,20 @@
 import { browser } from '$app/environment';
 import prompt1Fallback from './prompt1.json';
 import promptImageFallback from './prompt_image.json';
+import promptStoryFallback from './prompt_story.json';
 import { getAdminPrompts, type PromptDocument, type PromptFileKey } from './api/prompts';
 
 type PromptDocumentMap = {
   prompt1: any;
   prompt_image: any;
+  prompt_story: any;
   backend_prompts?: any;
 };
 
 const fallbackDocuments: PromptDocumentMap = {
   prompt1: prompt1Fallback as any,
-  prompt_image: promptImageFallback as any
+  prompt_image: promptImageFallback as any,
+  prompt_story: promptStoryFallback as any
 };
 
 let runtimeDocuments: PromptDocumentMap = { ...fallbackDocuments };
@@ -45,12 +48,18 @@ export function setRuntimePromptDocuments(documents: Partial<Record<PromptFileKe
     ...runtimeDocuments,
     ...(documents.prompt1 ? { prompt1: mergePromptDefaults(fallbackDocuments.prompt1, documents.prompt1) } : {}),
     ...(documents.prompt_image ? { prompt_image: mergePromptDefaults(fallbackDocuments.prompt_image, documents.prompt_image) } : {}),
+    ...(documents.prompt_story ? { prompt_story: mergePromptDefaults(fallbackDocuments.prompt_story, documents.prompt_story) } : {}),
     ...(documents.backend_prompts ? { backend_prompts: documents.backend_prompts } : {})
   };
 }
 
 export function setRuntimePromptDocument(document: PromptDocument): void {
-  if (document.file_key === 'prompt1' || document.file_key === 'prompt_image' || document.file_key === 'backend_prompts') {
+  if (
+    document.file_key === 'prompt1' ||
+    document.file_key === 'prompt_image' ||
+    document.file_key === 'prompt_story' ||
+    document.file_key === 'backend_prompts'
+  ) {
     setRuntimePromptDocuments({ [document.file_key]: document.content });
   }
 }
@@ -61,6 +70,10 @@ export function getPrompt1Data(): any {
 
 export function getPromptImageData(): any {
   return runtimeDocuments.prompt_image || fallbackDocuments.prompt_image;
+}
+
+export function getPromptStoryData(): any {
+  return runtimeDocuments.prompt_story || fallbackDocuments.prompt_story;
 }
 
 export function getPromptDocumentsSnapshot(): PromptDocumentMap {

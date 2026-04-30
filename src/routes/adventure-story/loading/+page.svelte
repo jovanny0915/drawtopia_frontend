@@ -12,7 +12,7 @@
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
     import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription, generateStoryPageAudioUrls } from '../../../lib/storyGenerationHelpers';
-    import { getAdventureStoryTemplatePages } from '../../../lib/adventureStoryTextTemplates';
+    import { buildStoryTextPrompt } from '../../../lib/storyPromptBuilder';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
     import { getPromptImageData, loadRuntimePromptDocuments } from '../../../lib/promptRuntime';
@@ -239,6 +239,24 @@
             patienceEndurance: 'Patience & Endurance'
         };
         return themeMap[themeKey] || themeMap[themeKey.toLowerCase()] || null;
+    }
+
+    function getThemePromptKey(themeKey: string | undefined): string {
+        if (!themeKey) return 'kindnessEmpathy';
+        const normalized = themeKey.trim();
+        const compact = normalized.toLowerCase().replace(/[\s&_/-]+/g, '');
+        const themeMap: { [key: string]: string } = {
+            kindnessempathy: 'kindnessEmpathy',
+            kindness: 'kindnessEmpathy',
+            bedtimeroutinesleephygiene: 'bedtimeRoutineSleepHygiene',
+            bedtime: 'bedtimeRoutineSleepHygiene',
+            sleep: 'bedtimeRoutineSleepHygiene',
+            courage: 'courage',
+            connection: 'connection',
+            patienceendurance: 'patienceEndurance',
+            patience: 'patienceEndurance'
+        };
+        return themeMap[compact] || normalized;
     }
 
     function showToastrError(message: string) {
@@ -1138,9 +1156,9 @@
             }
 
             const rawThemeName = sessionStorage.getItem("storyTheme") || storyTheme;
-            const rawWorldName = sessionStorage.getItem("selectedWorld") || storyWorld;
             const characterGender = storyState.characterGender || sessionStorage.getItem('characterGender') || 'female';
             const themeName = getThemeDisplayName(rawThemeName) || rawThemeName;
+            const storyThemePromptKey = getThemePromptKey(rawThemeName);
             if (!themeName || !ageGroup) {
                 showToastrError('Missing required variables for story text generation.');
                 if (browser) sessionStorage.setItem('storyGenerationError', 'true');
@@ -1149,21 +1167,57 @@
 
             if (isCancelled) return;
             storyTextProgress = 5;
-            console.log('Step 1: Resolving story text from fixed templates...');
+            console.log('Step 1: Generating story text with OpenAI...');
 
-            const resultPages = getAdventureStoryTemplatePages({
-                storyWorld: rawWorldName,
-                ageGroup,
-                learningTheme: themeName,
+            const storyTextPrompt = buildStoryTextPrompt({
                 characterName,
-                characterGender,
-                specialAbility
+                characterType: mapCharacterType(characterType),
+                specialAbility,
+                characterStyle: (characterStyle as '3d' | 'cartoon' | 'anime') || 'cartoon',
+                storyWorld: storyWorld,
+                adventureType,
+                occasionTheme: 'general',
+                ageGroup,
+                readingLevel: ageGroup,
+                storyTitle: storyTitle || 'The Great Adventure',
+                pageNumber: 1,
+                storyTheme: storyThemePromptKey
             });
 
-            const storyPagesTextOnly: Array<{ pageNumber: number; text: string }> = resultPages.slice(0, 5).map((p: any, index: number) => ({
+            const storyTextResponse = await fetch(`${backendBaseUrl}/story/generate-text`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    character_name: characterName,
+                    character_type: mapCharacterType(characterType),
+                    special_ability: specialAbility,
+                    age_group: ageGroup,
+                    story_world: storyWorld,
+                    adventure_type: adventureType,
+                    occasion_theme: 'general',
+                    character_image_url: cleanCharacterImageUrl,
+                    story_text_prompt: storyTextPrompt,
+                    reading_level: ageGroup,
+                    story_title: storyTitle || 'The Great Adventure',
+                    character_style: characterStyle
+                })
+            });
+
+            if (!storyTextResponse.ok) {
+                const errorText = await storyTextResponse.text().catch(() => '');
+                throw new Error(errorText || `Story text generation failed with status ${storyTextResponse.status}`);
+            }
+
+            const storyTextData = await storyTextResponse.json();
+            const generatedPages = Array.isArray(storyTextData.pages) ? storyTextData.pages : [];
+            const storyPagesTextOnly: Array<{ pageNumber: number; text: string }> = generatedPages.slice(0, 5).map((p: any, index: number) => ({
                 pageNumber: index + 1,
                 text: typeof p === 'string' ? p : (p.text || p.content || '')
             }));
+
+            if (storyPagesTextOnly.length === 0) {
+                throw new Error('OpenAI returned no story pages');
+            }
 
             storyTextProgress = 50;
             console.log(`Story text generated: ${storyPagesTextOnly.length} pages`);
