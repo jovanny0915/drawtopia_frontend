@@ -272,7 +272,13 @@
                 </div>
             </div>
         </div>
-        <div class="frame-1410104246" on:click={handleGenerateSearchAdventure}>
+        <div
+            class="frame-1410104246"
+            on:click={handleGenerateSearchAdventure}
+            on:keydown={(e) => handleKeydown(e, handleGenerateSearchAdventure)}
+            role="button"
+            tabindex="0"
+        >
             <div class="generate-search-adventure"><span class="generatesearchadventure_span">Generate Search Adventure</span></div>
             <div class="ellipse-1415"></div>
             <div class="arrowleft">
@@ -1013,7 +1019,6 @@
     overflow: hidden;
     border-top-left-radius: 12px;
     border-top-right-radius: 12px;
-    background-image: url(https:
 }
 
 .arrowleft {
