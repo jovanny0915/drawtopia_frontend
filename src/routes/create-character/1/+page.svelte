@@ -405,8 +405,10 @@
     sessionStorage.setItem('selectedChildProfileName', childName);
     sessionStorage.setItem('selectedChildName', childName);
     if (childAge) {
+      sessionStorage.setItem('selectedchildage', childAge);
       sessionStorage.setItem('selectedChildAge', childAge);
     } else {
+      sessionStorage.removeItem('selectedchildage');
       sessionStorage.removeItem('selectedChildAge');
     }
   };
@@ -435,6 +437,7 @@
     if (browser) {
       sessionStorage.removeItem("selectedChildProfileId");
       sessionStorage.removeItem("selectedChildProfileName");
+      sessionStorage.removeItem("selectedchildage");
       sessionStorage.removeItem("selectedChildAge");
     }
     

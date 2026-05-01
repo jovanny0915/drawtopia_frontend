@@ -1,7 +1,7 @@
 
 import type { BookTemplate } from './database/bookTemplates';
 import { env, LOGO_PATH } from './env';
-import { buildStoryScenePrompt, getAllyNameForStoryWorld } from './promptBuilder';
+import { getAllyNameForStoryWorld } from './promptBuilder';
 import { getPrompt1Data, getPromptImageData, loadRuntimePromptDocuments } from './promptRuntime';
 
 export interface TextBlockOverlay {
@@ -41,6 +41,16 @@ interface WorldStoryPagePrompts {
   tempMainStoryPageAllyCharacterPrompt?: string | null;
   pageAllyCharacterPrompts?: Record<string, string>;
   pageMainCharacterPoseActionEmotionPrompts: Record<string, string>;
+}
+
+function isWorldStoryPagePrompts(value: unknown): value is WorldStoryPagePrompts {
+  if (!value || typeof value !== 'object') return false;
+  const prompts = value as Partial<WorldStoryPagePrompts>;
+  return (
+    (typeof prompts.tempMainStoryPagePrompt === 'string' || prompts.tempMainStoryPagePrompt === null) &&
+    !!prompts.pageMainCharacterPoseActionEmotionPrompts &&
+    typeof prompts.pageMainCharacterPoseActionEmotionPrompts === 'object'
+  );
 }
 
 function getStoryStyleWorldPagePrompts(): Record<StoryStyleKey, Record<StoryWorldKey, WorldStoryPagePrompts>> {
@@ -100,7 +110,11 @@ function appendPageSpecificStoryRules(
   const pageKey = String(pageNumber);
   const allyPrompt = includeAllyRule ? worldPrompts.pageAllyCharacterPrompts?.[pageKey] : null;
   const posePrompt = worldPrompts.pageMainCharacterPoseActionEmotionPrompts[pageKey];
-  const sections: string[] = [normalizeTemplateCharacterLanguage(basePrompt)];
+  const sections: string[] = [];
+
+  if (basePrompt.trim()) {
+    sections.push(normalizeTemplateCharacterLanguage(basePrompt));
+  }
 
   if (allyPrompt) {
     sections.push(`PAGE-SPECIFIC ALLY CHARACTER RULE:\n- ${normalizeTemplateCharacterLanguage(allyPrompt)}`);
@@ -126,7 +140,18 @@ function getWorldStoryPagePrompts(
   ) {
     return interactiveStoryStyleWorldPagePrompts[styleKey][worldKey];
   }
-  return storyStyleWorldPagePrompts[styleKey][worldKey];
+
+  const selectedPrompts = storyStyleWorldPagePrompts?.[styleKey]?.[worldKey];
+  if (isWorldStoryPagePrompts(selectedPrompts)) {
+    return selectedPrompts;
+  }
+
+  const fallbackPrompts = storyStyleWorldPagePrompts?.cartoon?.forest;
+  if (isWorldStoryPagePrompts(fallbackPrompts)) {
+    return fallbackPrompts;
+  }
+
+  throw new Error(`prompt_image.storyStyleWorldPagePrompts.${styleKey}.${worldKey} is missing`);
 }
 
 function shouldApplyTemplateOutfitPrompt(characterType: string): boolean {
@@ -241,57 +266,32 @@ export function buildStoryPagePrompt(
   const allyReplacementPrompt = !isInteractiveFormat && worldPrompts.tempMainStoryPageAllyCharacterPrompt
     ? resolveTemplateAllyPrompt(worldPrompts.tempMainStoryPageAllyCharacterPrompt, options.storyWorld, allyName)
     : null;
-  const rulesPrompt = renderCurlyTemplate(getPromptImageData().storyPageRulesPrompt, {
-    story_text: storyText,
-    character_action: characterAction,
-    derived_emotion: derivedEmotion,
-    derived_atmosphere: derivedAtmosphere
-  });
+  const rulesTemplate = getPromptImageData().storyPageRulesPrompt;
+  const rulesPrompt = typeof rulesTemplate === 'string' && rulesTemplate.trim().length > 0
+    ? renderCurlyTemplate(rulesTemplate, {
+      story_text: storyText,
+      character_action: characterAction,
+      derived_emotion: derivedEmotion,
+      derived_atmosphere: derivedAtmosphere
+    })
+    : '';
 
-  if (worldPrompts.tempMainStoryPagePrompt != null) {
-    let fixedPrompt = worldPrompts.tempMainStoryPagePrompt;
-    if (shouldApplyTemplateOutfitPrompt(options.characterType)) {
-      fixedPrompt = `${fixedPrompt}\n\n${getPersonGenderAppearancePrompt(options.characterGender)}`;
-    }
-
-    const fixedPromptWithRules = `${fixedPrompt}\n\n${rulesPrompt}`;
-    const promptWithAllyReplacement = allyReplacementPrompt
-      ? `${fixedPromptWithRules}\n\n${allyReplacementPrompt}`
-      : fixedPromptWithRules;
-
-    return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber, worldPrompts, !isInteractiveFormat);
+  const promptSections: string[] = [];
+  if (worldPrompts.tempMainStoryPagePrompt?.trim()) {
+    promptSections.push(normalizeTemplateCharacterLanguage(worldPrompts.tempMainStoryPagePrompt));
+  }
+  if (shouldApplyTemplateOutfitPrompt(options.characterType)) {
+    promptSections.push(getPersonGenderAppearancePrompt(options.characterGender));
+  }
+  if (rulesPrompt) {
+    promptSections.push(rulesPrompt);
+  }
+  if (allyReplacementPrompt) {
+    promptSections.push(normalizeTemplateCharacterLanguage(allyReplacementPrompt));
   }
 
-  const enrichedSceneDescription = `${sceneDescription}. Atmosphere: ${derivedAtmosphere}`;
-
-  const prompt = buildStoryScenePrompt({
-    characterName: options.characterName,
-    characterType: options.characterType,
-    specialAbility: options.specialAbility,
-    characterStyle: options.characterStyle,
-    storyWorld: options.storyWorld,
-    adventureType: options.adventureType,
-    ageGroup: options.ageGroup,
-    storyTitle: options.storyTitle,
-    pageNumber,
-    pageText: storyText,
-    pageSceneDescription: enrichedSceneDescription,
-    pageCharacterAction: characterAction,
-    pageEmotion: derivedEmotion,
-    companionCharacters: allyName,
-    characterImageUrl: options.characterImageUrl,
-    characterPlacement: 'left-half'
-  });
-
-  const genderAppearancePrompt = shouldApplyTemplateOutfitPrompt(options.characterType)
-    ? `\n\n${getPersonGenderAppearancePrompt(options.characterGender)}`
-    : '';
-  const basePromptWithRules = `${prompt}\n\n${rulesPrompt}${genderAppearancePrompt}`;
-  const promptWithAllyReplacement = allyReplacementPrompt
-    ? `${basePromptWithRules}\n\n${allyReplacementPrompt}`
-    : basePromptWithRules;
-
-  return appendPageSpecificStoryRules(promptWithAllyReplacement, pageNumber, worldPrompts, !isInteractiveFormat);
+  const promptImageOnlyBase = promptSections.join('\n\n');
+  return appendPageSpecificStoryRules(promptImageOnlyBase, pageNumber, worldPrompts, !isInteractiveFormat);
 }
 
 export function getBackCoverTextBlocks(): TextBlockOverlay[] {

@@ -95,6 +95,7 @@
           sessionStorage.removeItem(`enhancementImage_${style}_${enhancement}`);
         });
       });
+      sessionStorage.removeItem('enhancedCharacterImages');
       
       
       checkAllImagesGenerated();

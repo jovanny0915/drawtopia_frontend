@@ -3,7 +3,7 @@
     import { get } from "svelte/store";
     import { browser } from "$app/environment";
     import { page } from "$app/stores";
-    import { storyCreation } from "../../../lib/stores/storyCreation";
+    import { collectEnhancedCharacterImages, storyCreation } from "../../../lib/stores/storyCreation";
     import { user } from "../../../lib/stores/auth";
     import { getStoryById } from "../../../lib/database/stories";
     import { getUserProfile } from "../../../lib/auth";
@@ -48,6 +48,7 @@
         const characterName = state.characterName || (browser && sessionStorage.getItem("characterName")) || "";
         const characterType = state.characterType || (browser && sessionStorage.getItem("selectedCharacterType")) || "person";
         const characterStyle = state.characterStyle || (browser && sessionStorage.getItem("selectedStyle")) || "cartoon";
+        const enhancedImages = state.enhancedImages || collectEnhancedCharacterImages(characterStyle);
         const storyWorld = state.storyWorld || (browser && sessionStorage.getItem("selectedWorld")) || "forest";
         const adventureType = state.adventureType || (browser && sessionStorage.getItem("selectedAdventure")) || "treasure_hunt";
         const originalImageUrl = state.originalImageUrl || (browser && (sessionStorage.getItem("characterImageUrl") || sessionStorage.getItem("selectedCharacterEnhancedImage"))) || "";
@@ -73,7 +74,7 @@
             story_world: storyWorld,
             adventure_type: adventureType,
             original_image_url: originalImageUrl.split("?")[0],
-            enhanced_images: state.enhancedImages || [],
+            enhanced_images: enhancedImages,
             story_title: storyTitle,
             story_cover: storyCover ? storyCover.split("?")[0] : undefined,
             cover_design: state.coverDesign || undefined,
@@ -210,6 +211,24 @@
         return m[level.toLowerCase()] || level;
     }
 
+    function getSelectedChildAge(): string {
+        if (!browser) return "";
+        return sessionStorage.getItem("selectedchildage")
+            || sessionStorage.getItem("selectedChildAge")
+            || "";
+    }
+
+    function getAgeGroupDisplayName(age: string | undefined | null): string {
+        if (!age) return "Ages 7-10";
+        const trimmed = age.trim();
+        const normalized = trimmed.toLowerCase().replace(/^ages?\s+/, "");
+        const range = normalized.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+        if (range) return `Ages ${range[1]}-${range[2]}`;
+        if (normalized === "3-5") return "Ages 3-6";
+        if (normalized === "6-7" || normalized === "8-10") return "Ages 7-10";
+        return trimmed.toLowerCase().startsWith("age") ? trimmed : `Ages ${trimmed}`;
+    }
+
     function getStyleDisplayName(style: string): string {
         if (!style) return "Anime";
         const styleMap: { [key: string]: string } = {
@@ -293,6 +312,8 @@
     $: themeOrDifficultyDisplay = isAdventureStory
         ? getThemeDisplayName(storyThemeKey) || "Kindness & Empathy"
         : getDifficultyDisplayName(intersearchDifficulty);
+    $: selectedChildAge = getSelectedChildAge();
+    $: ageGroupDisplay = getAgeGroupDisplayName(selectedChildAge);
 </script>
 
 <div class="story-preview-summary-default">
@@ -548,7 +569,7 @@
                                     </div>
                                     <div class="ages-11-12">
                                         <span class="ages11-12_span"
-                                            >Ages 11-12
+                                            >{ageGroupDisplay}
                                         </span>
                                     </div>
                                 </div>

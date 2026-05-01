@@ -20,7 +20,14 @@
   } from '$lib/storyGenerationHelpers';
   import { loadRuntimePromptDocuments } from '$lib/promptRuntime';
 
-  type BusyKey = 'text' | 'character' | 'cover' | `page:${number}` | `page:${number}:${number}`;
+  type EnhancementLevel = 'minimal' | 'normal' | 'high';
+  type BusyKey = 'text' | 'character' | 'cover' | `character:${EnhancementLevel}` | `page:${number}` | `page:${number}:${number}`;
+
+  const enhancementSlots: { level: EnhancementLevel; label: string; description: string }[] = [
+    { level: 'minimal', label: 'Minimal', description: 'Light cleanup' },
+    { level: 'normal', label: 'Normal', description: 'Storybook quality' },
+    { level: 'high', label: 'High', description: 'Publication ready' }
+  ];
 
   let stories: AdminStorySummary[] = [];
   let selectedStory: AdminStoryDetail | null = null;
@@ -32,6 +39,7 @@
   let successMessage = '';
   let busy: Partial<Record<BusyKey, boolean>> = {};
   let storyTextDrafts: Record<number, string> = {};
+  let selectedEnhancementIndex = 0;
 
   onMount(() => {
     void loadAdminStories();
@@ -81,6 +89,26 @@
     return normalizeImageUrls(selectedStory?.character?.enhanced_images || getRawStoryValue('enhanced_images'));
   }
 
+  function getEnhancedCharacterImage(index: number): string | null {
+    return getEnhancedCharacterImages()[index] || null;
+  }
+
+  function getSelectedEnhancedCharacterImage(): string | null {
+    const enhanced = getEnhancedCharacterImages();
+    const selectedUrl = cleanUrl(enhanced[selectedEnhancementIndex]);
+    return selectedUrl || cleanUrl(enhanced.find(Boolean));
+  }
+
+  function getSelectedEnhancementLabel(): string {
+    const selectedSlot = enhancementSlots[selectedEnhancementIndex];
+    return selectedSlot?.label || 'Enhanced';
+  }
+
+  function selectEnhancedCharacterImage(index: number) {
+    if (!getEnhancedCharacterImage(index)) return;
+    selectedEnhancementIndex = index;
+  }
+
   function normalizeCharacterType(value?: string | null): 'person' | 'animal' | 'magical' {
     const normalized = (value || '').toLowerCase();
     if (normalized.includes('animal')) return 'animal';
@@ -114,8 +142,7 @@
   }
 
   function getCurrentCharacterImage(): string | null {
-    const enhanced = getEnhancedCharacterImages();
-    return cleanUrl(enhanced[0]) || cleanUrl(selectedStory?.character?.original_image_url) || cleanUrl(getRawStoryValue('original_image_url'));
+    return getSelectedEnhancedCharacterImage() || cleanUrl(selectedStory?.character?.original_image_url) || cleanUrl(getRawStoryValue('original_image_url'));
   }
 
   function getOriginalCharacterImage(): string | null {
@@ -187,6 +214,7 @@
     const result = await getAdminStoryDetail(storyKey(story));
     if (result.success && result.data) {
       selectedStory = result.data;
+      selectedEnhancementIndex = 0;
       storyTextDrafts = {};
       for (const page of result.data.story_pages_text || []) {
         storyTextDrafts[page.page_number] = page.text || '';
@@ -226,7 +254,7 @@
     setBusy('text', false);
   }
 
-  async function regenerateCharacter() {
+  async function regenerateCharacter(level: EnhancementLevel = 'normal', imageIndex = 1) {
     if (!selectedStory) return;
     const originalUrl = getOriginalCharacterImage();
     if (!originalUrl) {
@@ -234,15 +262,16 @@
       return;
     }
 
-    setBusy('character', true);
+    const busyKey: BusyKey = `character:${level}`;
+    setBusy(busyKey, true);
     successMessage = '';
     detailError = '';
     const result = await generateStyledImage({
       imageUrl: originalUrl,
       style: normalizeCharacterStyle(getRawStoryValue('character_style')),
-      quality: 'normal',
+      quality: level,
       saveToStorage: true,
-      storageKey: 'adminGeneratedCharacterImage',
+      storageKey: `adminGeneratedCharacterImage_${level}`,
       characterName: selectedStory.character_name,
       characterType: normalizeCharacterType(getRawStoryValue('character_type')),
       specialAbility: getRawStoryValue('special_ability') || '',
@@ -252,30 +281,35 @@
     if (result.success && result.url) {
       const existingImages = getEnhancedCharacterImages();
       const generatedUrl = cleanUrl(result.url)!;
-      const enhancedImages = [generatedUrl, ...existingImages.filter((url) => url !== generatedUrl)];
+      const enhancedImages = [...existingImages];
+      while (enhancedImages.length < enhancementSlots.length) {
+        enhancedImages.push('');
+      }
+      enhancedImages[imageIndex] = generatedUrl;
       const updateResult = await updateAdminStory(storyKey(selectedStory), { enhanced_images: enhancedImages });
       if (updateResult.success) {
-        successMessage = 'Character regenerated from the reference image.';
+        selectedEnhancementIndex = imageIndex;
+        successMessage = `${enhancementSlots[imageIndex]?.label || 'Character'} enhancement regenerated from the reference image.`;
         await refreshSelectedStory();
       } else {
         detailError = updateResult.error || 'Character image was generated but could not be saved.';
       }
     } else {
-      detailError = result.error || 'Failed to regenerate character.';
+      detailError = result.error || `Failed to regenerate ${level} character enhancement.`;
     }
-    setBusy('character', false);
+    setBusy(busyKey, false);
   }
 
   async function regenerateCover() {
     if (!selectedStory) return;
     const template = findMatchingTemplate();
-    const characterUrl = getCurrentCharacterImage();
+    const characterUrl = getSelectedEnhancedCharacterImage();
     if (!template?.cover_image) {
       detailError = 'No matching template cover image found.';
       return;
     }
     if (!characterUrl) {
-      detailError = 'No character image found for cover regeneration.';
+      detailError = 'Select or generate one enhanced character image before regenerating the cover.';
       return;
     }
 
@@ -295,11 +329,10 @@
       const result = await generateImageWithTwoTemplates(template.cover_image, characterUrl, prompt);
       if (result.success && result.url) {
         const saved = await updateAdminStory(storyKey(selectedStory), {
-          story_cover: cleanUrl(result.url),
-          cover_image: cleanUrl(result.url)
+          story_cover: cleanUrl(result.url)
         });
         if (saved.success) {
-          successMessage = 'Cover image regenerated.';
+          successMessage = `Cover image regenerated with the ${getSelectedEnhancementLabel()} enhanced character.`;
           await refreshSelectedStory();
         } else {
           detailError = saved.error || 'Cover generated but could not be saved.';
@@ -366,7 +399,7 @@
           detailError = saved.error || 'Page generated but could not be saved.';
         }
       } else {
-      detailError = result.error || `Failed to regenerate page ${pageNumber} illustration ${imageIndex + 1}.`;
+        detailError = result.error || `Failed to regenerate page ${pageNumber} illustration ${imageIndex + 1}.`;
       }
     } catch (error) {
       detailError = error instanceof Error ? error.message : `Failed to regenerate page ${pageNumber} illustration ${imageIndex + 1}.`;
@@ -437,24 +470,48 @@
         <div class="actions-grid">
           <div class="action-card">
             <p class="panel-title">Character</p>
-            {#if getCurrentCharacterImage()}
-              <img class="preview-image" src={getCurrentCharacterImage()!} alt="Current character" />
+            {#if getOriginalCharacterImage()}
+              <img class="preview-image" src={getOriginalCharacterImage()!} alt="Original uploaded character" />
+              <p class="muted small-text">Original uploaded character</p>
             {/if}
-            {#if getEnhancedCharacterImages().length > 0}
-              <div class="enhanced-image-grid" aria-label="Enhanced character images">
-                {#each getEnhancedCharacterImages() as imageUrl, index (imageUrl)}
-                  <figure class:active={imageUrl === getCurrentCharacterImage()}>
-                    <img src={imageUrl} alt={`Enhanced character ${index + 1}`} />
-                    <figcaption>{index === 0 ? 'Active' : `Enhanced ${index + 1}`}</figcaption>
-                  </figure>
-                {/each}
-              </div>
-            {:else}
-              <p class="muted small-text">No enhanced character images saved yet.</p>
-            {/if}
-            <button type="button" class="primary-action" disabled={busy.character} on:click={regenerateCharacter}>
-              {busy.character ? 'Regenerating...' : 'Regenerate Character With Reference'}
-            </button>
+            <p class="muted small-text">
+              Cover reference: {getSelectedEnhancedCharacterImage() ? `${getSelectedEnhancementLabel()} enhanced image` : 'generate an enhanced image'}
+            </p>
+            <div class="enhanced-image-grid" aria-label="Enhanced character images">
+              {#each enhancementSlots as slot, index (slot.level)}
+                {@const imageUrl = getEnhancedCharacterImage(index)}
+                <figure class:active={Boolean(imageUrl && index === selectedEnhancementIndex)}>
+                  {#if imageUrl}
+                    <img src={imageUrl} alt={`${slot.label} enhanced character`} />
+                  {:else}
+                    <div class="enhanced-placeholder">
+                      <span>{slot.label}</span>
+                      <small>No image yet</small>
+                    </div>
+                  {/if}
+                  <button
+                    type="button"
+                    class="secondary-action"
+                    disabled={!imageUrl}
+                    on:click={() => selectEnhancedCharacterImage(index)}
+                  >
+                    {imageUrl && index === selectedEnhancementIndex ? 'Selected for Cover' : 'Use for Cover'}
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary-action"
+                    disabled={busy[`character:${slot.level}` as BusyKey]}
+                    on:click={() => regenerateCharacter(slot.level, index)}
+                  >
+                    {busy[`character:${slot.level}` as BusyKey] ? 'Regenerating...' : imageUrl ? 'Regenerate' : 'Generate'}
+                  </button>
+                  <figcaption>
+                    <span>{imageUrl && index === selectedEnhancementIndex ? 'Active' : slot.label}</span>
+                    <small>{slot.description}</small>
+                  </figcaption>
+                </figure>
+              {/each}
+            </div>
           </div>
 
           <div class="action-card">
@@ -462,6 +519,9 @@
             {#if selectedStory.cover_image}
               <img class="preview-image" src={selectedStory.cover_image} alt="Story cover" />
             {/if}
+            <p class="muted small-text">
+              Regenerates with: {getSelectedEnhancedCharacterImage() ? `${getSelectedEnhancementLabel()} enhanced character` : 'no enhanced character selected'}
+            </p>
             <button type="button" class="primary-action" disabled={busy.cover} on:click={regenerateCover}>
               {busy.cover ? 'Regenerating...' : 'Regenerate Cover Image'}
             </button>
@@ -659,12 +719,14 @@
 
   .enhanced-image-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.6rem;
     margin: 0.75rem 0;
   }
 
   .enhanced-image-grid figure {
+    display: grid;
+    gap: 0.45rem;
     margin: 0;
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
@@ -677,15 +739,56 @@
     background: #eff6ff;
   }
 
-  .enhanced-image-grid img {
+  .enhanced-image-grid img,
+  .enhanced-placeholder {
     width: 100%;
     aspect-ratio: 1;
-    object-fit: cover;
     border-radius: 0.35rem;
   }
 
-  .enhanced-image-grid figcaption,
-  .small-text {
+  .enhanced-image-grid img {
+    background: #ffffff;
+    object-fit: contain;
+  }
+
+  .enhanced-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 84px;
+    background: #eef2f7;
+    border: 1px dashed #cbd5e1;
+    color: #6b7280;
+    text-align: center;
+  }
+
+  .enhanced-placeholder span {
+    color: #374151;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .enhanced-placeholder small,
+  .enhanced-image-grid figcaption small {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 400;
+  }
+
+  .enhanced-image-grid figcaption {
+    min-height: 2.25rem;
+    font-weight: 700;
+  }
+
+  .enhanced-image-grid .secondary-action {
+    width: 100%;
+    padding: 0.45rem 0.35rem;
+    font-size: 0.78rem;
+  }
+
+  .enhanced-image-grid figcaption {
     margin: 0.25rem 0 0;
     color: #6b7280;
     font-size: 0.78rem;

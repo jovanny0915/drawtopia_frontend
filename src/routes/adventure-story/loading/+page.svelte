@@ -3,7 +3,7 @@
     import { get } from 'svelte/store';
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
-    import { storyCreation } from '../../../lib/stores/storyCreation';
+    import { collectEnhancedCharacterImages, storyCreation } from '../../../lib/stores/storyCreation';
     import { env } from '../../../lib/env';
     import { supabase } from '../../../lib/supabase';
     import type { ChildProfile } from '../../../lib/database/childProfiles';
@@ -698,6 +698,7 @@
             const characterType = storyState.characterType || sessionStorage.getItem('selectedCharacterType') || 'person';
             const specialAbility = storyState.specialAbility || sessionStorage.getItem('specialAbility') || '';
             const characterStyle = storyState.characterStyle || sessionStorage.getItem('selectedStyle') || 'cartoon';
+            const enhancedImages = storyState.enhancedImages || collectEnhancedCharacterImages(characterStyle);
             const storyTitle = storyState.storyTitle || sessionStorage.getItem('storyTitle') || `${characterName}'s Search Adventure`;
             
             const worldMap: { [key: string]: 'forest' | 'space' | 'underwater' } = {
@@ -756,7 +757,7 @@
                 story_world: dbWorld,
                 adventure_type: 'treasure_hunt' as const,
                 original_image_url: originalImageUrl.split('?')[0],
-                enhanced_images: storyState.enhancedImages || [],
+                enhanced_images: enhancedImages,
                 story_title: storyTitle,
                 template_id: bookTemplateId || undefined,
                 story_cover: sceneImages[0]?.split('?')[0] || undefined,
@@ -987,6 +988,7 @@
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
             const currentStoryId = browser ? sessionStorage.getItem('currentStoryId') : null;
+            const enhancedImages = storyState.enhancedImages || collectEnhancedCharacterImages(storyState.characterStyle);
             const storyData = {
                 ...(currentStoryId ? { uid: currentStoryId } : {}),
                 user_id: $user?.id,
@@ -999,7 +1001,7 @@
                 story_world: storyState.storyWorld || 'forest',
                 adventure_type: storyState.adventureType || 'treasure_hunt',
                 original_image_url: originalImageUrl,
-                enhanced_images: storyState.enhancedImages || [],
+                enhanced_images: enhancedImages,
                 story_title: storyState.storyTitle || undefined,
                 cover_design: storyState.coverDesign || sessionStorage.getItem('') || undefined,
                 story_cover: storyState.storyCover || sessionStorage.getItem('selectedImage_step6') || undefined,
@@ -1131,7 +1133,9 @@
             const storyTheme = browser ? (sessionStorage.getItem('storyTheme') || 'kindnessEmpathy') : 'kindnessEmpathy';
 
             let ageGroup = '7-10';
-            const storedAge = browser ? sessionStorage.getItem('selectedChildAge') : null;
+            const storedAge = browser
+                ? (sessionStorage.getItem('selectedchildage') || sessionStorage.getItem('selectedChildAge'))
+                : null;
             if (storedAge) {
                 ageGroup = normalizeAgeGroup(storedAge);
             } else if (storyState.selectedChildProfileId && storyState.selectedChildProfileId !== 'undefined') {
