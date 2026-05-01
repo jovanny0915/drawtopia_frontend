@@ -97,6 +97,7 @@
     icon: typeof LayoutDashboard;
     match?: (path: string, tab: string) => boolean;
     children?: NavChildItem[];
+    defaultExpanded?: boolean;
   };
 
   const navItems: NavItem[] = [
@@ -118,12 +119,13 @@
       path: '/admin/stories',
       icon: Book,
       match: (path) => path === '/admin/stories' || path === '/admin/book-templates',
+      defaultExpanded: true,
       children: [
         {
           label: 'Book Templates',
           description: 'Manage book templates',
-          href: '/admin/stories?tab=book-templates',
-          match: (path, tab) => path === '/admin/book-templates' || (path === '/admin/stories' && tab === 'book-templates')
+          href: '/admin/book-templates',
+          match: (path) => path === '/admin/book-templates'
         },
         {
           label: 'Story List',
@@ -226,7 +228,7 @@
               {/if}
             </a>
 
-            {#if sidebarOpen && itemActive && item.children?.length}
+            {#if sidebarOpen && item.children?.length && (itemActive || item.defaultExpanded)}
               <div class="subnav-list">
                 {#each item.children as child}
                   <a
