@@ -12,7 +12,7 @@
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
     import { generateImageWithTwoTemplates, buildStoryPagePrompt, generateCharacterAction, generateSceneDescription, generateStoryPageAudioUrls } from '../../../lib/storyGenerationHelpers';
-    import { buildStoryTextPrompt } from '../../../lib/storyPromptBuilder';
+    import { buildTemplateStoryPages } from '../../../lib/storyPromptBuilder';
     import { getBookTemplates } from '../../../lib/database/bookTemplates';
     import type { BookTemplate } from '../../../lib/database/bookTemplates';
     import { getPromptImageData, loadRuntimePromptDocuments } from '../../../lib/promptRuntime';
@@ -1171,9 +1171,9 @@
 
             if (isCancelled) return;
             storyTextProgress = 5;
-            console.log('Step 1: Generating story text with OpenAI...');
+            console.log('Step 1: Building adventure story text from story_template.json...');
 
-            const storyTextPrompt = buildStoryTextPrompt({
+            const storyPagesTextOnly = buildTemplateStoryPages({
                 characterName,
                 characterType: mapCharacterType(characterType),
                 specialAbility,
@@ -1185,46 +1185,16 @@
                 readingLevel: ageGroup,
                 storyTitle: storyTitle || 'The Great Adventure',
                 pageNumber: 1,
-                storyTheme: storyThemePromptKey
+                storyTheme: storyThemePromptKey,
+                characterGender
             });
-
-            const storyTextResponse = await fetch(`${backendBaseUrl}/story/generate-text`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    character_name: characterName,
-                    character_type: mapCharacterType(characterType),
-                    special_ability: specialAbility,
-                    age_group: ageGroup,
-                    story_world: storyWorld,
-                    adventure_type: adventureType,
-                    occasion_theme: 'general',
-                    character_image_url: cleanCharacterImageUrl,
-                    story_text_prompt: storyTextPrompt,
-                    reading_level: ageGroup,
-                    story_title: storyTitle || 'The Great Adventure',
-                    character_style: characterStyle
-                })
-            });
-
-            if (!storyTextResponse.ok) {
-                const errorText = await storyTextResponse.text().catch(() => '');
-                throw new Error(errorText || `Story text generation failed with status ${storyTextResponse.status}`);
-            }
-
-            const storyTextData = await storyTextResponse.json();
-            const generatedPages = Array.isArray(storyTextData.pages) ? storyTextData.pages : [];
-            const storyPagesTextOnly: Array<{ pageNumber: number; text: string }> = generatedPages.slice(0, 5).map((p: any, index: number) => ({
-                pageNumber: index + 1,
-                text: typeof p === 'string' ? p : (p.text || p.content || '')
-            }));
 
             if (storyPagesTextOnly.length === 0) {
-                throw new Error('OpenAI returned no story pages');
+                throw new Error('Story template returned no story pages');
             }
 
             storyTextProgress = 50;
-            console.log(`Story text generated: ${storyPagesTextOnly.length} pages`);
+            console.log(`Story text built from template: ${storyPagesTextOnly.length} pages`);
 
             if (browser && storyPagesTextOnly.length > 0) {
                 storyPagesTextOnly.forEach((page, index) => {

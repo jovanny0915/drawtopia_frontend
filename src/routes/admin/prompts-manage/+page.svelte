@@ -7,7 +7,7 @@
     buildEnhancementPrompt,
     buildTemplateCompositeCoverPrompt
   } from '$lib/promptBuilder';
-  import { buildStoryTextPrompt } from '$lib/storyPromptBuilder';
+  import { buildTemplateStoryPages } from '$lib/storyPromptBuilder';
   import {
     buildStoryPagePrompt,
     generateCharacterAction,
@@ -25,6 +25,7 @@
     getPrompt1Data,
     getPromptImageData,
     getPromptStoryData,
+    getStoryTemplateData,
     getFallbackPromptDocument,
     getPromptDocumentsSnapshot,
     setRuntimePromptDocument,
@@ -41,6 +42,8 @@
   type CharacterGender = 'female' | 'male' | 'neutral';
   type EnhancementLevel = 'minimal' | 'normal' | 'high';
   type StoryWorld = 'enchanted-forest' | 'outer-space' | 'underwater-kingdom';
+  type StoryTemplateWorld = 'forest' | 'space' | 'underwater';
+  type StoryTemplateTheme = 'courage' | 'kindness' | 'connection' | 'patience' | 'bedtime_routine';
   type Difficulty = 'easy' | 'medium' | 'hard';
 
   type SourcePrompt = {
@@ -302,6 +305,7 @@
     if (fileKey === 'prompt1') return mergePromptDefaults(getFallbackPromptDocument('prompt1') || getPrompt1Data(), documents.prompt1);
     if (fileKey === 'prompt_image') return mergePromptDefaults(getFallbackPromptDocument('prompt_image') || getPromptImageData(), documents.prompt_image);
     if (fileKey === 'prompt_story') return mergePromptDefaults(getFallbackPromptDocument('prompt_story') || getPromptStoryData(), documents.prompt_story);
+    if (fileKey === 'story_template') return mergePromptDefaults(getFallbackPromptDocument('story_template') || getStoryTemplateData(), documents.story_template);
     return documents.backend_prompts || {};
   }
 
@@ -469,6 +473,31 @@
     return '7-10';
   }
 
+  function getStoryTemplateWorldKey(world: StoryWorld): StoryTemplateWorld {
+    if (world === 'outer-space') return 'space';
+    if (world === 'underwater-kingdom') return 'underwater';
+    return 'forest';
+  }
+
+  function getStoryTemplateThemeKey(theme: string): StoryTemplateTheme {
+    const compact = theme.toLowerCase().replace(/[\s&_/-]+/g, '');
+    const themeMap: Record<string, StoryTemplateTheme> = {
+      courage: 'courage',
+      kindnessempathy: 'kindness',
+      kindness: 'kindness',
+      empathy: 'kindness',
+      connection: 'connection',
+      patienceendurance: 'patience',
+      patience: 'patience',
+      endurance: 'patience',
+      bedtimeroutinesleephygiene: 'bedtime_routine',
+      bedtimeroutine: 'bedtime_routine',
+      bedtime: 'bedtime_routine',
+      sleep: 'bedtime_routine'
+    };
+    return themeMap[compact] || 'kindness';
+  }
+
   function getStoryTemplateThemeOptions(
     _documents: Partial<Record<PromptFileKey, any>>
   ): Array<{ value: string; label: string }> {
@@ -586,7 +615,7 @@
   }
 
   function buildStoryTemplateTextPreview(): string {
-    const storyTextPrompt = buildStoryTextPrompt({
+    const storyPages = buildTemplateStoryPages({
       characterName: 'Luna',
       characterType: 'person',
       specialAbility: 'magic casting',
@@ -598,13 +627,14 @@
       readingLevel: selectedStoryTemplateAgeGroup,
       storyTitle: selectedStoryTitle,
       pageNumber: 1,
-      storyTheme: selectedStoryTemplateTheme
+      storyTheme: selectedStoryTemplateTheme,
+      characterGender: selectedCharacterGender
     });
 
     return formatPreviewSections([
       {
-        title: 'Adventure Story Text Generation Prompt',
-        prompt: storyTextPrompt
+        title: 'Adventure Story Template Text Preview',
+        prompt: storyPages.map((page) => `Page ${page.pageNumber}: ${page.text}`).join('\n\n')
       }
     ]);
   }
@@ -648,57 +678,16 @@
     drafts: Record<string, string>,
     documents: Partial<Record<PromptFileKey, any>>
   ): Record<PromptSection, SourcePrompt[]> {
-    const storyTemplateTextPrompts = [
-      sourcePrompt(
-        'Adventure Story Text Prompt Document',
-        'prompt_story.json',
-        'prompt_story',
-        [],
-        drafts,
-        documents
-      ),
-      sourcePrompt(
-        'Ally Names by Story World',
-        'prompt_story.json -> ally_name_by_story_world',
-        'prompt_story',
-        ['ally_name_by_story_world'],
-        drafts,
-        documents
-      ),
-      sourcePrompt(
-        'Master Story Architecture',
-        'prompt_story.json -> master_story_architecture',
-        'prompt_story',
-        ['master_story_architecture'],
-        drafts,
-        documents
-      )
-    ];
-
-    const promptStoryAgeGroups = getPromptDocument('prompt_story', documents).age_groups || {};
-    for (const ageGroup of Object.keys(promptStoryAgeGroups).sort()) {
+    const templateWorldKey = getStoryTemplateWorldKey(selectedStoryTemplateWorld);
+    const templateThemeKey = getStoryTemplateThemeKey(selectedStoryTemplateTheme);
+    const storyTemplateTextPrompts: SourcePrompt[] = [];
+    for (const pageNumber of [1, 2, 3, 4, 5]) {
       storyTemplateTextPrompts.push(
         sourcePrompt(
-          `Ages ${ageGroup} Story Text Prompt`,
-          `prompt_story.json -> age_groups.${ageGroup}`,
-          'prompt_story',
-          ['age_groups', ageGroup],
-          drafts,
-          documents
-        ),
-        sourcePrompt(
-          `Ages ${ageGroup} Generation Instructions`,
-          `prompt_story.json -> age_groups.${ageGroup}.generation_prompt_template.instructions`,
-          'prompt_story',
-          ['age_groups', ageGroup, 'generation_prompt_template', 'instructions'],
-          drafts,
-          documents
-        ),
-        sourcePrompt(
-          `Ages ${ageGroup} Act Templates`,
-          `prompt_story.json -> age_groups.${ageGroup}.acts`,
-          'prompt_story',
-          ['age_groups', ageGroup, 'acts'],
+          `Page ${pageNumber} Template Text`,
+          `story_template.json -> story_template.${templateWorldKey}.${templateThemeKey}.${selectedStoryTemplateAgeGroup}.page${pageNumber}`,
+          'story_template',
+          ['story_template', templateWorldKey, templateThemeKey, selectedStoryTemplateAgeGroup, `page${pageNumber}`],
           drafts,
           documents
         )
@@ -962,6 +951,14 @@
               <select bind:value={selectedCharacterStyle}>
                 {#each characterStyles as styleOption}
                   <option value={styleOption.value}>{styleOption.label}</option>
+                {/each}
+              </select>
+            </label>
+            <label class="control-field">
+              <span>Character Gender</span>
+              <select bind:value={selectedCharacterGender}>
+                {#each characterGenders as genderOption}
+                  <option value={genderOption.value}>{genderOption.label}</option>
                 {/each}
               </select>
             </label>

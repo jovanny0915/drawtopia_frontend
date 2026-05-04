@@ -1,10 +1,12 @@
-import { getPromptStoryData } from '$lib/promptRuntime';
+import { getPromptStoryData, getStoryTemplateData } from '$lib/promptRuntime';
 
 const NOT_MATCHED_TEXT = 'The story theme is not matched or existed';
 
 type AgeGroup = '3-6' | '7-10' | '11-12';
 
 type StoryWorldKey = 'enchanted_forest' | 'underwater_kingdom' | 'outer_space';
+type StoryTemplateWorldKey = 'forest' | 'underwater' | 'space';
+type StoryThemeKey = 'courage' | 'kindness' | 'connection' | 'patience' | 'bedtime_routine';
 
 type StoryPromptAct = {
   act?: number;
@@ -47,7 +49,42 @@ export interface StoryTextPromptOptions {
   storyTitle: string;
   pageNumber: number;
   storyTheme?: string;
+  characterGender?: string;
 }
+
+export interface TemplateStoryPage {
+  pageNumber: number;
+  text: string;
+}
+
+type StructuredTemplatePages =
+  | string[]
+  | {
+      pages?: string[];
+      story_text?: string[];
+      storyText?: string[];
+      [key: string]: unknown;
+    };
+
+type ParsedTemplateMap = Partial<
+  Record<StoryWorldKey, Partial<Record<AgeGroup, Partial<Record<StoryThemeKey, string[]>>>>>
+>;
+
+type StoryTemplateDocument = {
+  story_template?: Partial<
+    Record<
+      StoryTemplateWorldKey,
+      Partial<Record<StoryThemeKey, Partial<Record<AgeGroup, Record<string, string>>>>>
+    >
+  >;
+};
+
+type PronounSet = {
+  subject: string;
+  object: string;
+  possessive: string;
+  reflexive: string;
+};
 
 const VALID_AGE_GROUPS: AgeGroup[] = ['3-6', '7-10', '11-12'];
 
@@ -88,6 +125,38 @@ function normalizeWorldKey(storyWorld: string): StoryWorldKey {
   return 'enchanted_forest';
 }
 
+function normalizeThemeKey(storyTheme?: string): StoryThemeKey {
+  const normalized = (storyTheme || '').toLowerCase().trim();
+  const compact = normalized.replace(/[\s&_/-]+/g, '');
+  const themeMap: Record<string, StoryThemeKey> = {
+    courage: 'courage',
+    kindnessempathy: 'kindness',
+    kindness: 'kindness',
+    empathy: 'kindness',
+    connection: 'connection',
+    patienceendurance: 'patience',
+    patience: 'patience',
+    endurance: 'patience',
+    bedtimeroutinesleephygiene: 'bedtime_routine',
+    bedtimeroutine: 'bedtime_routine',
+    bedtime: 'bedtime_routine',
+    sleephygiene: 'bedtime_routine',
+    sleep: 'bedtime_routine'
+  };
+  return themeMap[compact] || 'kindness';
+}
+
+function getThemeDisplayNameFromKey(themeKey: StoryThemeKey): string {
+  const names: Record<StoryThemeKey, string> = {
+    courage: 'Courage',
+    kindness: 'Kindness',
+    connection: 'Connection',
+    patience: 'Patience',
+    bedtime_routine: 'Bedtime Routine'
+  };
+  return names[themeKey];
+}
+
 function getWorldDisplayName(worldKey: StoryWorldKey): string {
   if (worldKey === 'underwater_kingdom') return 'Underwater Kingdom';
   if (worldKey === 'outer_space') return 'Outer Space';
@@ -115,6 +184,324 @@ function normalizeThemeName(storyTheme?: string): string {
     patience: 'Patience & Endurance'
   };
   return themeMap[compact] || normalized || 'Kindness & Empathy';
+}
+
+function resolvePronouns(characterGender?: string): PronounSet {
+  const normalized = (characterGender || '').toLowerCase().trim();
+  if (['male', 'boy', 'man', 'he', 'him'].includes(normalized)) {
+    return { subject: 'he', object: 'him', possessive: 'his', reflexive: 'himself' };
+  }
+  if (['female', 'girl', 'woman', 'she', 'her'].includes(normalized)) {
+    return { subject: 'she', object: 'her', possessive: 'her', reflexive: 'herself' };
+  }
+  return { subject: 'they', object: 'them', possessive: 'their', reflexive: 'themself' };
+}
+
+function replacePronounPlaceholder(text: string, pronouns: PronounSet): string {
+  const possessiveNouns = [
+    'arm',
+    'arms',
+    'alert',
+    'body',
+    'breath',
+    'breathing',
+    'bunk',
+    'chest',
+    'eyes',
+    'face',
+    'fingers',
+    'glow',
+    'hand',
+    'hands',
+    'heart',
+    'instruments',
+    'job',
+    'life',
+    'markings',
+    'mind',
+    'mission',
+    'normal',
+    'own',
+    'palms',
+    'presence',
+    'processing',
+    'reading',
+    'room',
+    'routine',
+    'schedule',
+    'self',
+    'shift',
+    'shoes',
+    'sleeping',
+    'station',
+    'things',
+    'voice',
+    'version'
+  ].join('|');
+
+  return text
+    .replace(/\[PRONOUNS\]self\b/gi, pronouns.reflexive)
+    .replace(new RegExp(`\\[PRONOUNS\\](?=\\s+(?:${possessiveNouns})\\b)`, 'gi'), pronouns.possessive)
+    .replace(
+      /\b(ask|asked|asking|help|helped|helps|let|letting|made|make|needed|needs|need|teach|teaches|taught|tell|tells|told|give|gives|gave|watch|watched|watching)\s+\[PRONOUNS\]\b/gi,
+      (_match, verb: string) => `${verb} ${pronouns.object}`
+    )
+    .replace(
+      /\b(beside|around|toward|towards|with|behind|for|to|of|at|against|through|from)\s+\[PRONOUNS\](?=([,.;]|\s+(?:and|or|but|as|while)\b|$))/gi,
+      (_match, preposition: string) => `${preposition} ${pronouns.object}`
+    )
+    .replace(/\[PRONOUNS\]/gi, pronouns.subject);
+}
+
+function getStoryTemplateWorldKey(worldKey: StoryWorldKey): StoryTemplateWorldKey {
+  if (worldKey === 'underwater_kingdom') return 'underwater';
+  if (worldKey === 'outer_space') return 'space';
+  return 'forest';
+}
+
+function lookupStoryTemplateJsonPages(
+  storyTemplate: StoryTemplateDocument,
+  worldKey: StoryWorldKey,
+  ageGroup: AgeGroup,
+  themeKey: StoryThemeKey
+): string[] | null {
+  const templateWorldKey = getStoryTemplateWorldKey(worldKey);
+  const pagesByNumber = storyTemplate.story_template?.[templateWorldKey]?.[themeKey]?.[ageGroup];
+
+  if (!pagesByNumber) {
+    return null;
+  }
+
+  const pages = [1, 2, 3, 4, 5]
+    .map((pageNumber) => pagesByNumber[`page${pageNumber}`])
+    .filter((page): page is string => typeof page === 'string' && page.trim().length > 0);
+
+  return pages.length >= 5 ? pages : null;
+}
+
+function normalizeStoryTextTemplateWorld(value: string): StoryWorldKey | null {
+  const normalized = value.toLowerCase();
+  if (normalized.includes('underwater')) return 'underwater_kingdom';
+  if (normalized.includes('outer space') || normalized.includes('space')) return 'outer_space';
+  if (normalized.includes('forest')) return 'enchanted_forest';
+  return null;
+}
+
+function extractStructuredPages(value: unknown): string[] | null {
+  if (Array.isArray(value)) {
+    return value.filter((page): page is string => typeof page === 'string');
+  }
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const template = value as Exclude<StructuredTemplatePages, string[]>;
+  const directPages = template.pages || template.story_text || template.storyText;
+  if (Array.isArray(directPages)) {
+    return directPages.filter((page): page is string => typeof page === 'string');
+  }
+
+  const numberedPages = [1, 2, 3, 4, 5]
+    .map((pageNumber) => {
+      const pageValue =
+        template[`page_${pageNumber}`] ||
+        template[`page${pageNumber}`] ||
+        template[String(pageNumber)];
+      if (typeof pageValue === 'string') return pageValue;
+      if (pageValue && typeof pageValue === 'object') {
+        const pageObject = pageValue as Record<string, unknown>;
+        return pageObject.story_text || pageObject.storyText || pageObject.text;
+      }
+      return null;
+    })
+    .filter((page): page is string => typeof page === 'string');
+
+  return numberedPages.length > 0 ? numberedPages : null;
+}
+
+function lookupStructuredTemplatePages(
+  promptStory: Record<string, unknown>,
+  worldKey: StoryWorldKey,
+  ageGroup: AgeGroup,
+  themeKey: StoryThemeKey
+): string[] | null {
+  const root = promptStory.story_text_templates || promptStory.storyTextTemplates;
+  if (!root || typeof root !== 'object') return null;
+
+  const worldAliases: string[] = [
+    worldKey,
+    worldKey.replace(/_/g, '-'),
+    worldKey === 'enchanted_forest' ? 'forest' : worldKey === 'underwater_kingdom' ? 'underwater' : 'outerspace',
+    getWorldDisplayName(worldKey)
+  ];
+  const themeAliases: string[] = [
+    themeKey,
+    themeKey.replace(/_/g, '-'),
+    themeKey.replace(/_/g, ''),
+    getThemeDisplayNameFromKey(themeKey)
+  ];
+
+  const rootRecord = root as Record<string, unknown>;
+  const worldNode = worldAliases.map((alias) => rootRecord[alias]).find(Boolean);
+  if (!worldNode || typeof worldNode !== 'object') return null;
+
+  const worldRecord = worldNode as Record<string, unknown>;
+  const ageNode = worldRecord[ageGroup];
+  if (ageNode && typeof ageNode === 'object') {
+    const ageRecord = ageNode as Record<string, unknown>;
+    const pages = themeAliases.map((alias) => extractStructuredPages(ageRecord[alias])).find(Boolean);
+    if (pages) return pages;
+  }
+
+  const themeNode = themeAliases.map((alias) => worldRecord[alias]).find(Boolean);
+  if (themeNode && typeof themeNode === 'object') {
+    const themeRecord = themeNode as Record<string, unknown>;
+    const pages = extractStructuredPages(themeRecord[ageGroup]);
+    if (pages) return pages;
+  }
+
+  return null;
+}
+
+function parseStoryTextTemplateDocument(document: string): ParsedTemplateMap {
+  const parsed: ParsedTemplateMap = {};
+  let currentWorld: StoryWorldKey | null = null;
+  let currentAge: AgeGroup | null = null;
+  let currentTheme: StoryThemeKey | null = null;
+  let currentPage: number | null = null;
+  let collectingStoryText = false;
+  let buffer: string[] = [];
+
+  const commitPage = () => {
+    if (!currentWorld || !currentAge || !currentTheme || !currentPage || buffer.length === 0) return;
+    parsed[currentWorld] ??= {};
+    parsed[currentWorld]![currentAge] ??= {};
+    parsed[currentWorld]![currentAge]![currentTheme] ??= [];
+    parsed[currentWorld]![currentAge]![currentTheme]![currentPage - 1] = buffer.join(' ').trim();
+    buffer = [];
+  };
+
+  for (const rawLine of document.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const worldMatch = line.match(/^WORLD:\s*(.+)$/i);
+    if (worldMatch) {
+      commitPage();
+      currentWorld = normalizeStoryTextTemplateWorld(worldMatch[1]);
+      currentAge = null;
+      currentTheme = null;
+      currentPage = null;
+      collectingStoryText = false;
+      continue;
+    }
+
+    const ageMatch = line.match(/^Ages?\s+(\d+\s*-\s*\d+)/i);
+    if (ageMatch) {
+      commitPage();
+      currentAge = parseAgeGroup(ageMatch[1].replace(/\s+/g, ''));
+      currentTheme = null;
+      currentPage = null;
+      collectingStoryText = false;
+      continue;
+    }
+
+    const themeMatch = line.match(/^Learning Theme:\s*(.+)$/i);
+    if (themeMatch) {
+      commitPage();
+      currentTheme = normalizeThemeKey(themeMatch[1]);
+      currentPage = null;
+      collectingStoryText = false;
+      continue;
+    }
+
+    const pageMatch = line.match(/^Page\s+([1-5])\b/i);
+    if (pageMatch) {
+      commitPage();
+      currentPage = Number(pageMatch[1]);
+      collectingStoryText = false;
+      continue;
+    }
+
+    if (/^Story Text:\s*$/i.test(line)) {
+      buffer = [];
+      collectingStoryText = true;
+      continue;
+    }
+
+    if (/^Character Pose:\s*$/i.test(line)) {
+      commitPage();
+      collectingStoryText = false;
+      continue;
+    }
+
+    if (collectingStoryText) {
+      buffer.push(line);
+    }
+  }
+
+  commitPage();
+  return parsed;
+}
+
+function lookupDocumentTemplatePages(
+  promptStory: Record<string, unknown>,
+  worldKey: StoryWorldKey,
+  ageGroup: AgeGroup,
+  themeKey: StoryThemeKey
+): string[] | null {
+  const document =
+    promptStory.story_text_template_document ||
+    promptStory.storyTextTemplateDocument ||
+    promptStory.story_text_template_markdown;
+
+  if (typeof document !== 'string' || document.trim().length === 0) {
+    return null;
+  }
+
+  const pages = parseStoryTextTemplateDocument(document)[worldKey]?.[ageGroup]?.[themeKey];
+  return pages && pages.filter(Boolean).length >= 5 ? pages : null;
+}
+
+export function buildTemplateStoryPages(options: StoryTextPromptOptions): TemplateStoryPage[] {
+  const validAgeGroup = parseAgeGroup(options.ageGroup);
+  if (!validAgeGroup) {
+    throw new Error(`Template story text is not configured for age group "${options.ageGroup}"`);
+  }
+
+  const promptStory = getPromptStoryData() as Record<string, unknown>;
+  const storyTemplate = getStoryTemplateData() as StoryTemplateDocument;
+  const worldKey = normalizeWorldKey(options.storyWorld);
+  const themeKey = normalizeThemeKey(options.storyTheme);
+  const pageTemplates =
+    lookupStoryTemplateJsonPages(storyTemplate, worldKey, validAgeGroup, themeKey) ||
+    lookupStructuredTemplatePages(promptStory, worldKey, validAgeGroup, themeKey) ||
+    lookupDocumentTemplatePages(promptStory, worldKey, validAgeGroup, themeKey);
+
+  if (!pageTemplates || pageTemplates.length < 5) {
+    throw new Error(
+      `Template story text is missing for ${getWorldDisplayName(worldKey)} / ${validAgeGroup} / ${getThemeDisplayNameFromKey(themeKey)}`
+    );
+  }
+
+  const variables: Record<string, string> = {
+    CHARACTER_NAME: options.characterName || 'the child character',
+    WORLD_NAME: getWorldDisplayName(worldKey),
+    WORLD_STYLE: options.characterStyle || 'cartoon',
+    ALLY_NAME: (promptStory.ally_name_by_story_world as Record<string, string> | undefined)?.[worldKey] || 'Fern',
+    ALLY_TYPE: getAllyType(worldKey),
+    SPECIAL_ABILITY: options.specialAbility || 'their special ability',
+    CHARACTER_TYPE: options.characterType || 'character',
+    CHARACTER_STYLE: options.characterStyle || 'cartoon',
+    AGE_GROUP: validAgeGroup,
+    LEARNING_THEME: getThemeDisplayNameFromKey(themeKey)
+  };
+  const pronouns = resolvePronouns(options.characterGender);
+
+  return pageTemplates.slice(0, 5).map((template, index) => ({
+    pageNumber: index + 1,
+    text: replacePronounPlaceholder(replacePromptVariables(template, variables), pronouns)
+  }));
 }
 
 function formatValue(value: unknown, indent = 0): string {
