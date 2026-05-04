@@ -34,6 +34,7 @@ export interface AuthResponse {
 
 export const PHONE_TOKEN_STORAGE_KEY = 'drawtopia_phone_token';
 const SESSION_STARTED_AT_KEY = 'drawtopia_session_started_at';
+const SIGN_OUT_TIMEOUT_MS = 3000;
 
 export interface PhoneAuthUser {
   id: string;
@@ -361,6 +362,7 @@ export async function signInWithEmail(email: string): Promise<AuthResponse> {
       email: email.toLowerCase().trim(),
       options: {
         emailRedirectTo: `${window.location.origin}`,
+        shouldCreateUser: false
       }
     });
 
@@ -453,6 +455,9 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     localStorage.removeItem(SESSION_STARTED_AT_KEY);
     sessionStorage.removeItem('pendingGoogleSignup');
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('sb-') || key.includes('supabase.auth.token'))
+      .forEach((key) => localStorage.removeItem(key));
   };
 
   const finishIfSessionCleared = async (): Promise<{ success: boolean; error?: string } | null> => {
@@ -467,9 +472,15 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
 
   try {
     console.log('Signing out user...');
-    clearPhoneSession();
+    clearLocalAuthState();
+    dispatchSignOutUi();
 
-    const { error } = await supabase.auth.signOut();
+    const { error } = await Promise.race([
+      supabase.auth.signOut({ scope: 'global' }),
+      new Promise<{ error: Error }>((resolve) =>
+        setTimeout(() => resolve({ error: new Error('Sign out request timed out') }), SIGN_OUT_TIMEOUT_MS)
+      )
+    ]);
 
     if (error) {
       if (isAuthAbortError(error)) {
@@ -479,14 +490,10 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
           return resolved;
         }
       }
-      console.warn('Remote sign out failed; clearing local session anyway:', error);
-      clearLocalAuthState();
-      dispatchSignOutUi();
+      console.warn('Remote sign out failed or timed out; local session was cleared:', error);
       return { success: true };
     }
 
-    clearLocalAuthState();
-    dispatchSignOutUi();
     console.log('User signed out successfully');
     return { success: true };
   } catch (error) {

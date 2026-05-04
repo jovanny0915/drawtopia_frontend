@@ -9,7 +9,7 @@
   import PrimaryBtn from "../../components/PrimaryBtn.svelte";
   import TextBtn from "../../components/TextBtn.svelte";
   import PrimaryInput from "../../components/PrimaryInput.svelte";
-  import { signInWithEmail, signInWithGoogle, checkUserExists, requestPhoneOtp, verifyPhoneOtp } from "../../lib/auth";
+  import { signInWithEmail, signInWithGoogle, requestPhoneOtp, verifyPhoneOtp } from "../../lib/auth";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import { isAuthenticated, auth } from "$lib/stores/auth";
@@ -31,7 +31,7 @@
           type: 'info',
           message: 'You are already signed in!'
         });
-        goto("/");
+        goto("/dashboard");
       }
     });
     
@@ -199,22 +199,6 @@
     errors = {};
 
     try {
-      const userCheck = await checkUserExists(email);
-      if (userCheck.error) {
-        errors.general = "Unable to verify user. Please try again.";
-        isLoading = false;
-        return;
-      }
-      if (!userCheck.exists) {
-        addNotification({
-          type: "error",
-          message: "No account found with this email. Please sign up first.",
-          duration: 7000,
-        });
-        goto("/signup");
-        return;
-      }
-
       const result = await signInWithEmail(email);
       if (result.success) {
         localStorage.setItem("pendingEmailVerification", email);

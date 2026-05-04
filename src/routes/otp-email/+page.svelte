@@ -136,7 +136,7 @@
 
         localStorage.removeItem("pendingEmailVerification");
 
-        const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/';
+        const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/dashboard';
         sessionStorage.removeItem('redirectAfterLogin');
 
         addNotification({
