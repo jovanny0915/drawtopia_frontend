@@ -1,7 +1,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import { supabase, AUTH_STORAGE_KEY } from '../supabase';
-import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory, fetchPhoneSessionUser, clearPhoneSession, PHONE_TOKEN_STORAGE_KEY, signOut } from '../auth';
+import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory, fetchPhoneSessionUser, clearPhoneSession, PHONE_TOKEN_STORAGE_KEY, signOut, clearLocalAuthState, SIGN_OUT_EVENT_STORAGE_KEY } from '../auth';
 import type { PhoneSession } from '../auth';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -162,7 +162,7 @@ export function initAuth() {
   }
 
   const getSessionWithRetry = async (retryCount = 0) => {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    let { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
       console.error('Error getting session:', error);
@@ -170,6 +170,15 @@ export function initAuth() {
     
     console.log("session", session);
     console.log("user", session?.user);
+
+    if (session) {
+      const { data: { user: verifiedUser }, error: userError } = await supabase.auth.getUser();
+      if (userError || !verifiedUser) {
+        console.warn('Stored auth session is invalid. Clearing local session.', userError?.message);
+        clearLocalAuthState();
+        session = null;
+      }
+    }
     
     if (!session && retryCount === 0 && typeof window !== 'undefined') {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -282,6 +291,7 @@ export function initAuth() {
   getSessionWithRetry();
 
   const onSignOut = () => {
+    clearLocalAuthState();
     clearSessionStartMarker();
     auth.update(state => ({
       ...state,
@@ -292,8 +302,14 @@ export function initAuth() {
       loading: false
     }));
   };
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === SIGN_OUT_EVENT_STORAGE_KEY && event.newValue) {
+      onSignOut();
+    }
+  };
   if (typeof window !== 'undefined') {
     window.addEventListener('drawtopia-signout', onSignOut);
+    window.addEventListener('storage', onStorage);
   }
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -428,6 +444,7 @@ export function initAuth() {
     subscription.unsubscribe();
     if (typeof window !== 'undefined') {
       window.removeEventListener('drawtopia-signout', onSignOut);
+      window.removeEventListener('storage', onStorage);
     }
     if (hardTimeoutCheckInterval) {
       clearInterval(hardTimeoutCheckInterval);

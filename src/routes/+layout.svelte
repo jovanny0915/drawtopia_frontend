@@ -3,7 +3,8 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { initAuth, isAuthenticated, authLoading } from '$lib/stores/auth';
+  import { initAuth, isAuthenticated, authLoading, auth } from '$lib/stores/auth';
+  import { clearLocalAuthState } from '$lib/auth';
   import { addNotification } from '$lib/stores/notification';
   import { registerServiceWorker } from '$lib/pushNotifications';
   import NotificationContainer from '../components/NotificationContainer.svelte';
@@ -25,6 +26,8 @@
       return pathname === route || pathname.startsWith(route + '/');
     });
   }
+
+  let processedLoggedOutLanding = false;
 
   onMount(() => {
     const unsubscribe = initAuth();
@@ -55,8 +58,23 @@
     };
   });
 
+  $: if (browser && $page.url.searchParams.get('logged_out') === '1' && !processedLoggedOutLanding) {
+    processedLoggedOutLanding = true;
+    clearLocalAuthState();
+    auth.update(state => ({
+      ...state,
+      session: null,
+      user: null,
+      first_name: null,
+      last_name: null,
+      loading: false
+    }));
+    goto('/login', { replaceState: true });
+  }
+
   $: if (browser && !$authLoading) {
     const currentPath = $page.url.pathname;
+    const isLoggedOutLanding = $page.url.searchParams.get('logged_out') === '1';
     
     if (currentPath === '/') {
       goto('/dashboard');
@@ -68,7 +86,7 @@
       goto('/login');
     }
     
-    if ($isAuthenticated && (currentPath === '/login' || currentPath === '/signup')) {
+    if ($isAuthenticated && !isLoggedOutLanding && (currentPath === '/login' || currentPath === '/signup')) {
       console.log('User already authenticated, redirecting to dashboard');
       goto('/dashboard');
     }

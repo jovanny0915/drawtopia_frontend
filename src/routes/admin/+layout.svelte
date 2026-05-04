@@ -12,6 +12,7 @@
   let loading = true;
   let sidebarOpen = true;
   let hasStartedAdminCheck = false;
+  let isLoggingOut = false;
 
   onMount(() => {
     const checkAuth = setInterval(() => {
@@ -79,8 +80,14 @@
   }
 
   async function handleLogout() {
-    await signOut();
-    goto('/login');
+    if (isLoggingOut) return;
+    isLoggingOut = true;
+    try {
+      await signOut();
+      await goto('/login?logged_out=1', { replaceState: true });
+    } finally {
+      isLoggingOut = false;
+    }
   }
 
   type NavChildItem = {
@@ -251,7 +258,7 @@
         {/each}
       </nav>
       <div class="sidebar-footer">
-        <button on:click={handleLogout} class="logout-btn">
+        <button on:click={handleLogout} class="logout-btn" disabled={isLoggingOut}>
           <span class="nav-icon">
             <LogOut size={20} />
           </span>

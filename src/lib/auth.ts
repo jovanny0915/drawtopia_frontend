@@ -35,6 +35,7 @@ export interface AuthResponse {
 export const PHONE_TOKEN_STORAGE_KEY = 'drawtopia_phone_token';
 const SESSION_STARTED_AT_KEY = 'drawtopia_session_started_at';
 const SIGN_OUT_TIMEOUT_MS = 3000;
+export const SIGN_OUT_EVENT_STORAGE_KEY = 'drawtopia_auth_event';
 
 export interface PhoneAuthUser {
   id: string;
@@ -50,6 +51,42 @@ export interface PhoneSession {
 }
 
 type AuthHistoryEventType = 'login' | 'register';
+
+type ClearLocalAuthOptions = {
+  broadcast?: boolean;
+};
+
+export function dispatchSignOutUi(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('drawtopia-signout'));
+  }
+}
+
+export function clearLocalAuthState(options: ClearLocalAuthOptions = {}): void {
+  if (typeof window === 'undefined') return;
+
+  clearPhoneSession();
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  localStorage.removeItem(SESSION_STARTED_AT_KEY);
+  localStorage.removeItem('pendingEmailVerification');
+  sessionStorage.removeItem('pendingGoogleSignup');
+  sessionStorage.removeItem('redirectAfterLogin');
+
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith('sb-') || key.includes('supabase.auth.token'))
+    .forEach((key) => localStorage.removeItem(key));
+
+  Object.keys(sessionStorage)
+    .filter((key) => key.startsWith('sb-') || key.includes('supabase.auth.token'))
+    .forEach((key) => sessionStorage.removeItem(key));
+
+  if (options.broadcast) {
+    localStorage.setItem(
+      SIGN_OUT_EVENT_STORAGE_KEY,
+      JSON.stringify({ event: 'signed_out', timestamp: Date.now() })
+    );
+  }
+}
 
 async function logUserAuthHistory(
   userId: string,
@@ -443,27 +480,10 @@ export async function signInWithPhone(phone: string, password: string): Promise<
 }
 
 export async function signOut(): Promise<{ success: boolean; error?: string }> {
-  const dispatchSignOutUi = () => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('drawtopia-signout'));
-    }
-  };
-
-  const clearLocalAuthState = () => {
-    if (typeof window === 'undefined') return;
-    clearPhoneSession();
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(SESSION_STARTED_AT_KEY);
-    sessionStorage.removeItem('pendingGoogleSignup');
-    Object.keys(localStorage)
-      .filter((key) => key.startsWith('sb-') || key.includes('supabase.auth.token'))
-      .forEach((key) => localStorage.removeItem(key));
-  };
-
   const finishIfSessionCleared = async (): Promise<{ success: boolean; error?: string } | null> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      clearLocalAuthState();
+      clearLocalAuthState({ broadcast: true });
       dispatchSignOutUi();
       return { success: true };
     }
@@ -472,7 +492,7 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
 
   try {
     console.log('Signing out user...');
-    clearLocalAuthState();
+    clearLocalAuthState({ broadcast: true });
     dispatchSignOutUi();
 
     const { error } = await Promise.race([
@@ -506,7 +526,7 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
       }
     }
     console.warn('Unexpected sign out error; clearing local session anyway:', error);
-    clearLocalAuthState();
+    clearLocalAuthState({ broadcast: true });
     dispatchSignOutUi();
     return { success: true };
   }
@@ -925,7 +945,8 @@ export async function verifyPhone(phone: string, token: string): Promise<{ succe
 
 
 function getAuthApiBase(): string {
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const configuredBase = import.meta.env.VITE_API_BASE_URL;
+  const base = configuredBase || (import.meta.env.PROD ? 'https://app.drawtopia.ai' : 'http://localhost:8000');
   return base.replace(/\/$/, '');
 }
 

@@ -25,6 +25,7 @@
   let realAvatarUrl = avatarUrl;
   let realUserPlan = "Free Plan";
   let lastFetchedUserId: string | null = null;
+  let isLoggingOut = false;
   
   function formatSubscriptionStatus(status: string | null | undefined): string {
     if (!status) return "Free Plan";
@@ -133,6 +134,9 @@
   }
 
   async function handleLogout() {
+    if (isLoggingOut) return;
+    isLoggingOut = true;
+
     try {
       closeDropdown();
       
@@ -143,7 +147,7 @@
           type: 'success',
           message: 'Signed out successfully!'
         });
-        goto('/login');
+        await goto('/login?logged_out=1', { replaceState: true });
       } else {
         console.error('Sign out failed:', result.error);
         addNotification({
@@ -157,6 +161,8 @@
         type: 'error',
         message: 'An unexpected error occurred during sign out'
       });
+    } finally {
+      isLoggingOut = false;
     }
   }
 
@@ -242,7 +248,7 @@
         </button>
       </div>
       <div class="rectangle-37" aria-hidden="true"></div>
-      <button class="menu_03" type="button" role="menuitem" on:click={handleLogout}>
+      <button class="menu_03" type="button" role="menuitem" on:click={handleLogout} disabled={isLoggingOut}>
         <div class="signout">
           <img src={signout} alt="signout">
         </div>

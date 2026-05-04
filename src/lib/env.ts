@@ -1,9 +1,18 @@
 
 export const LOGO_PATH = '/assets/logo.webp';
 
+const rawBackendBase = (
+	import.meta.env.VITE_API_BASE_URL ||
+	import.meta.env.VITE_PUBLIC_BACKEND_URL ||
+	(import.meta.env.PROD ? 'https://app.drawtopia.ai' : 'http://localhost:8000')
+).replace(/\/$/, '');
+
+const apiBaseUrl = rawBackendBase.endsWith('/api') ? rawBackendBase : `${rawBackendBase}/api`;
+const publicBackendUrl = rawBackendBase.replace(/\/api$/, '');
+
 export const env = {
-	API_BASE_URL: 'https://image-edit-five.vercel.app/api',
-	PUBLIC_BACKEND_URL: 'https://image-edit-five.vercel.app',
+	API_BASE_URL: apiBaseUrl,
+	PUBLIC_BACKEND_URL: publicBackendUrl,
 	PUBLIC_APP_URL: import.meta.env.VITE_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : ''),
 	APP_NAME: import.meta.env.VITE_APP_NAME || 'Drawtopia',
 	
