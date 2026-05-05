@@ -110,6 +110,14 @@
     return 'forest';
   };
 
+  const normalizeStoryStyle = (styleValue: string): string => {
+    const normalized = (styleValue || '').trim().toLowerCase().replace(/[_\s]/g, '-');
+    if (normalized === '3d-realistic' || normalized === '3-d' || normalized === 'three-d') {
+      return '3d';
+    }
+    return normalized;
+  };
+
   const resolveStoryWorldFromSession = (): 'forest' | 'outerspace' | 'underwater' => {
     const primaryWorld = sessionStorage.getItem('selectedWorld') || '';
     const intersearchWorld = sessionStorage.getItem('intersearch_world') || '';
@@ -123,7 +131,7 @@
 
     try {
       const mappedWorld = normalizeStoryWorld(selectedWorld);
-      const mappedStyle = (selectedStyle || '').trim().toLowerCase();
+      const mappedStyle = normalizeStoryStyle(selectedStyle);
       const selectedFormat = normalizeStoryFormatForTitleGeneration(
         sessionStorage.getItem('selectedFormat') || 'story'
       );
@@ -135,25 +143,21 @@
       );
       let matchedTemplate = templateResult.data;
       let templateWorld = matchedTemplate?.story_world?.trim().toLowerCase();
-      let templateStyle = matchedTemplate?.story_style?.trim().toLowerCase();
-      let worldAndStyleMatch = templateWorld === mappedWorld && templateStyle === mappedStyle;
+      let hasUsableTemplate = templateWorld === mappedWorld && !!matchedTemplate?.cover_image;
 
-      if (!templateResult.success || !matchedTemplate?.cover_image || !worldAndStyleMatch) {
+      if (!templateResult.success || !hasUsableTemplate) {
         templateResult = await getRandomTemplateByStoryWorld(mappedWorld, undefined, selectedFormat);
         matchedTemplate = templateResult.data;
         templateWorld = matchedTemplate?.story_world?.trim().toLowerCase();
-        templateStyle = matchedTemplate?.story_style?.trim().toLowerCase();
-        worldAndStyleMatch =
-          templateWorld === mappedWorld &&
-          (!mappedStyle || !templateStyle || templateStyle === mappedStyle);
+        hasUsableTemplate = templateWorld === mappedWorld && !!matchedTemplate?.cover_image;
       }
 
-      if (!templateResult.success || !matchedTemplate?.cover_image || !worldAndStyleMatch) {
+      if (!templateResult.success || !hasUsableTemplate) {
         console.warn(
-          `No exact template found for world "${mappedWorld}" and style "${mappedStyle}", cannot generate cover`
+          `No cover template found for world "${mappedWorld}", style "${mappedStyle}", and format "${selectedFormat}"`
         );
         templateNotification =
-          'No matching book template found for the selected story style and story world. Please change your selections and try again.';
+          'No cover template found for the selected story world. Please change your selection or add a template in the admin panel.';
         return;
       }
 
