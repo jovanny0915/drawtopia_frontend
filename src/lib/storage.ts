@@ -9,6 +9,13 @@ export interface UploadResult {
 
 export async function uploadAvatar(file: File, userId?: string, onProgress?: (progress: number) => void): Promise<UploadResult> {
   try {
+    if (!userId) {
+      return {
+        success: false,
+        error: 'User not authenticated. Please log in to upload images.'
+      };
+    }
+
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       return {
@@ -28,7 +35,8 @@ export async function uploadAvatar(file: File, userId?: string, onProgress?: (pr
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const fileName = `${userId || 'user'}_${timestamp}_${randomString}.${fileExtension}`;
+    const fileName = `${timestamp}_${randomString}.${fileExtension}`;
+    const filePath = `${userId}/${fileName}`;
 
     if (onProgress) {
       onProgress(10);
@@ -38,7 +46,7 @@ export async function uploadAvatar(file: File, userId?: string, onProgress?: (pr
 
     const { data, error } = await supabase.storage
       .from('avatars')
-      .upload(fileName, file, {
+      .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false
       });
@@ -114,6 +122,13 @@ export async function uploadCharacterImage(
   onProgress?: (progress: number) => void
 ): Promise<UploadResult> {
   try {
+    if (!userId) {
+      return {
+        success: false,
+        error: 'User not authenticated. Please log in to upload images.'
+      };
+    }
+
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
       return {
@@ -133,7 +148,8 @@ export async function uploadCharacterImage(
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const fileName = `character_${userId || 'user'}_${timestamp}_${randomString}.${fileExtension}`;
+    const fileName = `character_${timestamp}_${randomString}.${fileExtension}`;
+    const filePath = `${userId}/${fileName}`;
 
     if (onProgress) {
       onProgress(10);
@@ -143,7 +159,7 @@ export async function uploadCharacterImage(
 
     const { data, error } = await supabase.storage
       .from('images')
-      .upload(fileName, file, {
+      .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false
       });

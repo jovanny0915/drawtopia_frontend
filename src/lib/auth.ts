@@ -51,10 +51,131 @@ export interface PhoneSession {
 }
 
 type AuthHistoryEventType = 'login' | 'register';
+type GoogleUserData = {
+  id: string;
+  google_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  avatar_url: string | null;
+  role: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type AuthSyncPayload = {
+  user_id: string;
+  email: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string | null;
+  role?: string;
+  auth_provider?: string;
+  google_id?: string | null;
+};
 
 type ClearLocalAuthOptions = {
   broadcast?: boolean;
 };
+
+function getGoogleIdentityData(user: User): Record<string, any> {
+  const identity = user.identities?.find((item) => item.provider === 'google');
+  return (identity?.identity_data ?? {}) as Record<string, any>;
+}
+
+export function getAuthUserAvatarUrl(user: User | null | undefined): string | null {
+  if (!user) return null;
+
+  const identityData = getGoogleIdentityData(user);
+  return (
+    user.user_metadata?.avatar_url ||
+    user.user_metadata?.picture ||
+    identityData.avatar_url ||
+    identityData.picture ||
+    null
+  );
+}
+
+function getGoogleNameParts(user: User): { firstName: string; lastName: string } {
+  const metadata = user.user_metadata ?? {};
+  const identityData = getGoogleIdentityData(user);
+  const fullName = metadata.full_name || metadata.name || identityData.full_name || identityData.name || '';
+  const fallbackParts = String(fullName).trim().split(/\s+/).filter(Boolean);
+
+  return {
+    firstName: metadata.given_name || identityData.given_name || fallbackParts[0] || '',
+    lastName:
+      metadata.family_name ||
+      identityData.family_name ||
+      (fallbackParts.length > 1 ? fallbackParts.slice(1).join(' ') : '')
+  };
+}
+
+function formatGoogleUserData(user: User, overrides: Partial<GoogleUserData> = {}): GoogleUserData {
+  const identity = user.identities?.find((item) => item.provider === 'google');
+  const identityData = getGoogleIdentityData(user);
+  const { firstName, lastName } = getGoogleNameParts(user);
+  const email = user.email || user.user_metadata?.email || identityData.email || '';
+  const now = new Date().toISOString();
+
+  return {
+    id: user.id,
+    google_id: user.user_metadata?.provider_id || identityData.provider_id || identity?.id || user.id,
+    email: String(email).toLowerCase().trim(),
+    first_name: firstName.trim(),
+    last_name: lastName.trim(),
+    avatar_url: getAuthUserAvatarUrl(user),
+    role: 'adult',
+    created_at: now,
+    updated_at: now,
+    ...overrides
+  };
+}
+
+async function syncAuthUserToPublicUsers(payload: AuthSyncPayload): Promise<{ success: boolean; profile?: any; isNewUser?: boolean; error?: string }> {
+  try {
+    const session = await getCurrentSession();
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+      return {
+        success: false,
+        error: 'Missing authenticated session'
+      };
+    }
+
+    const response = await fetch(`${getAuthApiBase()}/api/auth/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.detail || data.message || `Auth sync failed (${response.status})`
+      };
+    }
+
+    return {
+      success: true,
+      profile: data.user,
+      isNewUser: Boolean(data.is_new_user)
+    };
+  } catch (error) {
+    console.error('Error syncing auth user to public users:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to sync user profile'
+    };
+  }
+}
 
 export function dispatchSignOutUi(): void {
   if (typeof window !== 'undefined') {
@@ -619,90 +740,29 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
 
 export async function registerGoogleOAuthUser(user: User): Promise<{ success: boolean; error?: string }> {
   try {
-
-    const { data: existingUser, error: checkError } = await supabaseAdmin.from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking existing user:', checkError);
-      return {
-        success: false,
-        error: 'Failed to check existing user'
-      };
-    }
-
-    const googleId = user.user_metadata?.provider_id || user.id;
-    const firstName = user.user_metadata?.given_name || user.user_metadata?.full_name?.split(' ')[0] || '';
-    const lastName = user.user_metadata?.family_name || user.user_metadata?.full_name?.split(' ')[1] || '';
-    const email = user.email || '';
-    const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+    const userData = formatGoogleUserData(user);
 
     console.log('Google OAuth user data:', {
       id: user.id,
-      googleId,
-      firstName,
-      lastName,
-      email,
+      googleId: userData.google_id,
+      firstName: userData.first_name,
+      lastName: userData.last_name,
+      email: userData.email,
+      avatarUrl: userData.avatar_url,
       user_metadata: user.user_metadata
     });
 
-
-    if (existingUser) {
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({
-          email: email.toLowerCase().trim(),
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          avatar_url: avatarUrl,
-          google_id: googleId,
-          updated_at: new Date()
-        })
-        .eq('id', user.id);
-
-      if (updateError) {
-        console.error('Error updating user profile:', updateError);
-        return {
-          success: false,
-          error: updateError.message
-        };
-      }
-
-      console.log('Google OAuth user updated successfully');
-      return { success: true };
-    }
-
-    const userData = {
-      id: user.id,
-      google_id: googleId,
-      email: email.toLowerCase().trim(),
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      avatar_url: avatarUrl,
-      role: 'adult',
-      created_at: new Date(),
-      updated_at: new Date()
-    };
-
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .insert([userData])
-      .select('*')
-      .single();
-
-    if (profileError) {
-      console.error('Error creating user profile:', profileError);
-      return {
-        success: false,
-        error: profileError.message
-      };
-    }
-
-    console.log('Google OAuth user registered successfully:', userProfile);
-    await logUserAuthHistory(user.id, 'register', 'google_oauth');
-    return { success: true };
+    return await syncAuthUserToPublicUsers({
+      user_id: userData.id,
+      email: userData.email,
+      name: [userData.first_name, userData.last_name].filter(Boolean).join(' ').trim(),
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      avatar_url: userData.avatar_url,
+      role: userData.role,
+      auth_provider: 'google',
+      google_id: userData.google_id
+    });
   } catch (error) {
     console.error('Error registering Google OAuth user:', error);
     return {
@@ -1068,96 +1128,23 @@ export function clearPhoneSession(): void {
   localStorage.removeItem(PHONE_TOKEN_STORAGE_KEY);
 }
 
-export function formatGoogleUserData(user: any): any {
-  const googleId = user.user_metadata?.provider_id || user.id;
-  const firstName = user.user_metadata?.given_name || user.user_metadata?.full_name?.split(' ')[0] || '';
-  const lastName = user.user_metadata?.family_name || user.user_metadata?.full_name?.split(' ')[1] || '';
-  const email = user.email || '';
-  const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
-
-  return {
-    id: user.id,
-    google_id: googleId,
-    email: email.toLowerCase().trim(),
-    first_name: firstName.trim(),
-    last_name: lastName.trim(),
-    avatar_url: avatarUrl,
-    role: 'adult',
-    created_at: new Date(),
-    updated_at: new Date()
-  };
-}
+export { formatGoogleUserData };
 
 export async function registerUser(userData: any): Promise<{ success: boolean; profile?: any; error?: string }> {
   try {
     console.log('Attempting to register user:', userData);
-    
-    const { data: existingUser, error: checkError } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('id', userData.id)
-      .single();
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking existing user:', checkError);
-      return {
-        success: false,
-        error: 'Failed to check existing user'
-      };
-    }
-
-    
-    if (existingUser) {
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({
-          email: userData.email,
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          avatar_url: userData.avatar_url ?? null,
-          role: userData.role,
-          google_id: userData.google_id,
-          updated_at: new Date()
-        })
-        .eq('id', userData.id);
-
-      if (updateError) {
-        console.error('Error updating user profile:', updateError);
-        return {
-          success: false,
-          error: updateError.message
-        };
-      }
-
-      console.log('User updated successfully');
-      return { 
-        success: true, 
-        profile: { ...existingUser, ...userData }
-      };
-    }
-
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .insert([userData])
-      .select('*')
-      .single();
-
-    if (profileError) {
-      console.error('Error creating user profile:', profileError);
-      return {
-        success: false,
-        error: profileError.message
-      };
-    }
-
-    console.log('User registered successfully:', userProfile);
-    if (userData.id) {
-      await logUserAuthHistory(userData.id, 'register', 'google_oauth');
-    }
-    return {
-      success: true,
-      profile: userProfile
-    };
+    return await syncAuthUserToPublicUsers({
+      user_id: userData.id,
+      email: userData.email,
+      name: [userData.first_name, userData.last_name].filter(Boolean).join(' ').trim(),
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      avatar_url: userData.avatar_url ?? null,
+      role: userData.role || 'adult',
+      auth_provider: 'google',
+      google_id: userData.google_id ?? null
+    });
   } catch (error) {
     console.error('Error registering user:', error);
     return {

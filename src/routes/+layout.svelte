@@ -67,6 +67,7 @@
       user: null,
       first_name: null,
       last_name: null,
+      avatar_url: null,
       loading: false
     }));
     goto('/login', { replaceState: true });

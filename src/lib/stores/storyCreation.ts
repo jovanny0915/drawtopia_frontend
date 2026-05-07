@@ -21,6 +21,7 @@ export interface StoryCreationState {
   originalImageUrl?: string;
   enhancedImages?: string[];
   storyTitle?: string;
+  learningTheme?: string;
   templateId?: string;
   coverDesign?: string;
   storyCover?: string;
@@ -112,6 +113,7 @@ const createStoryCreationStore = () => {
         const selectedFormat = sessionStorage.getItem('selectedFormat');
         const storyWorld = sessionStorage.getItem('selectedWorld');
         const themeName = sessionStorage.getItem('storyTheme');
+        const learningTheme = sessionStorage.getItem('selectedStoryThemeName');
         const templateId = sessionStorage.getItem('bookTemplateId');
         const originalImageUrl = sessionStorage.getItem('characterImageUrl')
           || sessionStorage.getItem('selectedCharacterEnhancedImage');
@@ -135,6 +137,7 @@ const createStoryCreationStore = () => {
           selectedFormat: selectedFormat as any || undefined,
           storyWorld: storyWorld as any || undefined,
           themeName: themeName as any || undefined,
+          learningTheme: learningTheme || undefined,
           templateId: templateId || undefined,
           originalImageUrl: originalImageUrl || undefined,
           enhancedImages: enhancedImages.length > 0 ? enhancedImages : undefined,
@@ -246,6 +249,7 @@ const createStoryCreationStore = () => {
       const originalImageUrl = (s.original_image_url ?? s.originalImageUrl ?? '').split('?')[0];
       const enhancedImages: string[] = Array.isArray(s.enhanced_images) ? s.enhanced_images.map((u: string) => (u || '').split('?')[0]) : (s.enhancedImages ?? []);
       const storyTitle = s.story_title ?? s.storyTitle ?? '';
+      const learningTheme = s.learning_theme ?? s.learningTheme ?? '';
       const templateId = s.template_id ?? s.templateId ?? '';
       const coverDesign = s.cover_design ?? s.coverDesign ?? '';
       const storyCover = (s.story_cover ?? s.storyCover ?? '').split('?')[0];
@@ -267,6 +271,9 @@ const createStoryCreationStore = () => {
       persistEnhancedCharacterImages(enhancedImages, characterStyle);
       sessionStorage.setItem('selectedCharacterEnhancedImage', enhancedImages[0] || originalImageUrl);
       sessionStorage.setItem('storyTitle', storyTitle);
+      if (learningTheme) {
+        sessionStorage.setItem('selectedStoryThemeName', learningTheme);
+      }
       sessionStorage.setItem('coverDesign', coverDesign);
       if (storyCover) {
         sessionStorage.setItem('storyCover', storyCover);
@@ -289,6 +296,7 @@ const createStoryCreationStore = () => {
         originalImageUrl: originalImageUrl || undefined,
         enhancedImages: enhancedImages.length > 0 ? enhancedImages : undefined,
         storyTitle: storyTitle || undefined,
+        learningTheme: learningTheme || undefined,
         coverDesign: coverDesign || undefined,
         storyCover: storyCover || undefined,
         selectedFormat,
@@ -337,6 +345,7 @@ const createStoryCreationStore = () => {
         original_image_url: state.originalImageUrl,
         enhanced_images: state.enhancedImages || collectEnhancedCharacterImages(state.characterStyle),
         story_title: state.storyTitle,
+        learning_theme: state.learningTheme || (browser ? sessionStorage.getItem('selectedStoryThemeName') || undefined : undefined),
         template_id: resolvedTemplateId,
         cover_design: state.coverDesign,
         story_cover: state.storyCover,

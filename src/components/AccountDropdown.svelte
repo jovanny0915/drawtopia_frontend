@@ -57,6 +57,17 @@
     return authState.user?.email?.split("@")[0] || userName;
   }
 
+  function getDisplayAvatar(authState = get(auth), profile?: UserProfile | null): string {
+    const metadata = authState.user?.user_metadata;
+    return (
+      profile?.avatar_url ||
+      authState.avatar_url ||
+      metadata?.avatar_url ||
+      metadata?.picture ||
+      avatarUrl
+    );
+  }
+
   function getAuthInfo() {
     if (!browser) return;
     
@@ -64,6 +75,7 @@
     if (authState.user) {
       realUserEmail = authState.user.email || "";
       realUserName = getDisplayName(authState);
+      realAvatarUrl = getDisplayAvatar(authState);
     }
   }
   
@@ -117,14 +129,7 @@
           
           if (profile) {
             realUserPlan = formatSubscriptionStatus(profile.subscription_status);
-            
-            if (authState.user.user_metadata?.avatar_url) {
-              realAvatarUrl = authState.user.user_metadata.avatar_url;
-            } else if (authState.user.user_metadata?.picture) {
-              realAvatarUrl = authState.user.user_metadata.picture;
-            } else {
-              realAvatarUrl = avatarUrl;
-            }
+            realAvatarUrl = getDisplayAvatar(authState, profile);
           }
         }
       } catch (error) {

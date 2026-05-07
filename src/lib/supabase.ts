@@ -29,6 +29,7 @@ function createAuthStorage(): Storage | undefined {
             if (prevUserId && prevUserId === nextUserId) {
               if (prev.first_name !== undefined) next.first_name = prev.first_name;
               if (prev.last_name !== undefined) next.last_name = prev.last_name;
+              if (prev.avatar_url !== undefined) next.avatar_url = prev.avatar_url;
             }
             value = JSON.stringify(next);
           }
@@ -64,6 +65,7 @@ export interface UserProfile {
   google_id?: string;
   first_name?: string;
   last_name?: string;
+  avatar_url?: string | null;
   full_name?: string;
   role?: string;
   subscription_status?: string;

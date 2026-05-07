@@ -8,6 +8,7 @@ export default defineConfig({
 		noExternal: ['@supabase/supabase-js']
 	},
 	server: {
+		hmr: false,
 		allowedHosts: [
 			'frostily-untamable-wanita.ngrok-free.dev',
 			'.ngrok-free.dev',

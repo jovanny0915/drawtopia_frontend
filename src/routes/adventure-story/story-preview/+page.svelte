@@ -60,6 +60,9 @@
         const characterId = characterIdStr ? parseInt(characterIdStr, 10) : undefined;
         const storyTitle = state.storyTitle || (browser && sessionStorage.getItem("storyTitle")) || undefined;
         const storyCover = state.storyCover || (browser && (sessionStorage.getItem("storyCover") || sessionStorage.getItem("selectedImage_step6"))) || undefined;
+        const learningTheme = browser
+            ? (sessionStorage.getItem("selectedStoryThemeName")?.trim() || getThemeDisplayName(sessionStorage.getItem("storyTheme")) || undefined)
+            : undefined;
         const API_BASE = (env.API_BASE_URL || "").replace(/\/api\/?$/, "") || "https://image-edit-five.vercel.app";
         const currentStoryId = state.storyId || (browser ? sessionStorage.getItem("currentStoryId") : null);
         const body = {
@@ -76,6 +79,7 @@
             original_image_url: originalImageUrl.split("?")[0],
             enhanced_images: enhancedImages,
             story_title: storyTitle,
+            learning_theme: learningTheme,
             story_cover: storyCover ? storyCover.split("?")[0] : undefined,
             cover_design: state.coverDesign || undefined,
             story_type: state.selectedFormat || "story",

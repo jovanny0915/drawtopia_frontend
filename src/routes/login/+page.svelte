@@ -27,11 +27,13 @@
     }
     const unsubscribe = isAuthenticated.subscribe(authenticated => {
       if (authenticated) {
+        const redirectPath = sessionStorage.getItem("redirectAfterLogin") || "/dashboard";
+        sessionStorage.removeItem("redirectAfterLogin");
         addNotification({
           type: 'info',
           message: 'You are already signed in!'
         });
-        goto("/dashboard");
+        goto(redirectPath);
       }
     });
     

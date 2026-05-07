@@ -15,7 +15,7 @@ export interface Character {
   character_style: '3d' | 'cartoon' | 'anime';
   
   original_image_url: string;
-  enhanced_images?: string;
+  enhanced_images?: string[];
   thumbnail_url?: string;
   
   age_group?: '3-6' | '7-10' | '11-12';
@@ -66,7 +66,7 @@ export async function createCharacter(character: Character): Promise<DatabaseRes
         special_ability: character.special_ability,
         character_style: character.character_style,
         original_image_url: character.original_image_url,
-        enhanced_images: character.enhanced_images || '',
+        enhanced_images: character.enhanced_images || [],
         description: character.description,
       }])
       .select('*')

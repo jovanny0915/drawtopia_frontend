@@ -70,6 +70,12 @@
             } else {
                 userName = authState.user.email?.split('@')[0] || "Account";
             }
+
+            const authAvatar = authState.avatar_url || authState.user.user_metadata?.avatar_url || authState.user.user_metadata?.picture;
+            if (authAvatar) {
+                userAvatarUrl = authAvatar;
+                userProfilePicture = authAvatar;
+            }
         }
     }
 
@@ -92,12 +98,10 @@
                             userName = profileName;
                         }
 
-                        if (authState.user.user_metadata?.avatar_url) {
-                            userAvatarUrl = authState.user.user_metadata.avatar_url;
-                            userProfilePicture = authState.user.user_metadata.avatar_url;
-                        } else if (authState.user.user_metadata?.picture) {
-                            userAvatarUrl = authState.user.user_metadata.picture;
-                            userProfilePicture = authState.user.user_metadata.picture;
+                        const profileAvatar = profile.avatar_url || authState.avatar_url || authState.user.user_metadata?.avatar_url || authState.user.user_metadata?.picture;
+                        if (profileAvatar) {
+                            userAvatarUrl = profileAvatar;
+                            userProfilePicture = profileAvatar;
                         } else {
                             userAvatarUrl = "https://placehold.co/40x40";
                             userProfilePicture = "https://placehold.co/120x120";

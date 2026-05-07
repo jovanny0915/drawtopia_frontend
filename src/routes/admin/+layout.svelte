@@ -13,6 +13,8 @@
   let sidebarOpen = true;
   let hasStartedAdminCheck = false;
   let isLoggingOut = false;
+  const ADMIN_ROLE_RETRY_COUNT = 5;
+  const ADMIN_ROLE_RETRY_DELAY_MS = 300;
 
   onMount(() => {
     const checkAuth = setInterval(() => {
@@ -41,19 +43,52 @@
     };
   });
 
+  function wait(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function fetchUserRole(userId: string): Promise<{ role: string | null; error: unknown }> {
+    for (let attempt = 0; attempt < ADMIN_ROLE_RETRY_COUNT; attempt++) {
+      const { data, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn(`Admin role lookup failed (attempt ${attempt + 1}/${ADMIN_ROLE_RETRY_COUNT}):`, error.message);
+      } else if (data) {
+        return { role: (data.role ?? null) as string | null, error: null };
+      } else {
+        return { role: null, error: null };
+      }
+
+      if (attempt < ADMIN_ROLE_RETRY_COUNT - 1) {
+        await wait(ADMIN_ROLE_RETRY_DELAY_MS);
+      } else if (error) {
+        return { role: null, error };
+      }
+    }
+    return { role: null, error: null };
+  }
+
   async function verifyAdmin() {
     if (!$isAuthenticated || !$user) {
       console.log('Not authenticated, redirecting to login');
+      sessionStorage.setItem('redirectAfterLogin', $page.url.pathname + $page.url.search);
       goto('/login');
       return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', $user.id)
-        .single();
+      const userEmail = $user.email?.trim();
+      if (!userEmail) {
+        console.log('Authenticated user has no email, redirecting to dashboard');
+        goto('/dashboard');
+        return;
+      }
+
+      const { role, error } = await fetchUserRole($user.id);
 
       if (error) {
         console.error('Error fetching user role:', error);
@@ -61,13 +96,17 @@
         return;
       }
 
-      if (data?.role !== 'admin') {
-        console.log('User is not admin, redirecting to dashboard');
+      if (role !== 'admin') {
+        console.log('User is not admin in public.users, redirecting to dashboard', {
+          userId: $user.id,
+          email: userEmail,
+          role
+        });
         goto('/dashboard');
         return;
       }
 
-      userRole = data.role;
+      userRole = role;
       loading = false;
     } catch (err) {
       console.error('Error in admin verification:', err);

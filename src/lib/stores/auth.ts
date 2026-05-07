@@ -1,11 +1,11 @@
 
 import { writable, derived, get } from 'svelte/store';
 import { supabase, AUTH_STORAGE_KEY } from '../supabase';
-import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory, fetchPhoneSessionUser, clearPhoneSession, PHONE_TOKEN_STORAGE_KEY, signOut, clearLocalAuthState, SIGN_OUT_EVENT_STORAGE_KEY } from '../auth';
+import { registerUser, registerGoogleOAuthUser, updateUserLastLogin, logUserLoginHistory, fetchPhoneSessionUser, clearPhoneSession, PHONE_TOKEN_STORAGE_KEY, signOut, clearLocalAuthState, SIGN_OUT_EVENT_STORAGE_KEY, getAuthUserAvatarUrl } from '../auth';
 import type { PhoneSession } from '../auth';
 import type { User, Session } from '@supabase/supabase-js';
 
-export type UserWithProfile = User & { first_name?: string | null; last_name?: string | null };
+export type UserWithProfile = User & { first_name?: string | null; last_name?: string | null; avatar_url?: string | null };
 
 export type AppSession = Session | PhoneSession | null;
 
@@ -15,6 +15,7 @@ interface AuthState {
   loading: boolean;
   first_name: string | null;
   last_name: string | null;
+  avatar_url: string | null;
 }
 
 const initialState: AuthState = {
@@ -22,7 +23,8 @@ const initialState: AuthState = {
   session: null,
   loading: true,
   first_name: null,
-  last_name: null
+  last_name: null,
+  avatar_url: null
 };
 
 const SESSION_STARTED_AT_KEY = 'drawtopia_session_started_at';
@@ -79,14 +81,14 @@ async function enforceHardSessionTimeout(session: AppSession): Promise<boolean> 
 async function syncUserProfileToAuth(session: Session | null): Promise<void> {
   if (typeof window === 'undefined' || !session?.user?.id) {
     if (!session) {
-      auth.update(s => ({ ...s, first_name: null, last_name: null }));
+      auth.update(s => ({ ...s, first_name: null, last_name: null, avatar_url: null }));
     }
     return;
   }
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('first_name, last_name')
+      .select('first_name, last_name, avatar_url')
       .eq('id', session.user.id)
       .maybeSingle();
 
@@ -95,11 +97,12 @@ async function syncUserProfileToAuth(session: Session | null): Promise<void> {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as { first_name?: string; last_name?: string };
+          const parsed = JSON.parse(raw) as { first_name?: string; last_name?: string; avatar_url?: string };
           auth.update(s => ({
             ...s,
             first_name: parsed.first_name ?? null,
-            last_name: parsed.last_name ?? null
+            last_name: parsed.last_name ?? null,
+            avatar_url: parsed.avatar_url ?? getAuthUserAvatarUrl(session.user)
           }));
         }
       } catch (_) {}
@@ -108,13 +111,15 @@ async function syncUserProfileToAuth(session: Session | null): Promise<void> {
 
     const first_name = data?.first_name ?? null;
     const last_name = data?.last_name ?? null;
-    auth.update(s => ({ ...s, first_name, last_name }));
+    const avatar_url = data?.avatar_url ?? getAuthUserAvatarUrl(session.user);
+    auth.update(s => ({ ...s, first_name, last_name, avatar_url }));
     try {
       const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       if (raw) {
         const stored = JSON.parse(raw) as Record<string, unknown>;
         stored.first_name = first_name;
         stored.last_name = last_name;
+        stored.avatar_url = avatar_url;
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stored));
       }
     } catch (e) {
@@ -126,6 +131,59 @@ async function syncUserProfileToAuth(session: Session | null): Promise<void> {
 }
 
 export const auth = writable<AuthState>(initialState);
+
+function isGoogleAuthUser(user: User | null | undefined): boolean {
+  return !!(
+    user &&
+    (user.app_metadata?.provider === 'google' ||
+      user.identities?.some(identity => identity.provider === 'google'))
+  );
+}
+
+async function ensureGoogleOAuthUserProfile(user: User, usePendingSignupData: boolean): Promise<boolean> {
+  if (!isGoogleAuthUser(user)) return false;
+
+  try {
+    const pendingSignupData = usePendingSignupData ? sessionStorage.getItem('pendingGoogleSignup') : null;
+    let result;
+
+    if (pendingSignupData) {
+      const formData = JSON.parse(pendingSignupData);
+      const now = new Date().toISOString();
+      const userData = {
+        id: user.id,
+        email: user.email?.toLowerCase().trim() || '',
+        first_name: formData.firstName?.trim() || '',
+        last_name: formData.lastName?.trim() || '',
+        avatar_url: getAuthUserAvatarUrl(user),
+        role: formData.accountType || 'adult',
+        google_id: user.user_metadata?.provider_id || user.identities?.find(identity => identity.provider === 'google')?.id || user.id,
+        created_at: now,
+        updated_at: now
+      };
+
+      console.log('Registering user with signup form data:', userData);
+      result = await registerUser(userData);
+      if (result.success) {
+        sessionStorage.removeItem('pendingGoogleSignup');
+      }
+    } else {
+      console.log('Ensuring Google OAuth user exists in database');
+      result = await registerGoogleOAuthUser(user);
+    }
+
+    if (result.success) {
+      console.log('Google OAuth user profile is synced');
+      return true;
+    }
+
+    console.error('Failed to sync Google OAuth user:', result.error);
+  } catch (error) {
+    console.error('Error during Google OAuth user registration:', error);
+  }
+
+  return false;
+}
 
 export function initAuth() {
   console.log("initAuth");
@@ -190,12 +248,9 @@ export function initAuth() {
     }
     
     if (session?.user) {
-      const isGoogleProvider = 
-        session.user.app_metadata?.provider === 'google' ||
-        session.user.identities?.some(identity => identity.provider === 'google');
-      
-      if (isGoogleProvider) {
+      if (isGoogleAuthUser(session.user)) {
         console.log('Google OAuth user found in initial session check');
+        await ensureGoogleOAuthUserProfile(session.user, true);
       }
     }
     
@@ -207,7 +262,10 @@ export function initAuth() {
           ...state,
           session: null,
           user: null,
-          loading: false
+          loading: false,
+          first_name: null,
+          last_name: null,
+          avatar_url: null
         }));
         return;
       }
@@ -225,18 +283,19 @@ export function initAuth() {
         try {
           const raw = localStorage.getItem(AUTH_STORAGE_KEY);
           if (raw) {
-            const parsed = JSON.parse(raw) as { first_name?: string; last_name?: string };
+            const parsed = JSON.parse(raw) as { first_name?: string; last_name?: string; avatar_url?: string };
             auth.update(s => ({
               ...s,
               first_name: parsed.first_name ?? null,
-              last_name: parsed.last_name ?? null
+              last_name: parsed.last_name ?? null,
+              avatar_url: parsed.avatar_url ?? getAuthUserAvatarUrl(session.user)
             }));
           }
         } catch (_) {}
       }
       syncUserProfileToAuth(session as Session);
     } else {
-      auth.update(s => ({ ...s, first_name: null, last_name: null }));
+      auth.update(s => ({ ...s, first_name: null, last_name: null, avatar_url: null }));
     }
 
     if (!session && typeof window !== 'undefined') {
@@ -257,7 +316,8 @@ export function initAuth() {
                 user: result.user ?? null,
                 loading: false,
                 first_name: u?.first_name ?? null,
-                last_name: u?.last_name ?? null
+                last_name: u?.last_name ?? null,
+                avatar_url: u?.avatar_url ?? null
               }));
             }).catch(() => {
               clearPhoneSession();
@@ -273,7 +333,8 @@ export function initAuth() {
               user: null,
               loading: false,
               first_name: null,
-              last_name: null
+              last_name: null,
+              avatar_url: null
             }));
           }
         }).catch(() => {
@@ -299,6 +360,7 @@ export function initAuth() {
       user: null,
       first_name: null,
       last_name: null,
+      avatar_url: null,
       loading: false
     }));
   };
@@ -333,10 +395,16 @@ export function initAuth() {
             user: null,
             loading: false,
             first_name: null,
-            last_name: null
+            last_name: null,
+            avatar_url: null
           }));
           return;
         }
+      }
+
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user && isGoogleAuthUser(session.user)) {
+        console.log('Google OAuth user detected, syncing database profile...');
+        await ensureGoogleOAuthUserProfile(session.user, event === 'SIGNED_IN');
       }
       
       auth.update(state => ({
@@ -349,7 +417,7 @@ export function initAuth() {
       if (session) {
         syncUserProfileToAuth(session);
       } else {
-        auth.update(s => ({ ...s, first_name: null, last_name: null }));
+        auth.update(s => ({ ...s, first_name: null, last_name: null, avatar_url: null }));
       }
       
       if (event === 'SIGNED_IN' && session?.user?.id) {
@@ -357,68 +425,10 @@ export function initAuth() {
           console.warn('Failed to update last_login:', err)
         );
 
-        const isGoogleProvider =
-          session.user.app_metadata?.provider === 'google' ||
-          session.user.identities?.some(identity => identity.provider === 'google');
-
-        if (isGoogleProvider) {
+        if (isGoogleAuthUser(session.user)) {
           logUserLoginHistory(session.user.id, 'google_oauth').catch((err) =>
             console.warn('Failed to log Google login history:', err)
           );
-        }
-      }
-
-      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
-        const user = session.user;
-        const isGoogleProvider = 
-          user.app_metadata?.provider === 'google' ||
-          user.identities?.some(identity => identity.provider === 'google');
-        
-        if (isGoogleProvider && event === 'SIGNED_IN') {
-          console.log('Google OAuth user detected, registering to database...');
-          console.log('User metadata:', {
-            app_metadata: user.app_metadata,
-            user_metadata: user.user_metadata,
-            identities: user.identities
-          });
-          
-          try {
-            const pendingSignupData = sessionStorage.getItem('pendingGoogleSignup');
-            let result;
-
-            if (pendingSignupData) {
-              const formData = JSON.parse(pendingSignupData);
-              const userData = {
-                id: user.id,
-                email: user.email?.toLowerCase().trim(),
-                first_name: formData.firstName?.trim(),
-                last_name: formData.lastName?.trim(),
-                avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
-                role: formData.accountType,
-                google_id: user.user_metadata?.provider_id || user.id,
-                created_at: new Date(),
-                updated_at: new Date()
-              };
-              
-              sessionStorage.removeItem('pendingGoogleSignup');
-              
-              console.log('Registering user with signup form data:', userData);
-              result = await registerUser(userData);
-            } else {
-              console.log('No pending signup data found - registering with Google OAuth data');
-              result = await registerGoogleOAuthUser(user);
-            }
-
-            console.log('User registration result:', result);
-            
-            if (result.success) {
-              console.log('Google OAuth user successfully registered to database');
-            } else {
-              console.error('Failed to register Google OAuth user:', result.error);
-            }
-          } catch (error) {
-            console.error('Error during Google OAuth user registration:', error);
-          }
         }
       }
     }
@@ -458,7 +468,8 @@ export const user = derived(auth, ($auth): UserWithProfile | null => {
   return {
     ...$auth.user,
     first_name: $auth.first_name ?? undefined,
-    last_name: $auth.last_name ?? undefined
+    last_name: $auth.last_name ?? undefined,
+    avatar_url: $auth.avatar_url ?? getAuthUserAvatarUrl($auth.user)
   };
 });
 export const session = writable<AppSession>(null);

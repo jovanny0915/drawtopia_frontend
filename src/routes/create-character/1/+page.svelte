@@ -505,7 +505,7 @@
         special_ability: specialAbilityValue || undefined,
         character_style: selectedCharacterStyle as '3d' | 'cartoon' | 'anime',
         original_image_url: uploadedImageUrl,
-        enhanced_images: ''
+        enhanced_images: []
       };
 
       if (characterId) {

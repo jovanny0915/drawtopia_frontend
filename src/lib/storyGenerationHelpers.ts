@@ -159,6 +159,11 @@ function shouldApplyTemplateOutfitPrompt(characterType: string): boolean {
   return t === 'person' || t === 'a person' || t === 'character';
 }
 
+function getPersonTemplateOutfitPrompt(): string {
+  const prompt = getPromptImageData().personTemplateOutfitPrompt;
+  return typeof prompt === 'string' ? prompt.trim() : '';
+}
+
 function normalizeCharacterGenderForPrompts(gender?: string): CharacterGenderKey {
   const normalized = (gender || '').toLowerCase().trim();
   if (normalized === 'male' || normalized === 'boy' || normalized === 'man') return 'male';
@@ -235,6 +240,61 @@ function resolveTemplateAllyPrompt(
   return prompt;
 }
 
+function getInteractiveCharacterReplacementPrompt(): string {
+  const prompt = getPromptImageData().interactiveCharacterReplacementPrompt;
+  return typeof prompt === 'string' ? prompt.trim() : '';
+}
+
+function buildAdventureStorySceneImagePrompt(
+  pageNumber: number,
+  worldPrompts: WorldStoryPagePrompts,
+  options: { characterType: string; characterGender?: string }
+): string {
+  const sections: string[] = [];
+
+  if (shouldApplyTemplateOutfitPrompt(options.characterType)) {
+    const outfitPrompt = getPersonTemplateOutfitPrompt();
+    if (outfitPrompt) {
+      sections.push(outfitPrompt);
+    }
+    sections.push(getPersonGenderAppearancePrompt(options.characterGender));
+  }
+
+  if (worldPrompts.tempMainStoryPagePrompt?.trim()) {
+    sections.push(normalizeTemplateCharacterLanguage(worldPrompts.tempMainStoryPagePrompt));
+  }
+
+  const pageAllyPrompt = worldPrompts.pageAllyCharacterPrompts?.[String(pageNumber)];
+  if (pageAllyPrompt?.trim()) {
+    sections.push(normalizeTemplateCharacterLanguage(pageAllyPrompt));
+  }
+
+  return sections.join('\n\n');
+}
+
+function buildInteractiveStorySceneImagePrompt(
+  pageNumber: number,
+  worldPrompts: WorldStoryPagePrompts
+): string {
+  const sections: string[] = [];
+
+  const characterReplacementPrompt = getInteractiveCharacterReplacementPrompt();
+  if (characterReplacementPrompt) {
+    sections.push(characterReplacementPrompt);
+  }
+
+  if (worldPrompts.tempMainStoryPagePrompt?.trim()) {
+    sections.push(normalizeTemplateCharacterLanguage(worldPrompts.tempMainStoryPagePrompt));
+  }
+
+  const pageMainPrompt = worldPrompts.pageMainCharacterPoseActionEmotionPrompts?.[String(pageNumber)];
+  if (pageMainPrompt?.trim()) {
+    sections.push(normalizeTemplateCharacterLanguage(pageMainPrompt));
+  }
+
+  return sections.join('\n\n');
+}
+
 export function buildStoryPagePrompt(
   pageNumber: number,
   storyText: string,
@@ -253,6 +313,8 @@ export function buildStoryPagePrompt(
     characterImageUrl: string;
     storyFormat?: string;
     characterGender?: string;
+    includeStoryTextInPrompt?: boolean;
+    promptComposition?: 'default' | 'templateSceneOnly';
   }
 ): string {
   const isInteractiveFormat = normalizeStoryFormatForPrompts(options.storyFormat) === 'interactive_story';
@@ -266,8 +328,20 @@ export function buildStoryPagePrompt(
   const allyReplacementPrompt = !isInteractiveFormat && worldPrompts.tempMainStoryPageAllyCharacterPrompt
     ? resolveTemplateAllyPrompt(worldPrompts.tempMainStoryPageAllyCharacterPrompt, options.storyWorld, allyName)
     : null;
+
+  if (options.promptComposition === 'templateSceneOnly') {
+    if (isInteractiveFormat) {
+      return buildInteractiveStorySceneImagePrompt(pageNumber, worldPrompts);
+    }
+    return buildAdventureStorySceneImagePrompt(pageNumber, worldPrompts, {
+      characterType: options.characterType,
+      characterGender: options.characterGender
+    });
+  }
+
   const rulesTemplate = getPromptImageData().storyPageRulesPrompt;
-  const rulesPrompt = typeof rulesTemplate === 'string' && rulesTemplate.trim().length > 0
+  const shouldIncludeStoryRules = options.includeStoryTextInPrompt !== false;
+  const rulesPrompt = shouldIncludeStoryRules && typeof rulesTemplate === 'string' && rulesTemplate.trim().length > 0
     ? renderCurlyTemplate(rulesTemplate, {
       story_text: storyText,
       character_action: characterAction,

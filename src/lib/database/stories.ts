@@ -18,6 +18,7 @@ export interface Story {
   original_image_url: string;
   enhanced_images?: string[];
   story_title?: string;
+  learning_theme?: string;
   template_id?: string;
   story_cover?: string;
   cover_design?: string;
@@ -76,6 +77,7 @@ function buildStoryRowPayload(story: Story, uid: string, storyContentValue: stri
     original_image_url: story.original_image_url,
     enhanced_images: story.enhanced_images || [],
     story_title: story.story_title,
+    learning_theme: story.learning_theme || null,
     template_id: story.template_id || null,
     story_cover: story.story_cover,
     cover_design: story.cover_design,
@@ -118,6 +120,7 @@ export async function createStory(story: Story): Promise<DatabaseResult> {
       if (existingRow) {
         const preserved = {
           template_id: hasValue(story.template_id) ? story.template_id : (existingRow.template_id ?? null),
+          learning_theme: hasValue(story.learning_theme) ? story.learning_theme : (existingRow.learning_theme ?? null),
           dedication_text: hasValue(story.dedication_text) ? story.dedication_text : (existingRow.dedication_text ?? null),
           dedication_image: hasValue(story.dedication_image) ? story.dedication_image : (existingRow.dedication_image ?? null),
           copyright_image: hasValue(story.copyright_image) ? story.copyright_image : (existingRow.copyright_image ?? null),

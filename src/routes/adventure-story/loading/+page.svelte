@@ -8,6 +8,7 @@
     import { supabase } from '../../../lib/supabase';
     import type { ChildProfile } from '../../../lib/database/childProfiles';
     import { createStory } from '../../../lib/database/stories';
+    import { createCharacter } from '../../../lib/database/characters';
     import { updateGift } from '../../../lib/database/gifts';
     import { user, session } from '../../../lib/stores/auth';
     import { sendBookCompletionEmail } from '../../../lib/emails';
@@ -94,6 +95,83 @@
             'magical_creature': 'a magical creature'
         };
         return typeMap[type.toLowerCase()] || 'a person';
+    }
+
+    function normalizeCharacterTypeForDb(type: string | undefined): 'person' | 'animal' | 'magical_creature' {
+        const normalized = (type || '').toLowerCase().trim();
+        if (normalized === 'animal') return 'animal';
+        if (['magical', 'magical-creature', 'magical_creature'].includes(normalized)) return 'magical_creature';
+        return 'person';
+    }
+
+    function normalizeCharacterStyleForDb(style: string | undefined): '3d' | 'cartoon' | 'anime' {
+        const normalized = (style || '').toLowerCase().trim();
+        if (normalized === '3d' || normalized === 'anime') return normalized;
+        return 'cartoon';
+    }
+
+    async function ensureCharacterStored(params: {
+        storyState: any;
+        characterName: string;
+        characterType: string;
+        specialAbility?: string;
+        characterStyle: string;
+        originalImageUrl: string;
+        enhancedImages: string[];
+    }): Promise<number> {
+        const existingCharacterId = params.storyState.characterId ||
+            (browser ? Number(sessionStorage.getItem('characterId')) : NaN);
+
+        if (!$user?.id) {
+            throw new Error('Cannot create character: user is not signed in');
+        }
+
+        const childProfileId = Number(params.storyState.selectedChildProfileId);
+        if (!Number.isFinite(childProfileId)) {
+            throw new Error('Cannot create character: child profile is missing');
+        }
+
+        const cleanOriginalImageUrl = params.originalImageUrl.split('?')[0];
+
+        if (Number.isFinite(existingCharacterId) && existingCharacterId > 0) {
+            const { data: existingCharacter, error } = await supabase
+                .from('characters')
+                .select('id,user_id,child_profile_id,character_name,original_image_url')
+                .eq('id', existingCharacterId)
+                .maybeSingle();
+
+            if (!error && existingCharacter &&
+                existingCharacter.user_id === $user.id &&
+                Number(existingCharacter.child_profile_id) === childProfileId &&
+                existingCharacter.character_name === params.characterName &&
+                (existingCharacter.original_image_url || '').split('?')[0] === cleanOriginalImageUrl
+            ) {
+                return Number(existingCharacter.id);
+            }
+        }
+
+        const createResult = await createCharacter({
+            user_id: $user.id,
+            child_profile_id: childProfileId,
+            character_name: params.characterName,
+            character_type: normalizeCharacterTypeForDb(params.characterType),
+            special_ability: params.specialAbility || '',
+            character_style: normalizeCharacterStyleForDb(params.characterStyle),
+            original_image_url: cleanOriginalImageUrl,
+            enhanced_images: params.enhancedImages
+        });
+
+        if (!createResult.success || !createResult.data?.id) {
+            throw new Error(createResult.error || 'Failed to create character');
+        }
+
+        const characterId = Number(createResult.data.id);
+        if (browser) {
+            sessionStorage.setItem('characterId', String(characterId));
+        }
+        storyCreation.update(state => ({ ...state, characterId }));
+        console.log('Character saved to characters table:', createResult.data);
+        return characterId;
     }
 
     function mapStoryWorld(world: string | undefined): string {
@@ -546,11 +624,32 @@
                         const mainCharacterImageIndex = i % Math.max(1, bookTemplate.main_character_images?.length || 1);
                         const mainCharacterImage = bookTemplate.main_character_images?.[mainCharacterImageIndex] || characterImageUrl;
                         const promptImageData = getPromptImageData();
-                        const characterReplacementPrompt = promptImageData.interactiveCharacterReplacementPrompt;
+                        const storyPagePrompt = buildStoryPagePrompt(
+                            pageNumber,
+                            '',
+                            sceneInfo.characterAction,
+                            sceneInfo.sceneDescription,
+                            {
+                                characterName,
+                                characterType: mapCharacterType(characterType),
+                                specialAbility: specialAbility || '',
+                                characterStyle: (characterStyle as '3d' | 'cartoon' | 'anime') || 'cartoon',
+                                storyWorld: storyWorldKey,
+                                adventureType,
+                                ageGroup,
+                                storyTheme,
+                                storyTitle: storyTitle || `${characterName}'s Search Adventure`,
+                                characterImageUrl: characterImageUrl,
+                                storyFormat: 'interactive',
+                                characterGender,
+                                includeStoryTextInPrompt: false,
+                                promptComposition: 'templateSceneOnly'
+                            }
+                        );
 
-                        let genResult = await generateImageWithTwoTemplates(mainCharacterImage, characterImageUrl, characterReplacementPrompt);
+                        let genResult = await generateImageWithTwoTemplates(mainCharacterImage, characterImageUrl, storyPagePrompt);
                         if (!(genResult.success && genResult.url)) {
-                            genResult = await generateImageWithTwoTemplates(mainCharacterImage, characterImageUrl, characterReplacementPrompt);
+                            genResult = await generateImageWithTwoTemplates(mainCharacterImage, characterImageUrl, storyPagePrompt);
                         }
 
                         if (genResult.success && genResult.url) {
@@ -605,7 +704,7 @@
 
                 const storyPagePrompt = buildStoryPagePrompt(
                     pageNumber,
-                    sceneInfo.storyContext,
+                    '',
                     sceneInfo.characterAction,
                     sceneInfo.sceneDescription,
                     {
@@ -620,7 +719,9 @@
                         storyTitle: storyTitle || `${characterName}'s Search Adventure`,
                         characterImageUrl: characterImageUrl,
                         storyFormat: 'interactive',
-                        characterGender
+                        characterGender,
+                        includeStoryTextInPrompt: false,
+                        promptComposition: 'templateSceneOnly'
                     }
                 );
 
@@ -732,8 +833,15 @@
                 difficulty: difficulty
             };
             
-            const characterIdStr = browser ? sessionStorage.getItem('characterId') : null;
-            const characterId = characterIdStr ? parseInt(characterIdStr) : undefined;
+            const characterId = await ensureCharacterStored({
+                storyState,
+                characterName,
+                characterType,
+                specialAbility,
+                characterStyle,
+                originalImageUrl,
+                enhancedImages
+            });
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
             const currentStoryIdInter = browser ? sessionStorage.getItem('currentStoryId') : null;
@@ -744,6 +852,9 @@
             const lastWordImage = browser ? sessionStorage.getItem('last_word_image') : null;
             const lastAdminImage = browser ? sessionStorage.getItem('last_admin_image') : null;
             const backCoverImage = browser ? sessionStorage.getItem('back_cover_image') : null;
+            const learningTheme = browser
+                ? (sessionStorage.getItem('selectedStoryThemeName')?.trim() || getThemeDisplayName(sessionStorage.getItem('storyTheme') || undefined) || undefined)
+                : undefined;
             
             const storyData = {
                 ...(currentStoryIdInter ? { uid: currentStoryIdInter } : {}),
@@ -759,6 +870,7 @@
                 original_image_url: originalImageUrl.split('?')[0],
                 enhanced_images: enhancedImages,
                 story_title: storyTitle,
+                learning_theme: learningTheme,
                 template_id: bookTemplateId || undefined,
                 story_cover: sceneImages[0]?.split('?')[0] || undefined,
                 cover_design: undefined,
@@ -966,8 +1078,16 @@
                 }))
             };
 
-            const characterIdStr = browser ? sessionStorage.getItem('characterId') : null;
-            const characterId = characterIdStr ? parseInt(characterIdStr) : undefined;
+            const enhancedImages = storyState.enhancedImages || collectEnhancedCharacterImages(storyState.characterStyle);
+            const characterId = await ensureCharacterStored({
+                storyState,
+                characterName: storyState.characterName,
+                characterType: storyState.characterType,
+                specialAbility: storyState.specialAbility || '',
+                characterStyle: storyState.characterStyle,
+                originalImageUrl,
+                enhancedImages
+            });
 
             const dedicationText = browser ? sessionStorage.getItem('dedication_text') : null;
             const dedicationImage = browser ? sessionStorage.getItem('dedication_image') : null;
@@ -988,7 +1108,9 @@
             const giftMode = browser ? sessionStorage.getItem('gift_mode') : null;
             const isGiftStory = giftMode === 'create' || giftMode === 'generation';
             const currentStoryId = browser ? sessionStorage.getItem('currentStoryId') : null;
-            const enhancedImages = storyState.enhancedImages || collectEnhancedCharacterImages(storyState.characterStyle);
+            const learningTheme = browser
+                ? (sessionStorage.getItem('selectedStoryThemeName')?.trim() || getThemeDisplayName(sessionStorage.getItem('storyTheme') || undefined) || undefined)
+                : undefined;
             const storyData = {
                 ...(currentStoryId ? { uid: currentStoryId } : {}),
                 user_id: $user?.id,
@@ -1003,6 +1125,7 @@
                 original_image_url: originalImageUrl,
                 enhanced_images: enhancedImages,
                 story_title: storyState.storyTitle || undefined,
+                learning_theme: learningTheme,
                 cover_design: storyState.coverDesign || sessionStorage.getItem('') || undefined,
                 story_cover: storyState.storyCover || sessionStorage.getItem('selectedImage_step6') || undefined,
                 story_content: JSON.stringify(storyContent),
@@ -1245,9 +1368,9 @@
                 }
                 sceneImageProgress = ((i + 1) / totalPages) * 50;
                 try {
-                    const characterAction = generateCharacterAction(pageNumber, storyWorld, page.text);
-                    const sceneDescription = generateSceneDescription(pageNumber, storyWorld, page.text);
-                    const storyPagePrompt = buildStoryPagePrompt(pageNumber, page.text, characterAction, sceneDescription, {
+                    const characterAction = generateCharacterAction(pageNumber, storyWorld);
+                    const sceneDescription = generateSceneDescription(pageNumber, storyWorld);
+                    const storyPagePrompt = buildStoryPagePrompt(pageNumber, '', characterAction, sceneDescription, {
                         characterName,
                         characterType: mapCharacterType(characterType),
                         specialAbility: specialAbility || '',
@@ -1258,8 +1381,10 @@
                         storyTheme,
                         storyTitle: storyTitle || 'The Great Adventure',
                         characterImageUrl: cleanCharacterImageUrl,
-                        storyFormat: selectedFormat,
-                        characterGender
+                        storyFormat: 'adventure_story',
+                        characterGender,
+                        includeStoryTextInPrompt: false,
+                        promptComposition: 'templateSceneOnly'
                     });
                     let result = await generateImageWithTwoTemplates(templateSceneImage, cleanCharacterImageUrl, storyPagePrompt);
                     if (!(result.success && result.url)) {
