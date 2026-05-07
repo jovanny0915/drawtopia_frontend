@@ -1,7 +1,8 @@
 
 import { env } from '$lib/env';
 
-const API_URL = env.API_BASE_URL;
+// const API_URL = env.API_BASE_URL;
+const API_URL = 'https://image-edit-five.vercel.app';
 
 export type TemplateStoryStyle =
   | '3d'
